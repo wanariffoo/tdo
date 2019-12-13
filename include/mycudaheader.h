@@ -349,7 +349,7 @@ void divide_GPU(double *x, double *y, double *z)
 
 
 __global__
-void transformToELL_GPU(double *array, double *value, double *index, size_t max_row_size, size_t num_rows)
+void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows)
 {
 
     int id = blockDim.x * blockIdx.x + threadIdx.x;

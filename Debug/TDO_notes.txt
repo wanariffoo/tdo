@@ -4,6 +4,23 @@
     - in the first iteration, since all elemental stiffness matrices are the same, use this one single one to assemble the global grid
         - while assembly and the first iteration is done, concurrently copy the remaining element stiffness matrices, so that by the time the first iteration is done, each of these local stiffness matrices can be updated with its density variable
 
+    - assembleGrid_GPU in assemble.cu
+        - now you are doing a for loop for each thread id, meaning, one thread handles one row, which scans through the columns
+        - you wanted to try and have each thread handles ONE matrix cell, you're stuck here
+            - this is a potential optimization
+        - some refresher :
+
+            setAt( 2*node_index[i], 2*node_index[j], g_value, g_index, g_max_row_size, valueAt( 2*i, 2*j, l_value, l_index, l_max_row_size) );
+                    |
+                    -> here, i is the row of the global matrix.
+                        - in this for loop, j is increased because we're scanning along the columns. i remains static
+                
+            NOTE: the for loop runs two functions:
+
+                    setAt( 2*node_index[i], 2*node_index[j], g_value, g_index, g_max_row_size, valueAt( 2*i, 2*j, l_value, l_index, l_max_row_size) );
+                    setAt( 2*node_index[i], 2*node_index[j] + 1 , g_value, g_index, g_max_row_size, valueAt( 2*i, 2*j + 1 , l_value, l_index, l_max_row_size) );
+        - NOTE: look into running the kernels in a 2D grid
+
 
 
 

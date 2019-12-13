@@ -249,16 +249,33 @@ private:
 
 };
 
+// returns value at A(x,y)
 __device__
-double valueAt(size_t x, size_t y, double* value, size_t* index, size_t max_row_size)
+double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size)
 {
     for(size_t k = 0; k < max_row_size; ++k)
     {
-        if(index[x * max_row_size + k] == y)
-            return value[x * max_row_size + k];
+        if(vIndex[x * max_row_size + k] == y)
+            return vValue[x * max_row_size + k];
     }
 
     return 0.0;
+}
+
+// A(x,y) = value
+__device__
+void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value )
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {
+        if(vIndex[x * max_row_size + k] == y)
+        {
+            vValue[x * max_row_size + k] += value;
+            // printf("%f \n", vValue[x * max_row_size + k]);
+                k = max_row_size; // to exit for loop
+            }
+    }
+
 }
 
 
@@ -272,12 +289,54 @@ void assembleGrid_GPU(
     size_t l_max_row_size,  // local element's ELLPACK maximum row size
     size_t l_num_rows,      // local element's ELLPACK number of rows
     double* g_value,        // global element's ELLPACK value vector
-    size_t* g_index,         // global element's ELLPACK index vector
+    size_t* g_index,        // global element's ELLPACK index vector
     size_t g_max_row_size,  // global element's ELLPACK maximum row size
-    size_t g_num_rows      // global element's ELLPACK number of rows
+    size_t g_num_rows,      // global element's ELLPACK number of rows
+    size_t* node_index      // vector that contains the corresponding global indices of the node's local indices
 )        
 {
+    int id = threadIdx.x + blockIdx.x*blockDim.x;
     
+    // printf("%d \n", i/2)    ;
+    for ( int i = 0; i < 8; i++ )
+        setAt( 2*node_index[ id/2 ] + ( id % 2 ), 2*node_index[i/2] + ( i % 2 ), g_value, g_index, g_max_row_size, valueAt( 2*(id/2) + ( id % 2 ), i, l_value, l_index, l_max_row_size) );
+    
+    // if ( id == 2 )
+    // {
+    //     setAt( node_index[ 1 ], node_index[0], g_value, g_index, g_max_row_size, valueAt( 2, 0, l_value, l_index, l_max_row_size) );
+    //     // setAt( node_index[ 1 ], node_index[0] + 1, g_value, g_index, g_max_row_size, 4.0 );
+    //     setAt( node_index[ 1 ], node_index[0] + 1, g_value, g_index, g_max_row_size, valueAt( 2, 1, l_value, l_index, l_max_row_size) );
+    //     // printf("%f \n", valueAt( 1, 1, g_value, g_index, g_max_row_size) )    ;
+    // }
+
+    //     // for ( int i = 0 ; i < )
+    // }
+    
+
+    // for ( int i = 0; i < 8; i++ )
+    // {
+    //     if ( id == 1 )
+    //     setAt( node_index[ 1 ], 2*node_index[i/2] + ( i % 2 ), g_value, g_index, g_max_row_size, valueAt( 2*(id/2) + ( id % 2 ), i, l_value, l_index, l_max_row_size) );
+        
+        
+    //     // setAt( 2*node_index[ id/2 ] + ( id % 2 ), 2*node_index[i/2] + ( i % 2 ), g_value, g_index, g_max_row_size, valueAt( 2*(id/2) + ( id % 2 ), i, l_value, l_index, l_max_row_size) );
+    //     // printf("%f\n",  valueAt( 2*(id/2) + ( id % 2 ), i, l_value, l_index, l_max_row_size)   );
+        
+    // }
+    
+
+    //     //    2*node_index[0]
+    // if ( id == 1)
+    // {
+    //        setAt( 2*node_index[0], 2*node_index[0] + 1, g_value, g_index, g_max_row_size, valueAt( 2*0, 2*0 + 1, l_value, l_index, l_max_row_size) );
+    //        // printf("A(0,1) = %f\n", valueAt( 0, 1, l_value, l_index, l_max_row_size));
+    //        // printf("A(0,1) = %f\n", valueAt( 0, 1, g_value, g_index, g_max_row_size));
+    // }
+        
+    // if ( id == 7 )
+    //     setAt( 2*node_index[0] + 1, 0, g_value, g_index, g_max_row_size, valueAt( 2*0 + 1, 2*0, l_value, l_index, l_max_row_size) );
+
+
 }
 
 // void assembleGrid(size_t N, size_t dim, vector<Element> &element, vector<Node> &node, ElementGlobal &K_Global)
@@ -433,24 +492,25 @@ int main()
 
 
     // flattened global matrix
-    vector<double> K = {4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	1, 	8, 	2, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	2, 	8, 	1, 	0, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	1, 	4, 	0, 	0, 	5, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	1, 	0, 	0, 	8, 	2, 	1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	2, 	1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	1, 	0, 	2, 	12, 3, 	1, 	4, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	4, 	16, 2, 	0, 	1, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	2, 	0, 	0, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	0, 	0, 	1, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	0, 	0, 	4, 	1, 	0, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	4, 	1, 	0, 	0, 	0, \
-                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	0, 	1, 	8, 	2, 	0, 	0, \
-                        4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	1, 	0, \
-                        1, 	4, 	5, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	4, 	1, \
-                        0, 	1, 	5, 	5, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	4, };
+    vector<double> K = {4,	1,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        1,	4,	1,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	1,	8,	2,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	2,	8,	1,	0,	1,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	1,	4,	1,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	1,	4,	0,	0,	1,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	1,	0,	0,	8,	2,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	2,	8,	2,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	1,	0,	2,	16,	4,	0,	0,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	4,	16,	2,	0,	1,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	8,	2,	0,	0,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	8,	0,	0,	1,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	0,	0,	4,	1,	0,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	4,	1,	0,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	0,	1,	8,	2,	0,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	8,	1,	0, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	4,	1, \
+                        0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	4  };
+        
 
     // CUDA
 
@@ -462,7 +522,7 @@ int main()
     // device
     double* d_K             = nullptr;
     double* d_K_value       = nullptr;
-    double* d_K_index       = nullptr;
+    size_t* d_K_index       = nullptr;
     size_t* d_max_row_size  = nullptr;
     int* d_mutex            = nullptr;
 
@@ -479,17 +539,29 @@ int main()
     // calculate global matrix's max_row_size
     getMaxRowSize<<< 1 , 18 >>>(d_K, d_max_row_size, d_mutex, 18);
     CUDA_CALL( cudaMemcpy(&max_row_size, d_max_row_size, sizeof(size_t), cudaMemcpyDeviceToHost ) ); 
-
+    
+    cout << max_row_size << endl;
     // allocate device memory for global stiffness matrix's ELLPACK value and index vectors
     CUDA_CALL( cudaMalloc( (void**)&d_K_value, sizeof(double) * 18 * max_row_size )     );
-    CUDA_CALL( cudaMalloc( (void**)&d_K_index, sizeof(double) * 18 * max_row_size )     );
-
+    CUDA_CALL( cudaMalloc( (void**)&d_K_index, sizeof(size_t) * 18 * max_row_size )     );
+    
     // transform K to ELLPACK
     transformToELL_GPU<<<1, 18>>>(d_K, d_K_value, d_K_index, max_row_size, 18);
     
     
     // deallocate big K matrix, no needed now
     cudaFree( d_K );
+    
+    
+    // copy and allocate the node index of each element
+    
+    vector<size_t*> d_node_index(numElements);
+    
+    for ( int i = 0 ; i < numElements ; i++ )
+    {
+        CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * 4 )     );
+        CUDA_CALL( cudaMemcpy( d_node_index[i], element[i].getNodeGlobalIndex() , sizeof(size_t) * 4 , cudaMemcpyHostToDevice ) ); 
+    }
 
 
     // obtain k elements' value and index vectors
@@ -522,11 +594,17 @@ int main()
     CUDA_CALL( cudaMemcpy( d_KG_index, global.getIndexAddress() , sizeof(size_t) * 72 , cudaMemcpyHostToDevice ) ); 
     
 
-    // element 0's node arrangements    // TODO: should take something like element[0].nodes(), and return the address
-    
-    
-    assembleGrid_GPU<<<1, 72 >>>( 2, 2, d_ke_value[0], d_ke_index[0], element[0].max_row_size(), element[0].num_rows(), d_KG_value, d_KG_index, global.max_row_size(), global.num_rows() );
-    
+    // add local stiffness matrices into the global
+
+    for ( int i = 0 ; i < numElements ; i++ )
+    {
+        assembleGrid_GPU<<<1, 8>>>( 2, 2, d_ke_value[i], d_ke_index[i], element[i].max_row_size(), element[i].num_rows(), d_KG_value, d_K_index, global.max_row_size(), global.num_rows(), d_node_index[i] );
+        cudaDeviceSynchronize();
+    }
+
+
+    printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
+    // printVector_GPU<<<1,72>>> ( d_K_index, 72 );
     cudaDeviceSynchronize();
 
 }
