@@ -165,25 +165,21 @@ private:
 class Element
 {
 public:
-    Element(int ind)    // TODO: change int -> size_t
+    
+    // global 
+    Element()
+    {
+        m_vValue.resize(72);
+        m_vIndex.resize(72);
+
+        m_max_row_size = 4;
+        m_num_rows = 18;
+    }
+    
+    // local element
+    Element(size_t ind) : m_index(ind)  // TODO: change int -> size_t
     {   
-        m_index = ind; 
-    
-        // DEBUG: testing for N = 2
 
-        // DEBUG: global element
-        if ( ind == -1 )
-        {
-            m_vValue.resize(72);
-            m_vIndex.resize(72);
-    
-            m_max_row_size = 4;
-            m_num_rows = 18;
-        }
-
-        // DEBUG: element
-        else
-        {
             m_vValue.resize(25);
             m_vIndex.resize(25);
             
@@ -192,7 +188,7 @@ public:
 
             m_max_row_size = 3;
             m_num_rows = 4;
-        }
+
     }
     
 
@@ -240,7 +236,7 @@ private:
     size_t m_max_row_size;
     size_t m_num_rows;
     vector<size_t> m_node_index_list;
-    
+    double m_rho;
 
     double m_K[8][8];   // TODO: change 8 to dimension-friendly variable
     vector<double> m_vValue;
@@ -423,30 +419,10 @@ void assembleGrid_GPU(
 
 
 
-
-int main()
+// calculates the coordinates of each node
+__host__
+void calculateNodeCoordinates(Node* node, size_t numNodes, size_t numNodesPerDim, double h)
 {
-
-    size_t N = 2;
-    size_t dim = 2;
-
-    // calculate the number of elements in the domain                                                               
-
-    size_t numElements = pow(N,dim);
-    size_t numNodesPerDim = N + 1;
-    size_t numNodes = numNodesPerDim*numNodesPerDim;
-
-    // calculate h
-    float h = 1.0/N;
-
-    // create an array of nodes
-    vector<Node> node;
-    
-    for ( int i = 0 ; i < numNodes ; ++i )
-        node.push_back(Node(i));
-
-    // TODO: make a function for this    
-    // calculate each node's coordinates 
     int ycount = 0;
     for ( int i = 0 ; i < numNodes ; i += numNodesPerDim )
         {
@@ -470,18 +446,43 @@ int main()
             }
             ycount++;
         }
+}
 
-   
 
 
-    // creating an array of elements
-    vector<Element> element;
+int main()
+{
 
-    for ( int i = 0 ; i < numElements ; i++ )
+    size_t N = 2;
+    size_t dim = 2;
+    double rho = 0.4;
+    // calculate the number of elements in the domain                                                               
+
+    size_t numElements = pow(N,dim);
+    size_t numNodesPerDim = N + 1;
+    size_t numNodes = numNodesPerDim*numNodesPerDim;
+
+    // calculate h
+    float h = 1.0/N;
+
+    // create an array of nodes
+    vector<Node> node;
+    
+    for ( int i = 0 ; i < numNodes ; ++i )
+        node.push_back(Node(i));
+
+
+        calculateNodeCoordinates(&node[0], numNodes, numNodesPerDim, h);
+        
+        
+        // creating an array of elements
+        vector<Element> element;
+        
+        for ( int i = 0 ; i < numElements ; i++ )
         element.push_back( Element(i) );
-
-
-    // adding node indices
+        
+        
+        // adding node indices
     for ( int i = 0 ; i < numElements ; i++ )
     {
         element[i].addNode(&node[ i + i/N ]);   // lower left node
@@ -489,7 +490,7 @@ int main()
         element[i].addNode(&node[ i + i/N + N + 1]);   // upper left node
         element[i].addNode(&node[ i + i/N + N + 2]);   // upper right node
     }
-
+    
 
     // flattened global matrix
     vector<double> K = {4,	1,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, \
@@ -581,9 +582,25 @@ int main()
         CUDA_CALL( cudaMemcpy( d_ke_index[i], element[i].getIndexAddress() , sizeof(size_t) * 24 , cudaMemcpyHostToDevice ) ); 
     }
     
+
+
+    // array of the initial design variable
+
+    vector<double> design(numElements);
+
+    for ( int i = 0 ; i < numElements ; i++ )
+        design.push_back(rho);
+
+    double* d_design = nullptr;
+        
+    CUDA_CALL( cudaMalloc( (void**)&d_design, sizeof(double) * numElements )     );
+    CUDA_CALL( cudaMemcpy( d_design, &design[0] , sizeof(double) * numElements , cudaMemcpyHostToDevice ) ); 
+    
+
+
     // allocate and copy the empty global matrix
 
-    Element global(-1);
+    Element global;
     
     double* d_KG_value;
     size_t* d_KG_index;
@@ -603,7 +620,7 @@ int main()
     }
 
 
-    printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
+    // printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
     // printVector_GPU<<<1,72>>> ( d_K_index, 72 );
     cudaDeviceSynchronize();
 
