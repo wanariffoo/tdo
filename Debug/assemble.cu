@@ -51,6 +51,10 @@ void getMaxRowSize(double *array, size_t *max, int *mutex, size_t n)
 
 }
 
+
+
+
+
 __global__
 void convertToELL(double *coo, double *ell_val, size_t *ell_ind, size_t max_row_size, size_t N)
 {
@@ -161,30 +165,36 @@ private:
 class Element
 {
 public:
-    Element(size_t ind)
+    Element(int ind)    // TODO: change int -> size_t
     {   
         m_index = ind; 
     
-        // DEBUG: testing, playing around with stiffness matrices
+        // DEBUG: testing for N = 2
 
-        for ( int i = 0 ; i < 8 ; i++ )
+        // DEBUG: global element
+        if ( ind == -1 )
         {
-            for ( int j = 0 ; j < 8 ; j++ )
-            {
-                if ( i == j )
-                    m_K[i][j] = 4.0;
-
-                else
-                    m_K[i][j] = 1.0;
-
-
-            }
-            
+            m_vValue.resize(72);
+            m_vIndex.resize(72);
+    
+            m_max_row_size = 4;
+            m_num_rows = 18;
         }
-        
-                
 
+        // DEBUG: element
+        else
+        {
+            m_vValue.resize(25);
+            m_vIndex.resize(25);
+            
+            m_vValue = {4, 	1, 	0, 	1, 	4, 	1, 	1, 	4, 	1, 	1, 	4, 	1, 	1, 	4, 	1, 	1, 	4, 	1, 	1, 	4, 	1, 	1, 	4, 	0};
+            m_vIndex = {0, 	1, 	8, 	0, 	1, 	2, 	1, 	2, 	3, 	2, 	3, 	4, 	3, 	4, 	5, 	4, 	5, 	6, 	5, 	6, 	7, 	6, 	7, 	8};
+
+            m_max_row_size = 3;
+            m_num_rows = 4;
+        }
     }
+    
 
     size_t index()
     {
@@ -194,6 +204,7 @@ public:
     void addNode(Node *x)
     {
         m_node.push_back(x);
+        m_node_index_list.push_back(x->index());
     }
 
     void printNodes()
@@ -202,6 +213,14 @@ public:
         for ( int i = 0 ; i < m_node.size() ; ++i )
             m_node[i]->printCoor();
     }
+
+    double* getValueAddress() { return &m_vValue[0]; }
+    size_t* getIndexAddress() { return &m_vIndex[0]; }
+
+    size_t* getNodeGlobalIndex() { return &m_node_index_list[0]; }
+
+    size_t max_row_size() { return m_max_row_size; }
+    size_t num_rows() { return m_num_rows; }
 
     int nodeIndex(int i)
     {
@@ -213,78 +232,137 @@ public:
         return m_K[x][j];
     }
 
+
+
 private:
     std::vector<Node*> m_node;
     size_t m_index;
+    size_t m_max_row_size;
+    size_t m_num_rows;
+    vector<size_t> m_node_index_list;
+    
 
     double m_K[8][8];   // TODO: change 8 to dimension-friendly variable
+    vector<double> m_vValue;
+    vector<size_t> m_vIndex;
 
 
 };
 
-
-void assembleGrid(size_t N, size_t dim, vector<Element> &element, vector<Node> &node, double *flat_K)
+__device__
+double valueAt(size_t x, size_t y, double* value, size_t* index, size_t max_row_size)
 {
-    size_t numElements = pow(N,dim);
-    size_t numNodesPerDim = N + 1;
-
-    // adding the first node
-    for ( int i = 0 ; i < numElements ; i++ )
+    for(size_t k = 0; k < max_row_size; ++k)
     {
-        element[i].addNode(&node[ i + i/N ]);   // lower left node
-        element[i].addNode(&node[ i + i/N + 1]);   // lower right node
-        element[i].addNode(&node[ i + i/N + N + 1]);   // upper left node
-        element[i].addNode(&node[ i + i/N + N + 2]);   // upper right node
+        if(index[x * max_row_size + k] == y)
+            return value[x * max_row_size + k];
     }
 
-    double K_Global[ 18 ][ 18 ];    // TODO: dim
+    return 0.0;
+}
 
-    for ( int i = 0 ; i < 18 ; i++)
-    {
-        for ( int j = 0 ; j < 18 ; j++)
-            {
-                K_Global[i][j] = 0;
-            }
 
-    }
 
-    cout << "" << endl;
-
-    for ( int elmn_index = 0 ; elmn_index < numElements ; elmn_index++ )
-    {
-        for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
-        {
-            for ( int y = 0 ; y < 4 ; y++ )        // TODO: dim   
-            {
-                K_Global[ 2*element[elmn_index].nodeIndex(x)     ][ 2*element[elmn_index].nodeIndex(y)     ] += element[0]( 2*x    , 2*y          );
-                K_Global[ 2*element[elmn_index].nodeIndex(x)     ][ 2*element[elmn_index].nodeIndex(y) + 1 ] += element[0]( 2*x    , 2*y + 1      );
-                K_Global[ 2*element[elmn_index].nodeIndex(x) + 1 ][ 2*element[elmn_index].nodeIndex(y)     ] += element[0]( 2*x + 1, 2*y          );
-                K_Global[ 2*element[elmn_index].nodeIndex(x) + 1 ][ 2*element[elmn_index].nodeIndex(y) + 1 ] += element[0]( 2*x + 1, 2*y + 1      );
-            }
-        }
-    }
-   
-
-    // DEBUG: matrix output
-        // for ( int i = 0 ; i < 18 ; i++)
-        // {
-        //     for ( int j = 0 ; j < 18 ; j++)
-        //         {
-        //             cout << K_Global[i][j] << " ";
-        //         }
-        //     cout << "\n";
-        // }
-
-    // flatten matrix
-
-    for ( int i = 0 ; i < 18 ; i++)
-        {
-            for ( int j = 0 ; j < 18 ; j++)
-                flat_K[i*18 + j] = K_Global[i][j];
-        }
-
+__global__
+void assembleGrid_GPU(
+    size_t N,               // number of elements per row
+    size_t dim,             // dimension
+    double* l_value,        // local element's ELLPACK value vector
+    size_t* l_index,        // local element's ELLPACK index vector
+    size_t l_max_row_size,  // local element's ELLPACK maximum row size
+    size_t l_num_rows,      // local element's ELLPACK number of rows
+    double* g_value,        // global element's ELLPACK value vector
+    size_t* g_index,         // global element's ELLPACK index vector
+    size_t g_max_row_size,  // global element's ELLPACK maximum row size
+    size_t g_num_rows      // global element's ELLPACK number of rows
+)        
+{
     
 }
+
+// void assembleGrid(size_t N, size_t dim, vector<Element> &element, vector<Node> &node, ElementGlobal &K_Global)
+// {
+//     size_t numElements = pow(N,dim);
+//     size_t numNodesPerDim = N + 1;
+
+//     // adding node indices
+//     for ( int i = 0 ; i < numElements ; i++ )
+//     {
+//         element[i].addNode(&node[ i + i/N ]);   // lower left node
+//         element[i].addNode(&node[ i + i/N + 1]);   // lower right node
+//         element[i].addNode(&node[ i + i/N + N + 1]);   // upper left node
+//         element[i].addNode(&node[ i + i/N + N + 2]);   // upper right node
+//     }
+
+    
+
+//     // K_Global.set(element[0]( 0, 0), 0, 0);
+//     // K_Global.set(element[0]( 0, 1), 0, 1);
+//     // K_Global.set(element[0]( 1, 0), 1, 0);
+//     // K_Global.set(element[0]( 1, 1), 1, 1);
+
+
+    
+//     // cout << K_Global.test(0,0) << endl;
+
+//     // cout << "" << endl;
+
+//     for ( int elmn_index = 0 ; elmn_index < numElements ; elmn_index++ )
+//     {
+//         for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
+//         {
+//             for ( int y = 0 ; y < 4 ; y++ )        // TODO: dim   
+//             {       
+//                     // set ( value, row, col )
+//                     // if ( element[elmn_index]( 2*0    , 2*0          ) != 0 )
+//                     K_Global.set(element[elmn_index]( 2*x    , 2*y          ), 2*element[elmn_index].nodeIndex(x)    , 2*element[elmn_index].nodeIndex(y)       );
+
+//                     // if ( element[elmn_index]( 2*0    , 2*0 + 1      ) != 0 )
+//                     K_Global.set(element[elmn_index]( 2*x    , 2*y + 1      ), 2*element[elmn_index].nodeIndex(x)    , 2*element[elmn_index].nodeIndex(y) + 1   );
+
+//                     // if ( element[elmn_index]( 2*0 + 1, 2*0          ) != 0 )
+//                     K_Global.set(element[elmn_index]( 2*x + 1, 2*y          ), 2*element[elmn_index].nodeIndex(x) + 1, 2*element[elmn_index].nodeIndex(y)       );
+
+//                     // if ( element[elmn_index]( 2*0 + 1, 2*0 + 1      ) != 0 )
+//                     K_Global.set(element[elmn_index]( 2*x + 1, 2*y + 1      ), 2*element[elmn_index].nodeIndex(x) + 1, 2*element[elmn_index].nodeIndex(y) + 1   );
+    
+//                     // K_Global.set(element[elmn_index]( 2*x    , 2*y          ), 2*element[elmn_index].nodeIndex(x)    , 2*element[elmn_index].nodeIndex(y)       );
+//                     // K_Global.set(element[elmn_index]( 2*x    , 2*y + 1      ), 2*element[elmn_index].nodeIndex(x)    , 2*element[elmn_index].nodeIndex(y) + 1   );
+//                     // K_Global.set(element[elmn_index]( 2*x + 1, 2*y          ), 2*element[elmn_index].nodeIndex(x) + 1, 2*element[elmn_index].nodeIndex(y)       );
+//                     // K_Global.set(element[elmn_index]( 2*x + 1, 2*y + 1      ), 2*element[elmn_index].nodeIndex(x) + 1, 2*element[elmn_index].nodeIndex(y) + 1   );
+    
+    
+//                     // K_Global[ 2*element[elmn_index].nodeIndex(x)     ][ 2*element[elmn_index].nodeIndex(y)     ] += element[0]( 2*x    , 2*y          );
+//                     // K_Global[ 2*element[elmn_index].nodeIndex(x)     ][ 2*element[elmn_index].nodeIndex(y) + 1 ] += element[0]( 2*x    , 2*y + 1      );
+//                     // K_Global[ 2*element[elmn_index].nodeIndex(x) + 1 ][ 2*element[elmn_index].nodeIndex(y)     ] += element[0]( 2*x + 1, 2*y          );
+//                     // K_Global[ 2*element[elmn_index].nodeIndex(x) + 1 ][ 2*element[elmn_index].nodeIndex(y) + 1 ] += element[0]( 2*x + 1, 2*y + 1      );
+//             }
+//         }
+//     }
+   
+
+//     // DEBUG: matrix output
+//         // for ( int i = 0 ; i < 18 ; i++)
+//         // {
+//         //     for ( int j = 0 ; j < 18 ; j++)
+//         //         {
+//         //             cout << K_Global[i][j] << " ";
+//         //         }
+//         //     cout << "\n";
+//         // }
+
+//     // flatten matrix
+
+//     // for ( int i = 0 ; i < 18 ; i++)
+//     //     {
+//     //         for ( int j = 0 ; j < 18 ; j++)
+//     //             flat_K[i*18 + j] = K_Global[i][j];
+//     //     }
+
+    
+// }
+
+
 
 
 int main()
@@ -334,11 +412,25 @@ int main()
             ycount++;
         }
 
+   
+
+
     // creating an array of elements
     vector<Element> element;
 
     for ( int i = 0 ; i < numElements ; i++ )
         element.push_back( Element(i) );
+
+
+    // adding node indices
+    for ( int i = 0 ; i < numElements ; i++ )
+    {
+        element[i].addNode(&node[ i + i/N ]);   // lower left node
+        element[i].addNode(&node[ i + i/N + 1]);   // lower right node
+        element[i].addNode(&node[ i + i/N + N + 1]);   // upper left node
+        element[i].addNode(&node[ i + i/N + N + 2]);   // upper right node
+    }
+
 
     // flattened global matrix
     vector<double> K = {4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
@@ -365,6 +457,7 @@ int main()
     // host
 
     size_t max_row_size = 0;
+    double num_rows = 18;
 
     // device
     double* d_K             = nullptr;
@@ -387,23 +480,53 @@ int main()
     getMaxRowSize<<< 1 , 18 >>>(d_K, d_max_row_size, d_mutex, 18);
     CUDA_CALL( cudaMemcpy(&max_row_size, d_max_row_size, sizeof(size_t), cudaMemcpyDeviceToHost ) ); 
 
+    // allocate device memory for global stiffness matrix's ELLPACK value and index vectors
+    CUDA_CALL( cudaMalloc( (void**)&d_K_value, sizeof(double) * 18 * max_row_size )     );
+    CUDA_CALL( cudaMalloc( (void**)&d_K_index, sizeof(double) * 18 * max_row_size )     );
 
-    CUDA_CALL( cudaMalloc( (void**)&d_K, sizeof(double) * 18 * d_max_row_size )     );
     // transform K to ELLPACK
+    transformToELL_GPU<<<1, 18>>>(d_K, d_K_value, d_K_index, max_row_size, 18);
     
-        cudamalloc the value and index vectors
-        
-
-
-
-
-
-    // assembleGrid(N, dim, element, node, &flat_K_Global[0]);
     
-    // for ( int i = 0 ; i < 10 ; ++i )
-    //     {
-    //         cout << flat_K_Global[i] << endl;
-    //     }
+    // deallocate big K matrix, no needed now
+    cudaFree( d_K );
 
+
+    // obtain k elements' value and index vectors
+    // allocate k element stiffness matrices
+
+    vector<double*> d_ke_value(numElements);
+    vector<size_t*> d_ke_index(numElements);
+
+
+    // allocate and copy elements' ELLPACK stiffness matrices to device (value and index vectors)
+    for ( int i = 0 ; i < numElements ; i++ )
+    {
+        CUDA_CALL( cudaMalloc( (void**)&d_ke_value[i], sizeof(double) * 24 )     );
+        CUDA_CALL( cudaMalloc( (void**)&d_ke_index[i], sizeof(size_t) * 24 )     );
+
+        CUDA_CALL( cudaMemcpy( d_ke_value[i], element[i].getValueAddress() , sizeof(double) * 24 , cudaMemcpyHostToDevice ) ); 
+        CUDA_CALL( cudaMemcpy( d_ke_index[i], element[i].getIndexAddress() , sizeof(size_t) * 24 , cudaMemcpyHostToDevice ) ); 
+    }
+    
+    // allocate and copy the empty global matrix
+
+    Element global(-1);
+    
+    double* d_KG_value;
+    size_t* d_KG_index;
+    
+    CUDA_CALL( cudaMalloc( (void**)&d_KG_value, sizeof(double) * 72 )     );
+    CUDA_CALL( cudaMalloc( (void**)&d_KG_index, sizeof(size_t) * 72 )     );
+    CUDA_CALL( cudaMemcpy( d_KG_value, global.getValueAddress() , sizeof(double) * 72 , cudaMemcpyHostToDevice ) ); 
+    CUDA_CALL( cudaMemcpy( d_KG_index, global.getIndexAddress() , sizeof(size_t) * 72 , cudaMemcpyHostToDevice ) ); 
+    
+
+    // element 0's node arrangements    // TODO: should take something like element[0].nodes(), and return the address
+    
+    
+    assembleGrid_GPU<<<1, 72 >>>( 2, 2, d_ke_value[0], d_ke_index[0], element[0].max_row_size(), element[0].num_rows(), d_KG_value, d_KG_index, global.max_row_size(), global.num_rows() );
+    
+    cudaDeviceSynchronize();
 
 }

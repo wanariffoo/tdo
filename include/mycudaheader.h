@@ -348,6 +348,42 @@ void divide_GPU(double *x, double *y, double *z)
  
 
 
+__global__
+void transformToELL_GPU(double *array, double *value, double *index, size_t max_row_size, size_t num_rows)
+{
+
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if ( id < num_rows )
+    {
+        size_t counter = id*max_row_size;
+        size_t nnz = 0;
+        
+			// printf("array = %e\n", array [ 1 ]);
+        for ( int j = 0 ; nnz < max_row_size ; j++ )
+        {
+            if ( array [ j + id*num_rows ] != 0 )
+            {
+				// printf("array = %e\n", array [ j + id*num_rows ]);
+                value [counter] = array [ j + id*num_rows ];
+                index [counter] = j;
+				// printf("value = %e\n", value[counter]);
+                counter++;
+                nnz++;
+            }
+            
+            if ( j == num_rows - 1 )
+            {
+                for ( int i = counter ; nnz < max_row_size ; counter++ && nnz++ )
+                {
+                    value [counter] = 0.0;
+                    index [counter] = num_rows;
+                }
+            }
+        }
+    }
+}
+
 
 
 

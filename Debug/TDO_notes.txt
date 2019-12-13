@@ -1,0 +1,26 @@
+
+# Potential optimizations:
+
+    - in the first iteration, since all elemental stiffness matrices are the same, use this one single one to assemble the global grid
+        - while assembly and the first iteration is done, concurrently copy the remaining element stiffness matrices, so that by the time the first iteration is done, each of these local stiffness matrices can be updated with its density variable
+
+
+
+
+
+
+
+# Issues:
+
+
+
+TODO:       norm() add tree-like when adding the first threads of each block
+
+TODO:       idea of optimization:
+                - while foo is copied back and forth to host, do an async memcpy and continue with calculation
+                    - doesn't matter if it's wasteful, can just quit if it has converged
+
+            
+
+CHECK:      When calculating the max_row_size on the device, we have to copy result back to CPU so that CPU will cudamalloc and cpy the required size for the vectors value and index
+                - maybe not worthwhile to have it on the GPU?
