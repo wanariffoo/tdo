@@ -1,22 +1,6 @@
 /*
-NOTE:
-
-    pseudocode:
-
-    insert N, which is the number of elements per row
-    calculate each element's local stiffness matrix (include the design variable (TDO's density))
-    assemble a global stiffness matrix from N, in COO
-    convert COO to ELLPACK
-
-    solve for u
-
     
-
-
-
 */
-
-
 
 
 #include <iostream>
@@ -318,17 +302,14 @@ int main()
     // calculate h
     float h = 1.0/N;
 
-    // create the nodes
-    
+    // create an array of nodes
     vector<Node> node;
     
     for ( int i = 0 ; i < numNodes ; ++i )
-    {
         node.push_back(Node(i));
-    }
 
-    // calculate each node's coordinates
-    
+    // TODO: make a function for this    
+    // calculate each node's coordinates 
     int ycount = 0;
     for ( int i = 0 ; i < numNodes ; i += numNodesPerDim )
         {
@@ -349,40 +330,80 @@ int main()
                     node[j].setYCoor( ycount*h);
                     count++;
                 }
-
             }
-
             ycount++;
-
         }
 
-        // for ( int i = 0 ; i < numNodes ; ++i )
-        // {
-        //     node[i].printCoor();
-        // }
-
-    // // deallocation
-
-    // CUDA_CALL( cudaFree(d_A_coo)            );
-    // CUDA_CALL( cudaFree(d_max_row_size)    );
-
-
-    // creating elements
-
+    // creating an array of elements
     vector<Element> element;
 
     for ( int i = 0 ; i < numElements ; i++ )
         element.push_back( Element(i) );
 
+    // flattened global matrix
+    vector<double> K = {4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	1, 	8, 	2, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	2, 	8, 	1, 	0, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	1, 	4, 	0, 	0, 	5, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	1, 	0, 	0, 	8, 	2, 	1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	2, 	1, 	4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	1, 	0, 	2, 	12, 3, 	1, 	4, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	4, 	16, 2, 	0, 	1, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	2, 	0, 	0, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	0, 	0, 	1, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	0, 	0, 	4, 	1, 	0, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	4, 	1, 	0, 	0, 	0, \
+                        0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	0, 	1, 	8, 	2, 	0, 	0, \
+                        4, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	2, 	8, 	1, 	0, \
+                        1, 	4, 	5, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	4, 	1, \
+                        0, 	1, 	5, 	5, 	1, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	0, 	1, 	4, };
 
-    vector<double> flat_K_Global(18*18);
+    // CUDA
 
-    assembleGrid(N, dim, element, node, &flat_K_Global[0]);
+    // host
+
+    size_t max_row_size = 0;
+
+    // device
+    double* d_K             = nullptr;
+    double* d_K_value       = nullptr;
+    double* d_K_index       = nullptr;
+    size_t* d_max_row_size  = nullptr;
+    int* d_mutex            = nullptr;
+
+    CUDA_CALL( cudaMalloc( (void**)&d_K, sizeof(double) * 18 * 18 )     );
+    CUDA_CALL( cudaMalloc( (void**)&d_max_row_size, sizeof(size_t) )    );
+    CUDA_CALL( cudaMalloc( (void**)&d_mutex, sizeof(int) ) );
+
+    CUDA_CALL( cudaMemset(d_max_row_size, 0, sizeof(size_t)) );
+    CUDA_CALL( cudaMemset(d_mutex, 0, sizeof(int)) );
     
-    for ( int i = 0 ; i < 10 ; ++i )
-        {
-            cout << flat_K_Global[i] << endl;
-        }
+    CUDA_CALL( cudaMemcpy(d_K, &K[0], sizeof(double) * 18 * 18 , cudaMemcpyHostToDevice) ); 
+
+
+    // calculate global matrix's max_row_size
+    getMaxRowSize<<< 1 , 18 >>>(d_K, d_max_row_size, d_mutex, 18);
+    CUDA_CALL( cudaMemcpy(&max_row_size, d_max_row_size, sizeof(size_t), cudaMemcpyDeviceToHost ) ); 
+
+
+    CUDA_CALL( cudaMalloc( (void**)&d_K, sizeof(double) * 18 * d_max_row_size )     );
+    // transform K to ELLPACK
+    
+        cudamalloc the value and index vectors
+        
+
+
+
+
+
+    // assembleGrid(N, dim, element, node, &flat_K_Global[0]);
+    
+    // for ( int i = 0 ; i < 10 ; ++i )
+    //     {
+    //         cout << flat_K_Global[i] << endl;
+    //     }
 
 
 }
