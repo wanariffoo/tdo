@@ -22,6 +22,9 @@
         - NOTE: look into running the kernels in a 2D grid
 
 
+    - while assembling in CPU, have GPU malloc and memcpy stuff, like residuum and displacement vectors, gmg multilevel matrices,
+
+
 
 
 

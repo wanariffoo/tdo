@@ -335,6 +335,31 @@ void assembleGrid_GPU(
 
 }
 
+
+__global__
+void assembleGrid2D_GPU(
+    size_t N,               // number of elements per row
+    size_t dim,             // dimension
+    double* l_value,        // local element's ELLPACK value vector
+    size_t* l_index,        // local element's ELLPACK index vector
+    size_t l_max_row_size,  // local element's ELLPACK maximum row size
+    size_t l_num_rows,      // local element's ELLPACK number of rows
+    double* g_value,        // global element's ELLPACK value vector
+    size_t* g_index,        // global element's ELLPACK index vector
+    size_t g_max_row_size,  // global element's ELLPACK maximum row size
+    size_t g_num_rows,      // global element's ELLPACK number of rows
+    size_t* node_index      // vector that contains the corresponding global indices of the node's local indices
+)        
+{
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+    // printf("idx = %d, idy = %d\n", idx, idy);
+
+    // if ( idx == 0 && idy == 0)
+    setAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), g_value, g_index, g_max_row_size, valueAt( 2*(idx/2) + ( idx % 2 ), 2*(idy/2) + ( idy % 2 ), l_value, l_index, l_max_row_size) );
+
+}
 // void assembleGrid(size_t N, size_t dim, vector<Element> &element, vector<Node> &node, ElementGlobal &K_Global)
 // {
 //     size_t numElements = pow(N,dim);
@@ -613,14 +638,23 @@ int main()
 
     // add local stiffness matrices into the global
 
+    // for ( int i = 0 ; i < numElements ; i++ )
+    // {
+    //     assembleGrid_GPU<<<1, 8>>>( 2, 2, d_ke_value[i], d_ke_index[i], element[i].max_row_size(), element[i].num_rows(), d_KG_value, d_K_index, global.max_row_size(), global.num_rows(), d_node_index[i] );
+    //     cudaDeviceSynchronize();
+    // }
+    dim3 blockDim(8,8,1);
+    //     assembleGrid2D_GPU<<<1, blockDim>>>( 2, 2, d_ke_value[0], d_ke_index[0], element[0].max_row_size(), element[0].num_rows(), d_KG_value, d_K_index, global.max_row_size(), global.num_rows(), d_node_index[0] );
+
     for ( int i = 0 ; i < numElements ; i++ )
-    {
-        assembleGrid_GPU<<<1, 8>>>( 2, 2, d_ke_value[i], d_ke_index[i], element[i].max_row_size(), element[i].num_rows(), d_KG_value, d_K_index, global.max_row_size(), global.num_rows(), d_node_index[i] );
-        cudaDeviceSynchronize();
-    }
+        {
+            assembleGrid2D_GPU<<<1, blockDim>>>( 2, 2, d_ke_value[i], d_ke_index[i], element[i].max_row_size(), element[i].num_rows(), d_KG_value, d_K_index, global.max_row_size(), global.num_rows(), d_node_index[i] );
+            cudaDeviceSynchronize();
+        }
 
 
-    // printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
+
+    printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
     // printVector_GPU<<<1,72>>> ( d_K_index, 72 );
     cudaDeviceSynchronize();
 
