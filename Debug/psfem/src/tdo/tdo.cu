@@ -361,8 +361,8 @@ int main()
     size_t N = 2;
     size_t dim = 2;
     double rho = 0.4;
-    // calculate the number of elements in the domain                                                               
 
+    // calculate the number of elements in the domain                                                               
     size_t numElements = pow(N,dim);
     size_t numNodesPerDim = N + 1;
     size_t numNodes = numNodesPerDim*numNodesPerDim;

@@ -1,0 +1,46 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/arif/Codes/TDO/Debug/psfem/src/grid/structured_grid.cu
+structured_grid.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/structured_grid.h
+cmath
+-
+iostream
+-
+algorithm
+-
+
+/home/arif/Codes/TDO/Debug/psfem/src/grid/structured_grid.h
+util/coord_vector.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/util/coord_vector.h
+parallel/parallel.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/parallel/parallel.h
+parallel/layout.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/parallel/layout.h
+cstddef
+-
+vector
+-
+memory
+-
+
+/home/arif/Codes/TDO/Debug/psfem/src/grid/structured_multi_grid.cu
+structured_multi_grid.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/structured_multi_grid.h
+
+/home/arif/Codes/TDO/Debug/psfem/src/grid/structured_multi_grid.h
+util/coord_vector.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/util/coord_vector.h
+grid/structured_grid.h
+/home/arif/Codes/TDO/Debug/psfem/src/grid/grid/structured_grid.h
+cstddef
+-
+vector
+-
+

@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../lib/libpsfemlib.a  CMakeFiles/psfemlib.dir/src/grid/structured_grid.cu.o CMakeFiles/psfemlib.dir/src/grid/structured_multi_grid.cu.o
+/usr/bin/ranlib ../lib/libpsfemlib.a
