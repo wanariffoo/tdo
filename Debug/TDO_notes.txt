@@ -25,6 +25,10 @@
     - while assembling in CPU, have GPU malloc and memcpy stuff, like residuum and displacement vectors, gmg multilevel matrices,
 
 
+TODO: read these:
+    https://devblogs.nvidia.com/how-overlap-data-transfers-cuda-cc/
+    https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
+
 
 
 
