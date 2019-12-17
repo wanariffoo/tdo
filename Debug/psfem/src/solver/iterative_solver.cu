@@ -92,8 +92,8 @@ bool IterativeSolver::init(const ELLMatrix<double>& A)
 	std::vector<double> c(A.num_rows(), 0);
 
 
-	const auto value = A.getValueAddress();
-	const auto index = A.getIndexAddress();
+	// const auto value = A.getValueAddress();
+	// const auto index = A.getIndexAddress();
 	const size_t num_rows = A.num_rows();
 	const size_t max_row_size = A.max_row_size();
 
@@ -108,8 +108,8 @@ bool IterativeSolver::init(const ELLMatrix<double>& A)
 	CUDA_CALL( cudaMalloc( (void**)&d_m_minRed, sizeof(double) ) 	);
 	CUDA_CALL( cudaMalloc( (void**)&d_step, sizeof(size_t) ) 		);
 	CUDA_CALL( cudaMalloc( (void**)&d_m_maxIter, sizeof(size_t) ) 	);
-	CUDA_CALL( cudaMalloc( (void**)&d_value, A.max_row_size() * A.num_rows() * sizeof(double) ) 		);
-	CUDA_CALL( cudaMalloc( (void**)&d_index, A.max_row_size() * A.num_rows() * sizeof(std::size_t) ) 	);
+	// CUDA_CALL( cudaMalloc( (void**)&d_value, A.max_row_size() * A.num_rows() * sizeof(double) ) 		);
+	// CUDA_CALL( cudaMalloc( (void**)&d_index, A.max_row_size() * A.num_rows() * sizeof(std::size_t) ) 	);
 
 	// Copy memory to device
 
@@ -122,8 +122,8 @@ bool IterativeSolver::init(const ELLMatrix<double>& A)
 	CUDA_CALL( cudaMemcpy( d_m_minRed, &m_minRed, sizeof(double), cudaMemcpyHostToDevice) 	);
 	CUDA_CALL( cudaMemcpy( d_step, &step, sizeof(size_t), cudaMemcpyHostToDevice) 			);
 	CUDA_CALL( cudaMemcpy( d_m_maxIter, &m_maxIter, sizeof(size_t), cudaMemcpyHostToDevice) );
-	CUDA_CALL( cudaMemcpy( d_value, value, A.max_row_size() * A.num_rows() * sizeof(double), cudaMemcpyHostToDevice) 		);
-	CUDA_CALL( cudaMemcpy( d_index, index, A.max_row_size() * A.num_rows() * sizeof(std::size_t), cudaMemcpyHostToDevice) 	);
+	// CUDA_CALL( cudaMemcpy( d_value, value, A.max_row_size() * A.num_rows() * sizeof(double), cudaMemcpyHostToDevice) 		);
+	// CUDA_CALL( cudaMemcpy( d_index, index, A.max_row_size() * A.num_rows() * sizeof(std::size_t), cudaMemcpyHostToDevice) 	);
 
 
 	if(m_pLinearIterator)

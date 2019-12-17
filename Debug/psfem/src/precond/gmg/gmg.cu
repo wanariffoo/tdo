@@ -76,9 +76,11 @@ template<std::size_t dim>
 bool GMG<dim>::init(const ELLMatrix<double>& mat)
 {
 	// // DEBUG:
-	// std::cout << "gmg.cu : init()" << std::endl;
+	std::cout << "gmg.cu : init()" << std::endl;
 	// std::cout << "gmg.cu : prolong matrix " << std::endl;
 	
+	std::cout << mat.num_rows() << std::endl;
+
 	// assemble prolongation
 	m_vProlongMat.resize(m_multiGrid.num_levels() - 1);
 	for(std::size_t lev = 0; lev < m_vProlongMat.size(); ++lev){
@@ -101,7 +103,7 @@ bool GMG<dim>::init(const ELLMatrix<double>& mat)
 		}
 		
 	} else {
-		
+		std::cout << m_bRAP << std::endl;
 		// assemble matrices
 		m_vStiffMat.resize(m_multiGrid.num_levels());
 		Vector<double> dummyX;
@@ -252,7 +254,6 @@ bool GMG<dim>::precond_add_update(Vector<double>& c, Vector<double>& r, std::siz
         UpdateResiduum(r, m_vStiffMat[lev], ctmp); 
         return true;
 	}
-
 
 	// presmooth
 		// NOTE: no need to copy to device, nu1, ... ; for loop in CPU

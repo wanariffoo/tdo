@@ -535,8 +535,8 @@ int main()
 
 
 
-    printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
-    // printVector_GPU<<<1,72>>> ( d_K_index, 72 );
-    cudaDeviceSynchronize();
+    // printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
+    // // printVector_GPU<<<1,72>>> ( d_K_index, 72 );
+    // cudaDeviceSynchronize();
 
 }

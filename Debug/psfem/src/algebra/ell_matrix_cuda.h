@@ -373,15 +373,6 @@ class ELLMatrix
 
 			// CUDA
 
-			// host
-
-			// device
-			// double* d_K             = nullptr;
-			// double* d_K_value       = nullptr;
-			// size_t* d_K_index       = nullptr;
-			// size_t* d_max_row_size  = nullptr;
-			// int* d_mutex            = nullptr;
-
 			CUDA_CALL( cudaMalloc( (void**)&d_K, sizeof(double) * 18 * 18 )     );
 			CUDA_CALL( cudaMalloc( (void**)&d_max_row_size, sizeof(size_t) )    );
 			CUDA_CALL( cudaMalloc( (void**)&d_mutex, sizeof(int) ) );
@@ -484,13 +475,17 @@ class ELLMatrix
 				}
 
 
-
 			// printVector_GPU<<<1,72>>> ( d_KG_value, 72 );
 			// // printVector_GPU<<<1,72>>> ( d_K_index, 72 );
 			// cudaDeviceSynchronize();
 		}
 
 
+		/// CUDA addresses ///
+
+		/// Returns addresses of device value and index vectors
+		double* getDeviceValueAddress() { return d_K_value; }
+		std::size_t* getDeviceIndexAddress() { return d_K_index; }
 
 
 

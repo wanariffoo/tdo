@@ -239,84 +239,84 @@ int main(int argc, char** argv)
 	
 // DEBUG:
 
-// 	///////////////////////////////////////////
-// 	// create GMG (precond)
-// 	///////////////////////////////////////////
+	///////////////////////////////////////////
+	// create GMG (precond)
+	///////////////////////////////////////////
 
-// 	// disc
-// 	PoissonDisc<dim> disc;
-// 	disc.set_dirichlet_boundary(DirichletBndCnd);
-// 	disc.set_rhs(Rhs);
+	// disc
+	PoissonDisc<dim> disc;
+	disc.set_dirichlet_boundary(DirichletBndCnd);
+	disc.set_rhs(Rhs);
 
-// 	// prolongation
-// 	Prolongation<dim> prol;
-// 	prol.set_dirichlet_boundary(DirichletBndCnd);
+	// prolongation
+	Prolongation<dim> prol;
+	prol.set_dirichlet_boundary(DirichletBndCnd);
 
-// 	// smoother
-// 	Jacobi Smoother(0.66);
-// //	ILU Smoother;			// note: ILU must still be parallelized
-// //	GaussSeidel Smoother;   // note: gauss-seidel must still be parallelized
+	// smoother
+	Jacobi Smoother(0.66);
+//	ILU Smoother;			// note: ILU must still be parallelized
+//	GaussSeidel Smoother;   // note: gauss-seidel must still be parallelized
 
-// 	// base solver
-// 	CG BaseSolver;
-// 	BaseSolver.set_convergence_params(100, 1e-99, 1e-10);	// DEBUG:previously (100000, 1e-99, 1e-10);
-// 	BaseSolver.set_verbose(false);
+	// base solver
+	CG BaseSolver;
+	BaseSolver.set_convergence_params(100, 1e-99, 1e-10);	// DEBUG:previously (100000, 1e-99, 1e-10);
+	BaseSolver.set_verbose(false);
 
-// 	// gmg
-// 	GMG<dim> gmg(mg, disc, prol, Smoother, BaseSolver);
-// 	gmg.set_cycle('V');											// DEBUG: V
-// 	gmg.set_num_presmooth(3);
-// 	gmg.set_num_postsmooth(3);
-// 	gmg.set_base_level(0);
-// 	gmg.set_rap(true);
+	// gmg
+	GMG<dim> gmg(mg, disc, prol, Smoother, BaseSolver);
+	gmg.set_cycle('V');											// DEBUG: V
+	gmg.set_num_presmooth(3);
+	gmg.set_num_postsmooth(3);
+	gmg.set_base_level(0);
+	gmg.set_rap(true);
 	
-// 	///////////////////////////////////////////
-// 	// create simple preconds (Jac, GS, ILU, ...)
-// 	///////////////////////////////////////////
+	///////////////////////////////////////////
+	// create simple preconds (Jac, GS, ILU, ...)
+	///////////////////////////////////////////
 	
-// 	// setup some linear iterator
-// 	Jacobi jac(2./3.);
-// 	// Richardson rson;
-// 	//	GaussSeidel gs; 	// note: gauss-seidel must still be parallelized
-// 	//	ILU ilu; 			// note: ILU must still be parallelized
+	// setup some linear iterator
+	Jacobi jac(2./3.);
+	// Richardson rson;
+	//	GaussSeidel gs; 	// note: gauss-seidel must still be parallelized
+	//	ILU ilu; 			// note: ILU must still be parallelized
 	
-// 	///////////////////////////////////////////
-// 	// create solver (linear solver, CG, ...)
-// 	///////////////////////////////////////////
+	///////////////////////////////////////////
+	// create solver (linear solver, CG, ...)
+	///////////////////////////////////////////
 	
-// 	// setup the iterative solver
-// 	IterativeSolver linSolver;
-// 	// CG linSolver;
-// 	linSolver.set_linear_iterator(gmg);
-// 	linSolver.set_convergence_params(1000, 1e-99, 1e-10);			// DEBUG:previously (100000, 1e-99, 1e-10);
+	// setup the iterative solver
+	IterativeSolver linSolver;
+	// CG linSolver;
+	linSolver.set_linear_iterator(gmg);
+	linSolver.set_convergence_params(1000, 1e-99, 1e-10);			// DEBUG:previously (100000, 1e-99, 1e-10);
 	
-// 	///////////////////////////////////////////
-// 	// create nested GMG
-// 	///////////////////////////////////////////
+	///////////////////////////////////////////
+	// create nested GMG
+	///////////////////////////////////////////
 	
-// 	// nested multigrid
-// 	NestedGMG<dim> nestedGMG(mg, disc, prol, Smoother, BaseSolver);	
-// 	nestedGMG.set_cycle('V');
-// 	nestedGMG.set_num_presmooth(3);
-// 	nestedGMG.set_num_postsmooth(3);
-// 	nestedGMG.set_base_level(0);
-// 	nestedGMG.set_level_iterations(2);
-	
-	
-// 	///////////////////////////////////////////
-// 	// solve system
-// 	///////////////////////////////////////////
-	
-// 	// set initial guess to a random guess
-// 	//	x.random(-1.0,1.0);
-// 	x = 0.0;
+	// nested multigrid
+	NestedGMG<dim> nestedGMG(mg, disc, prol, Smoother, BaseSolver);	
+	nestedGMG.set_cycle('V');
+	nestedGMG.set_num_presmooth(3);
+	nestedGMG.set_num_postsmooth(3);
+	nestedGMG.set_base_level(0);
+	nestedGMG.set_level_iterations(2);
 	
 	
-// 	// start time measurement for solver initialization
-// 	mpi::world().barrier(); double startInitSolver = mpi::walltime();
+	///////////////////////////////////////////
+	// solve system
+	///////////////////////////////////////////
 	
-// 	linSolver.init(A);
-// 	//	nestedGMG.init(A);
+	// set initial guess to a random guess
+	//	x.random(-1.0,1.0);
+	x = 0.0;
+	
+	
+	// start time measurement for solver initialization
+	mpi::world().barrier(); double startInitSolver = mpi::walltime();
+	
+	linSolver.init(A);
+	//	nestedGMG.init(A);
 	
 	
 // 	// stop time measurement for solver initialization
