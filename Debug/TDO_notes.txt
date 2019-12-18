@@ -28,7 +28,7 @@
 TODO: read these:
     https://devblogs.nvidia.com/how-overlap-data-transfers-cuda-cc/
     https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
-
+    https://devblogs.nvidia.com/finite-difference-methods-cuda-cc-part-1/   (from prof)
 
 
 
