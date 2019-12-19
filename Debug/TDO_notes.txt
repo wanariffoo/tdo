@@ -48,3 +48,6 @@ TODO:       idea of optimization:
 
 CHECK:      When calculating the max_row_size on the device, we have to copy result back to CPU so that CPU will cudamalloc and cpy the required size for the vectors value and index
                 - maybe not worthwhile to have it on the GPU?
+
+
+TODO:       boundary condition (identity row)
