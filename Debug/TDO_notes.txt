@@ -83,3 +83,10 @@ TODO:       repair PSFEM's calculateDimensions
                 }
 
             .. because reduction kernels need full blocks to work
+
+
+
+TODO:       use full u to calculate local driving forces
+                - have a kernel to get only the local displacements
+
+        

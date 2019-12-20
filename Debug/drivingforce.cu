@@ -56,25 +56,32 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 		atomicAdd_double(sum, cache[0]);
 }
 
+
 // x[] = u[]^T * A * u[]
 __global__
-void uTAu_GPU(double *x, double *u, double* value, size_t* index, size_t max_row_size, size_t num_rows)
+void uTAu_GPU(double *x, double *u, size_t *node_index, double* value, size_t* index, size_t max_row_size, size_t num_rows)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
-
-    x[id] = 0;
-
+    
     if ( id < num_rows )
     {
-		for ( int n = 0; n < max_row_size; n++ )
+        
+        x[id] = 0;
+        
+        for ( int n = 0; n < max_row_size; n++ )
 		{
-			int col = index [ max_row_size * id + n ];
+            
+            int col = index [ max_row_size * id + n ];
+            
+            int global_col = ( node_index [ col / 2 ] * 2 ) + ( col % 2 ); // converts local node to global node
+            
 			double val = value [ max_row_size * id + n ];
-            x[id] += val * u [ col ];
+            x[id] += val * u [ global_col ];
+            
         }
+        x[id] *= u[id];
     }
 
-    x[id] *= u[id];
 
     // printf("id = %d : %f\n", id, x[id]);
     
@@ -96,6 +103,7 @@ void calcDrivingForce(
     double p,               // penalization parameter
     double *temp,           // dummy/temp vector
     double *u,              // elemental displacement vector
+    size_t *node_index,
     double* value,          // local ELLPack stiffness matrix's value vector
     size_t* index,          // local ELLPack stiffness matrix's index vector
     size_t max_row_size,    // local ELLPack stiffness matrix's maximum row size
@@ -103,8 +111,11 @@ void calcDrivingForce(
     dim3 gridDim,           // grid and 
     dim3 blockDim)          // block sizes needed for running CUDA kernels
 {
+    
+    // printVector_GPU<<<1,4>>>(node_index, 4);
+
     // temp[] = u[]^T * A * u[]
-    uTAu_GPU<<<gridDim, blockDim>>>(temp, u, value, index, max_row_size, num_rows);
+    uTAu_GPU<<<gridDim, blockDim>>>(temp, u, node_index, value, index, max_row_size, num_rows);
     cudaDeviceSynchronize();
     
     // df = sum( temp[] )
@@ -125,25 +136,24 @@ int main()
     vector<double> value;
     vector<size_t> index;
     size_t max_row_size = 1;
-    size_t num_rows = 2000000;
+    size_t num_rows = 8;
 
     // u vector
     vector<double> u;
-    vector<double> temp;
+    vector<double> temp (num_rows, 0);
 
     double p = 3;
-    double kai = 0.8;
+    double kai = 0.4;
 
     for ( int i = 0 ; i < num_rows; i++ )
     {
-        value.push_back(1);
-        index.push_back(0);
+        value.push_back(i);
+        index.push_back(i);
     }    
 
-    for ( int i = 0 ; i < num_rows ; i++ )
+    for ( int i = 0 ; i < 18 ; i++ )
     {
-        u.push_back(1);
-        temp.push_back(0);
+        u.push_back(i);
     }
 
     // CUDA
@@ -157,7 +167,7 @@ int main()
 
     cudaMalloc( (void**)&d_value, sizeof(double) * max_row_size * num_rows );
     cudaMalloc( (void**)&d_index, sizeof(size_t) * max_row_size * num_rows );
-    cudaMalloc( (void**)&d_u, sizeof(double) * num_rows );
+    cudaMalloc( (void**)&d_u, sizeof(double) * 18 );
     cudaMalloc( (void**)&d_temp, sizeof(double) * num_rows );
     cudaMalloc( (void**)&d_df, sizeof(double));
     cudaMalloc( (void**)&d_kai, sizeof(double));
@@ -166,7 +176,7 @@ int main()
     
     cudaMemcpy(d_value, &value[0], sizeof(double) * max_row_size * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(d_index, &index[0], sizeof(size_t) * max_row_size * num_rows, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_u, &u[0], sizeof(double) * num_rows, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_u, &u[0], sizeof(double) * 18, cudaMemcpyHostToDevice);
     cudaMemcpy(d_temp, &temp[0], sizeof(double) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(d_kai, &kai, sizeof(double), cudaMemcpyHostToDevice);
     
@@ -176,9 +186,19 @@ int main()
 
     calculateDimensions(num_rows, blockDim, gridDim);
 
+    // node index
+
+    vector<size_t> node_index = {0, 1, 3, 4};
+
+    size_t* d_node_index;
+    cudaMalloc( (void**)&d_node_index, sizeof(size_t) * 4 );
+    cudaMemcpy(d_node_index, &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+
+
+
 
     // run kernel
-    calcDrivingForce(d_df, d_kai, p, d_temp, d_u, d_value, d_index, max_row_size, num_rows, gridDim, blockDim);
+    calcDrivingForce(d_df, d_kai, p, d_temp, d_u, d_node_index, d_value, d_index, max_row_size, num_rows, gridDim, blockDim);
     cudaDeviceSynchronize();
 
     // void calcDrivingForce(

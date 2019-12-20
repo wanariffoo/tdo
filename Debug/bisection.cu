@@ -186,7 +186,7 @@ void getKaiTrial(
 }
 
 __global__ 
-void sumOfArray_GPU(double* sum, double* x, size_t n)
+void sumOfVector_GPU(double* sum, double* x, size_t n)
 {
     int id = threadIdx.x + blockDim.x*blockIdx.x;
 	int stride = blockDim.x*gridDim.x;
@@ -328,7 +328,7 @@ int main()
         getKaiTrial<<<1,4>>>(d_elements, d_p, d_lambda_tr, del_t, eta, beta, d_kai_trial, 4);
         
         // calcRhoTrial = sum
-        sumOfArray_GPU<<<1,4>>>(d_rho_trial, d_elements, 4);
+        sumOfVector_GPU<<<1,4>>>(d_rho_trial, d_elements, 4);
         
         // determine lambda_trial
         calcLambdaTrial<<< 1,1 >>> ( d_rho_trial, rho, d_lambda_l, d_lambda_u, d_lambda_tr );

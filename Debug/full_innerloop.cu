@@ -19,6 +19,203 @@ void calcInnerLoop(double* n, double h, double* eta, double* beta)
 }
 
 
+__global__
+void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *lambda_u, double *lambda_trial)
+{
+    if ( *rho_trial > rho )
+        *lambda_l = *lambda_trial;
+
+    else
+        *lambda_u = *lambda_trial;
+
+    *lambda_trial = 0.5 * ( *lambda_l + *lambda_u );
+}
+
+__global__
+void checkKaiConvergence(bool *foo, double *rho_trial, double rho)
+{
+    if ( *rho_trial - rho < 1e-7 )
+        *foo = false;
+
+}
+
+
+__device__
+double laplacian_GPU( double *array, size_t ind, size_t N )
+{
+    double value = 4.0 * array[ind];
+
+    // east element
+    if ( (ind + 1) % N != 0 )
+        value += -1.0 * array[ind + 1];
+    
+    // north element
+    if ( ind + N < N*N )    // TODO: N*N --> dim
+        value += -1.0 * array[ind + N];
+
+    // west element
+    if ( ind % N != 0 )
+        value += -1.0 * array[ind - 1];
+
+    // south element
+    if ( ind >= N )
+        value += -1.0 * array[ind - N];
+
+    return value;
+
+
+}
+
+
+
+
+// __global__
+// void calcLambdaUpper(double* lambda_u, double *p, double beta, double *laplacian, double eta)
+// {
+
+
+//     getMax(float *array, float *max, int *mutex, unsigned int n)
+
+// }
+
+
+__global__ 
+void calcLambdaLower(double *array, double *min, int *mutex, double beta, double *laplacian, double eta, unsigned int n)
+{
+	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int stride = gridDim.x*blockDim.x;
+	unsigned int offset = 0;
+
+	__shared__ double cache[256];
+
+    *min = 1.0e9;
+    double temp = 1.0e9;
+    
+
+	while(index + offset < n){
+        temp = fminf(temp, ( array[index + offset] + ( beta * laplacian[index] ) - eta ) );
+        
+		offset += stride;
+	}
+    
+	cache[threadIdx.x] = temp;
+	__syncthreads();
+
+
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + i]);
+		}
+
+		__syncthreads();
+		i /= 2;
+	}
+
+	if(threadIdx.x == 0){
+		while(atomicCAS(mutex,0,1) != 0);  //lock
+		*min = fminf(*min, cache[0]);
+		atomicExch(mutex, 0);  //unlock
+    }
+    
+}
+
+__global__ 
+void calcLambdaUpper(double *array, double *max, int *mutex, double beta, double *laplacian, double eta, unsigned int n)
+{
+	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int stride = gridDim.x*blockDim.x;
+	unsigned int offset = 0;
+
+	__shared__ double cache[256];
+
+    *max = -1.0e9;
+    double temp = -1.0e9;
+    
+
+	while(index + offset < n){
+        temp = fmaxf(temp, ( array[index + offset] + ( beta * laplacian[index] ) + eta ) );
+        
+		offset += stride;
+	}
+    
+	cache[threadIdx.x] = temp;
+	__syncthreads();
+
+
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] = fmaxf(cache[threadIdx.x], cache[threadIdx.x + i]);
+		}
+
+		__syncthreads();
+		i /= 2;
+	}
+
+	if(threadIdx.x == 0){
+		while(atomicCAS(mutex,0,1) != 0);  //lock
+		*max = fmaxf(*max, cache[0]);
+		atomicExch(mutex, 0);  //unlock
+    }
+    
+}
+
+double laplacian(double *array, size_t ind, size_t N)
+{
+    double value = 4.0 * array[ind];
+
+    // east element
+    if ( (ind + 1) % N != 0 )
+        value += -1.0 * array[ind + 1];
+    
+    // north element
+    if ( ind + N < N*N )    // TODO: N*N --> dim
+        value += -1.0 * array[ind + N];
+
+    // west element
+    if ( ind % N != 0 )
+        value += -1.0 * array[ind - 1];
+
+    // south element
+    if ( ind >= N )
+        value += -1.0 * array[ind - N];
+
+    return value;
+}
+
+// TODO: change kai to something else
+__global__
+void getKaiTrial(   
+    double *kai, 
+    double *p, 
+    double *lambda_trial, 
+    double del_t,
+    double eta,
+    double beta,
+    double* kai_trial,
+    size_t numElements
+)
+{
+    unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+    
+    __shared__ double del_kai[256];
+
+    del_kai[id] = ( del_t / eta ) * ( p[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, numElements ) ) );
+
+    if ( del_kai[id] + kai[id] > 1 )
+        kai_trial[id] = 1;
+
+    else if ( del_kai[id] + kai[id] < 1e-9 )
+        kai_trial[id] = 1e-9;
+
+    else
+        kai_trial[id] = del_kai[id] + kai[id];
+}
+
+
 __global__ 
 void sumOfVector_GPU(double* sum, double* x, size_t n)
 {
@@ -121,6 +318,7 @@ int main()
     size_t num_rows = 8;
     size_t num_GP = 4;
     size_t max_row_size = 8;
+    size_t N = 2;
 
     // rho
     double rho = 0.4;
@@ -147,7 +345,11 @@ int main()
     
     // bisection
     double del_t = 1;
+    double lambda_trial = 0;
+    double lambda_min;
+    double lambda_max;
 
+    
 
     vector<double> l_value = {
         74875200,	23550100,	-40318880,	6069950,	-58414000,	-40627200,	23857900,	11006650,
@@ -187,6 +389,10 @@ int main()
     double *d_l_value;
     size_t *d_l_index;
 
+    // bisection
+
+    int *d_mutex;
+
     CUDA_CALL ( cudaMalloc( (void**)&d_eta, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_n, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_beta, sizeof(double) ) );
@@ -224,11 +430,12 @@ int main()
     // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
     calcDrivingForce ( d_df, d_kai, 3, d_temp, d_u, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
     
+    
+    
+    // Bisection algo
 
-    
 
-    
-    
+
     print_GPU<<<1,1>>>(d_df);
     cudaDeviceSynchronize();
     
