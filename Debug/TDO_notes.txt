@@ -74,7 +74,7 @@ TODO:       repair some reduction functions, add this in the beginning:
 TODO:       repair PSFEM's calculateDimensions
 
             __host__ 
-            void calculateDimensions(size_t N, dim3 &blockDim, dim3 &gridDim)
+            void calculateDimensions(size_t N, dim3 &blockDim, dim3 &gridDim)   // TODO: have it gridDim first --> N, gridDim, blockDim
             {
                 if ( N <= 1024 )
                 {

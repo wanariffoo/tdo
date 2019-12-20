@@ -37,9 +37,10 @@ double atomicAdd_double(double* address, double val)
     return __longlong_as_double(old);
 }
 
+// TODO: to repair
 // Determines 1-dimensional CUDA block and grid sizes based on the number of rows N
 __host__ 
-void calculateDimensions(size_t N, dim3 &blockDim, dim3 &gridDim)
+void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
 {
     if ( N <= 1024 )
     {

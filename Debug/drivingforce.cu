@@ -12,34 +12,6 @@
 using namespace std;
 
 
-
-/// r = A*x
-__global__ 
-void Apply_GPU(	
-	const std::size_t num_rows, 
-	const std::size_t num_cols_per_row,
-	const double* value,
-	const std::size_t* index,
-	const double* x,
-	double* r)
-{
-	int id = blockDim.x * blockIdx.x + threadIdx.x;
-	
-	if ( id < num_rows )
-	{
-		double dot = 0;
-
-		for ( int n = 0; n < num_cols_per_row; n++ )
-		{
-			int col = index [ num_cols_per_row * id + n ];
-			double val = value [ num_cols_per_row * id + n ];
-			dot += val * x [ col ];
-		}
-		r[id] = dot;
-	}
-	
-}
-
 __global__ 
 void sumOfVector_GPU(double* sum, double* x, size_t n)
 {
