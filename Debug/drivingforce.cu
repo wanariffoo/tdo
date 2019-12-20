@@ -187,9 +187,7 @@ int main()
     calculateDimensions(num_rows, blockDim, gridDim);
 
     // node index
-
     vector<size_t> node_index = {0, 1, 3, 4};
-
     size_t* d_node_index;
     cudaMalloc( (void**)&d_node_index, sizeof(size_t) * 4 );
     cudaMemcpy(d_node_index, &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);

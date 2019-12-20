@@ -222,6 +222,9 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 	int stride = blockDim.x*gridDim.x;
     
+    if ( id < n )
+    printf("%d : %e\n", id, x[id]);
+
 	__shared__ double cache[1024];
     cache[threadIdx.x] = 0;
     
@@ -234,7 +237,7 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 	}
 	
     cache[threadIdx.x] = temp;
-	
+    
 	__syncthreads();
 	
 	// reduction
@@ -254,8 +257,9 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 }
 
 // x[] = u[]^T * A * u[]
+// x[] = u[]^T * A * u[]
 __global__
-void uTAu_GPU(double *x, double *u, double* value, size_t* index, size_t max_row_size, size_t num_rows)
+void uTAu_GPU(double *x, double *u, size_t *node_index, double* value, size_t* index, size_t max_row_size, size_t num_rows)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
     
@@ -265,15 +269,15 @@ void uTAu_GPU(double *x, double *u, double* value, size_t* index, size_t max_row
         for ( int n = 0; n < max_row_size; n++ )
 		{
             int col = index [ max_row_size * id + n ];
+            int global_col = ( node_index [ col / 2 ] * 2 ) + ( col % 2 ); // converts local node to global node
 			double val = value [ max_row_size * id + n ];
-            x[id] += val * u [ col ];
+            x[id] += val * u [ global_col ];
+            
         }
         
-        x[id] *= u[id];
-        
+        x[id] *= u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ];
     }
 }
-
 
 // df = ( 1/2*omega ) * p * kai^(p-1) * sum(local stiffness matrices)
 __global__
@@ -290,6 +294,7 @@ void calcDrivingForce(
     double p,               // penalization parameter
     double *temp,           // dummy/temp vector
     double *u,              // elemental displacement vector
+    size_t* node_index,
     double* value,          // local ELLPack stiffness matrix's value vector
     size_t* index,          // local ELLPack stiffness matrix's index vector
     size_t max_row_size,    // local ELLPack stiffness matrix's maximum row size
@@ -299,17 +304,18 @@ void calcDrivingForce(
 {
 
     // temp[] = u[]^T * A * u[]
-    uTAu_GPU<<<gridDim, blockDim>>>(temp, u, value, index, max_row_size, num_rows);
-    // cudaDeviceSynchronize();
-
-    // printVector_GPU<<<1, num_rows>>>( u, num_rows );
-    // printVector_GPU<<<1, num_rows * max_row_size>>>( value, num_rows * max_row_size );
-    // cudaDeviceSynchronize();
-    
-    sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
+    uTAu_GPU<<<gridDim, blockDim>>>(temp, u, node_index, value, index, max_row_size, num_rows);
     cudaDeviceSynchronize();
 
+    // printVector_GPU<<<1, num_rows>>>( temp, num_rows );
+    // printVector_GPU<<<1, num_rows * max_row_size>>>( value, num_rows * max_row_size );
+    sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
+    
+    
     UpdateDrivingForce<<<1,1>>>(df, p, kai);
+    cudaDeviceSynchronize();
+    print_GPU<<<1,1>>>( df );
+    cudaDeviceSynchronize();
 }
 
 
@@ -324,7 +330,9 @@ int main()
     double rho = 0.4;
 
     // displacement vector
-    vector<double> u = { 0, 0, -0.044797, -0.026485, 0, 0, -0.044798, -0.026485};
+    vector<double> u = {0, 0, 0.00010427, 8.3599E-05, 0.00010385, 0.00018609, 0, 0, 2.0302E-07, 8.3438E-05, 1.873E-07, 0.00018757, 0, 0, -0.00010436, 8.34E-05, -0.00010443, 0.00018798};
+
+
     vector<double> temp(num_rows, 0.0);
     
     // double *d_u;
@@ -349,17 +357,17 @@ int main()
     double lambda_min;
     double lambda_max;
 
-    
+
 
     vector<double> l_value = {
-        74875200,	23550100,	-40318880,	6069950,	-58414000,	-40627200,	23857900,	11006650,
-        12680850,	74875200,	21876350,	23857900,	-21876350,	-58414000,	-12680850,	-40318880,
-        -40318880,	11006650,	86534200,	-40626900,	12199100,	-5588950,	-58414000,	35209400,
-        -12680850,	23857900,	-21876350,	108186200,	21876350,	-73629940,	12680850,	-58414000,
-        -58414000,	-40627200,	12199100,	1013350,	119845000,	45202400,	-73629940,	-5588950,
-        -21876350,	-58414000,	-24340100,	-73629940,	24340100,	119845000,	21876350,	12199100,
-        23857900,	6069950,	-58414000,	33543400,	-73629940,	1013350,	108186200,	-40626900,
-        21876350,	-40318880,	24340100,	-58414000,	-24340100,	12199100,	-21876350,	86534200
+        103939100,	37502100,	-63536480,	-2900100,	-51968000,	-37502400,	11566200,	2900100,
+        37502100,	103939100,	2900100,	11566200,	-37502400,	-51968000,	-2900100,	-63536480,
+        -63536480,	2900100,	103939100,	-37502100,	11566200,	-2900100,	-51968000,	37502400,
+        -2900100,	11566200,	-37502100,	103939100,	2900100,	-63536480,	37502400,	-51968000,
+        -51968000,	-37502400,	11566200,	2900100,	103939100,	37502100,	-63536480,	-2900100,
+        -37502400,	-51968000,	-2900100,	-63536480,	37502100,	103939100,	2900100,	11566200,
+        11566200,	-2900100,	-51968000,	37502400,	-63536480,	2900100,	103939100,	-37502100,
+        2900100,	-63536480,	37502400,	-51968000,	-2900100,	11566200,	-37502100,	103939100
     };
 
     vector<size_t> l_index = {
@@ -399,7 +407,7 @@ int main()
     CUDA_CALL ( cudaMalloc( (void**)&d_df, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_kai, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_temp, sizeof(double) * num_rows) );
-    CUDA_CALL ( cudaMalloc( (void**)&d_u, sizeof(double) * num_rows) );
+    CUDA_CALL ( cudaMalloc( (void**)&d_u, sizeof(double) * 18) );
     CUDA_CALL ( cudaMalloc( (void**)&d_l_value, sizeof(double) * num_rows * max_row_size ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_l_index, sizeof(size_t) * num_rows * max_row_size ) );
     
@@ -408,11 +416,17 @@ int main()
     CUDA_CALL ( cudaMemcpy( d_kai, &kai, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_eta, &eta, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_beta, &beta, sizeof(double), cudaMemcpyHostToDevice) );
-    CUDA_CALL ( cudaMemcpy( d_u, &u[0], sizeof(double) * num_rows, cudaMemcpyHostToDevice) );
+    CUDA_CALL ( cudaMemcpy( d_u, &u[0], sizeof(double) * 18, cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_temp, &temp[0], sizeof(double) * num_rows, cudaMemcpyHostToDevice) );
 
     CUDA_CALL ( cudaMemcpy( d_l_value, &l_value[0], sizeof(double) * num_rows * max_row_size, cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_l_index, &l_index[0], sizeof(size_t) * num_rows * max_row_size, cudaMemcpyHostToDevice) );
+
+    // node index
+    vector<size_t> node_index = {0, 1, 3, 4};
+    size_t* d_node_index;
+    cudaMalloc( (void**)&d_node_index, sizeof(size_t) * 4 );
+    cudaMemcpy(d_node_index, &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
 
     // get block and grid dimensions
     dim3 gridDim;
@@ -428,7 +442,7 @@ int main()
     calcInnerLoop<<<1,1>>>( d_n, h, d_eta, d_beta );
     
     // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
-    calcDrivingForce ( d_df, d_kai, 3, d_temp, d_u, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( d_df, d_kai, 3, d_temp, d_u, d_node_index, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
     
     
     
