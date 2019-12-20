@@ -43,7 +43,7 @@ void calculateDimensions(size_t N, dim3 &blockDim, dim3 &gridDim)
 {
     if ( N <= 1024 )
     {
-        blockDim.x = N; blockDim.y = 1; blockDim.z = 1;
+        blockDim.x = 1024; blockDim.y = 1; blockDim.z = 1;
         gridDim.x  = 1; gridDim.y = 1; gridDim.z = 1;
     }
         

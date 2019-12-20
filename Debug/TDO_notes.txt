@@ -51,3 +51,35 @@ CHECK:      When calculating the max_row_size on the device, we have to copy res
 
 
 TODO:       boundary condition (identity row)
+
+
+
+TODO:       repair some reduction functions, add this in the beginning:
+
+            __global__ 
+            void sumOfVector_GPU(double* sum, double* x, size_t n)
+            {
+                int id = blockDim.x * blockIdx.x + threadIdx.x;
+                int stride = blockDim.x*gridDim.x;
+                
+                __shared__ double cache[1024];
+                cache[threadIdx.x] = 0;    < --- NOTE:
+                
+                double temp = 0.0;
+                while(id < n)
+                {
+                    temp += x[id];
+
+
+TODO:       repair PSFEM's calculateDimensions
+
+            __host__ 
+            void calculateDimensions(size_t N, dim3 &blockDim, dim3 &gridDim)
+            {
+                if ( N <= 1024 )
+                {
+                    blockDim.x = 1024; blockDim.y = 1; blockDim.z = 1; //NOTE: here, change N -> 1024, so that reductions work
+                    gridDim.x  = 1; gridDim.y = 1; gridDim.z = 1;
+                }
+
+            .. because reduction kernels need full blocks to work
