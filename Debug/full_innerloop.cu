@@ -80,7 +80,7 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
 
 
 __global__ 
-void calcLambdaLower(double *array, double *min, int *mutex, double beta, double *laplacian, double eta, unsigned int n)
+void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -92,9 +92,8 @@ void calcLambdaLower(double *array, double *min, int *mutex, double beta, double
     double temp = 1.0e9;
     
 
-	while(index + offset < n){
-        temp = fminf(temp, ( array[index + offset] + ( beta * laplacian[index] ) - eta ) );
-        
+	while(index + offset < numElements){
+        temp = fminf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) + eta ) );
 		offset += stride;
 	}
     
@@ -539,9 +538,10 @@ int main()
 
     // TODO: THIS!!!!!!!!!!!!!
     calcLambdaUpper<<< 1, 4 >>>(d_df, d_lambda_u, d_mutex, 1.0, d_kai, 12, N, 4);
-    // calcLambdaLower<<< 1, 4 >>>(d_p, d_lambda_l, d_mutex, 1.0, d_laplacian, 12, 4);
+    calcLambdaLower<<< 1, 4 >>>(d_df, d_lambda_l, d_mutex, 1.0, d_kai, 12, N, 4);
 
     print_GPU<<<1,1>>>( d_lambda_u );
+    print_GPU<<<1,1>>>( d_lambda_l );
     cudaDeviceSynchronize();
     
 }
