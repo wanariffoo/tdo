@@ -122,7 +122,7 @@ void calcLambdaLower(double *array, double *min, int *mutex, double beta, double
 }
 
 __global__ 
-void calcLambdaUpper(double *array, double *max, int *mutex, double beta, double *laplacian, double eta, unsigned int n)
+void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -133,16 +133,15 @@ void calcLambdaUpper(double *array, double *max, int *mutex, double beta, double
     *max = -1.0e9;
     double temp = -1.0e9;
     
-
-	while(index + offset < n){
-        temp = fmaxf(temp, ( array[index + offset] + ( beta * laplacian[index] ) + eta ) );
-        
+	while(index + offset < numElements){
+        // temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian[index] ) + eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) + eta ) );
+         
 		offset += stride;
 	}
     
 	cache[threadIdx.x] = temp;
 	__syncthreads();
-
 
 	// reduction
 	unsigned int i = blockDim.x/2;
@@ -160,7 +159,6 @@ void calcLambdaUpper(double *array, double *max, int *mutex, double beta, double
 		*max = fmaxf(*max, cache[0]);
 		atomicExch(mutex, 0);  //unlock
     }
-    
 }
 
 double laplacian(double *array, size_t ind, size_t N)
@@ -343,7 +341,7 @@ int main()
     double h = 0.5;
 
     // driving force
-    double kai = 0.4;
+    // double kai = 0.4;
     // double df;
     vector<double> p(0, num_GP);
     
@@ -383,7 +381,7 @@ int main()
     double *d_eta;
     double *d_n;
     double *d_beta;
-    double *d_kai;
+    // double *d_kai;
     // double *d_df;
     // double *d_df1;
     // double *d_df2;
@@ -407,7 +405,7 @@ int main()
     // CUDA_CALL ( cudaMalloc( (void**)&d_df1, sizeof(double) ) );
     // CUDA_CALL ( cudaMalloc( (void**)&d_df2, sizeof(double) ) );
     // CUDA_CALL ( cudaMalloc( (void**)&d_df3, sizeof(double) ) );
-    CUDA_CALL ( cudaMalloc( (void**)&d_kai, sizeof(double) ) );
+    // CUDA_CALL ( cudaMalloc( (void**)&d_kai, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_temp, sizeof(double) * num_rows) );
     CUDA_CALL ( cudaMalloc( (void**)&d_u, sizeof(double) * 18) );
     CUDA_CALL ( cudaMalloc( (void**)&d_l_value, sizeof(double) * num_rows * max_row_size ) );
@@ -418,7 +416,7 @@ int main()
     // CUDA_CALL ( cudaMemset( d_df1, 0, sizeof(double) ) );
     // CUDA_CALL ( cudaMemset( d_df2, 0, sizeof(double) ) );
     // CUDA_CALL ( cudaMemset( d_df3, 0, sizeof(double) ) );
-    CUDA_CALL ( cudaMemcpy( d_kai, &kai, sizeof(double), cudaMemcpyHostToDevice) );
+    // CUDA_CALL ( cudaMemcpy( d_kai, &kai, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_eta, &eta, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_beta, &beta, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_u, &u[0], sizeof(double) * 18, cudaMemcpyHostToDevice) );
@@ -462,7 +460,6 @@ int main()
     CUDA_CALL( cudaMalloc( (void**)&d_df, sizeof(double) * 4 ) );
     CUDA_CALL( cudaMemcpy(d_df, &df[0], sizeof(double) * 4, cudaMemcpyHostToDevice) );  
 
-
     vector<size_t*> d_node_index;
     d_node_index.resize(4);
 
@@ -477,6 +474,12 @@ int main()
 
     CUDA_CALL( cudaMalloc( (void**)&d_node_index[3], sizeof(size_t) * 4 ) );
     CUDA_CALL( cudaMemcpy(d_node_index[3], &node_index3[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
+
+    vector<double> kai = {0.4,0.4,0.4,0.4};
+    double* d_kai;
+
+    CUDA_CALL( cudaMalloc( (void**)&d_kai, sizeof(size_t) * 4 ) );
+    CUDA_CALL( cudaMemcpy(d_kai, &kai[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
 
 
 
@@ -493,15 +496,23 @@ int main()
     ///////////////////////////////////////////////////////////////////////////////////////
 
     calcInnerLoop<<<1,1>>>( d_n, h, d_eta, d_beta );
+    cudaDeviceSynchronize();
+    print_GPU <<< 1, 1 >>> ( d_n );
+    cudaDeviceSynchronize();
+
+
+
+
     
     // // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
-    calcDrivingForce ( &d_df[0], d_kai, 3, d_temp, d_u, d_node_index[0], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( &d_df[1], d_kai, 3, d_temp, d_u, d_node_index[1], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( &d_df[2], d_kai, 3, d_temp, d_u, d_node_index[2], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( &d_df[3], d_kai, 3, d_temp, d_u, d_node_index[3], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[0], &d_kai[0], 3, d_temp, d_u, d_node_index[0], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[1], &d_kai[1], 3, d_temp, d_u, d_node_index[1], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[2], &d_kai[2], 3, d_temp, d_u, d_node_index[2], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[3], &d_kai[3], 3, d_temp, d_u, d_node_index[3], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
     cudaDeviceSynchronize();
     
-    printVector_GPU<<<1,4>>>( d_df, 4 );
+    // printVector_GPU<<<1,4>>>( d_df, 4 );
+
     // Bisection algo
     cout << "bisection: " << endl;
     cudaDeviceSynchronize();
@@ -509,18 +520,28 @@ int main()
     double *d_lambda_l;
     double *d_lambda_u;
     double *d_lambda_tr;
+    double *d_laplacian;
+    vector<double> laplace_array(4); // CHECK: ??
 
     cudaMalloc( (void**)&d_lambda_l, sizeof(double) );
     cudaMalloc( (void**)&d_lambda_u, sizeof(double) );
     cudaMalloc( (void**)&d_lambda_tr, sizeof(double) );
+    cudaMalloc( (void**)&d_laplacian, sizeof(double) * 4 );
     cudaMalloc( (void**)&d_mutex, sizeof(int) );
+
 
     cudaMemset( d_lambda_tr, 0, sizeof(double) );
     cudaMemset( d_lambda_u, 0, sizeof(double) );
     cudaMemset( d_lambda_l, 0, sizeof(double) );
 
+    cudaMemcpy(d_laplacian, &laplace_array[0], sizeof(double) * 4, cudaMemcpyHostToDevice);
 
-    // calcLambdaUpper<<< 1, 4 >>>(d_p, d_lambda_u, d_mutex, 1.0, d_laplacian, 12, 4);
+
+    // TODO: THIS!!!!!!!!!!!!!
+    calcLambdaUpper<<< 1, 4 >>>(d_df, d_lambda_u, d_mutex, 1.0, d_kai, 12, N, 4);
     // calcLambdaLower<<< 1, 4 >>>(d_p, d_lambda_l, d_mutex, 1.0, d_laplacian, 12, 4);
+
+    print_GPU<<<1,1>>>( d_lambda_u );
+    cudaDeviceSynchronize();
     
 }
