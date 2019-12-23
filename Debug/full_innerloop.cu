@@ -222,8 +222,8 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 	int stride = blockDim.x*gridDim.x;
     
-    if ( id < n )
-    printf("%d : %e\n", id, x[id]);
+    // if ( id < n )
+    // printf("%d : %e\n", id, x[id]);
 
 	__shared__ double cache[1024];
     cache[threadIdx.x] = 0;
@@ -311,10 +311,7 @@ void calcDrivingForce(
     // printVector_GPU<<<1, num_rows * max_row_size>>>( value, num_rows * max_row_size );
     sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
     
-    
     UpdateDrivingForce<<<1,1>>>(df, p, kai);
-    cudaDeviceSynchronize();
-    print_GPU<<<1,1>>>( df );
     cudaDeviceSynchronize();
 }
 
@@ -389,6 +386,9 @@ int main()
     double *d_beta;
     double *d_kai;
     double *d_df;
+    double *d_df1;
+    double *d_df2;
+    double *d_df3;
 
     // double *d_p;
     double *d_temp;
@@ -405,6 +405,9 @@ int main()
     CUDA_CALL ( cudaMalloc( (void**)&d_n, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_beta, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_df, sizeof(double) ) );
+    CUDA_CALL ( cudaMalloc( (void**)&d_df1, sizeof(double) ) );
+    CUDA_CALL ( cudaMalloc( (void**)&d_df2, sizeof(double) ) );
+    CUDA_CALL ( cudaMalloc( (void**)&d_df3, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_kai, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_temp, sizeof(double) * num_rows) );
     CUDA_CALL ( cudaMalloc( (void**)&d_u, sizeof(double) * 18) );
@@ -413,6 +416,9 @@ int main()
     
     CUDA_CALL ( cudaMemset( d_n, 0, sizeof(double) ) );
     CUDA_CALL ( cudaMemset( d_df, 0, sizeof(double) ) );
+    CUDA_CALL ( cudaMemset( d_df1, 0, sizeof(double) ) );
+    CUDA_CALL ( cudaMemset( d_df2, 0, sizeof(double) ) );
+    CUDA_CALL ( cudaMemset( d_df3, 0, sizeof(double) ) );
     CUDA_CALL ( cudaMemcpy( d_kai, &kai, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_eta, &eta, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_beta, &beta, sizeof(double), cudaMemcpyHostToDevice) );
@@ -427,6 +433,23 @@ int main()
     size_t* d_node_index;
     cudaMalloc( (void**)&d_node_index, sizeof(size_t) * 4 );
     cudaMemcpy(d_node_index, &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+    
+
+    vector<size_t> node_index1 = {1, 2, 4, 5};
+    size_t* d_node_index1;
+    cudaMalloc( (void**)&d_node_index1, sizeof(size_t) * 4 );
+    cudaMemcpy(d_node_index1, &node_index1[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+
+    vector<size_t> node_index2 = {3, 4, 6, 7};
+    size_t* d_node_index2;
+    cudaMalloc( (void**)&d_node_index2, sizeof(size_t) * 4 );
+    cudaMemcpy(d_node_index2, &node_index2[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+
+    vector<size_t> node_index3 = {4, 5, 7, 8};
+    size_t* d_node_index3;
+    cudaMalloc( (void**)&d_node_index3, sizeof(size_t) * 4 );
+    cudaMemcpy(d_node_index3, &node_index3[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+
 
     // get block and grid dimensions
     dim3 gridDim;
@@ -443,14 +466,17 @@ int main()
     
     // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
     calcDrivingForce ( d_df, d_kai, 3, d_temp, d_u, d_node_index, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    
-    
-    
-    // Bisection algo
-
-
-
-    print_GPU<<<1,1>>>(d_df);
+    calcDrivingForce ( d_df1, d_kai, 3, d_temp, d_u, d_node_index1, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( d_df2, d_kai, 3, d_temp, d_u, d_node_index2, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( d_df3, d_kai, 3, d_temp, d_u, d_node_index3, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
     cudaDeviceSynchronize();
+    
+     
+    // Bisection algo
+    cout << "bisection: " << endl;
+    cudaDeviceSynchronize();
+    
+
+
     
 }
