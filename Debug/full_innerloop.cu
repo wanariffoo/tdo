@@ -272,7 +272,6 @@ void uTAu_GPU(double *x, double *u, size_t *node_index, double* value, size_t* i
             int global_col = ( node_index [ col / 2 ] * 2 ) + ( col % 2 ); // converts local node to global node
 			double val = value [ max_row_size * id + n ];
             x[id] += val * u [ global_col ];
-            
         }
         
         x[id] *= u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ];
@@ -345,7 +344,7 @@ int main()
 
     // driving force
     double kai = 0.4;
-    double df;
+    // double df;
     vector<double> p(0, num_GP);
     
     // bisection
@@ -385,10 +384,10 @@ int main()
     double *d_n;
     double *d_beta;
     double *d_kai;
-    double *d_df;
-    double *d_df1;
-    double *d_df2;
-    double *d_df3;
+    // double *d_df;
+    // double *d_df1;
+    // double *d_df2;
+    // double *d_df3;
 
     // double *d_p;
     double *d_temp;
@@ -404,10 +403,10 @@ int main()
     CUDA_CALL ( cudaMalloc( (void**)&d_eta, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_n, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_beta, sizeof(double) ) );
-    CUDA_CALL ( cudaMalloc( (void**)&d_df, sizeof(double) ) );
-    CUDA_CALL ( cudaMalloc( (void**)&d_df1, sizeof(double) ) );
-    CUDA_CALL ( cudaMalloc( (void**)&d_df2, sizeof(double) ) );
-    CUDA_CALL ( cudaMalloc( (void**)&d_df3, sizeof(double) ) );
+    // CUDA_CALL ( cudaMalloc( (void**)&d_df, sizeof(double) ) );
+    // CUDA_CALL ( cudaMalloc( (void**)&d_df1, sizeof(double) ) );
+    // CUDA_CALL ( cudaMalloc( (void**)&d_df2, sizeof(double) ) );
+    // CUDA_CALL ( cudaMalloc( (void**)&d_df3, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_kai, sizeof(double) ) );
     CUDA_CALL ( cudaMalloc( (void**)&d_temp, sizeof(double) * num_rows) );
     CUDA_CALL ( cudaMalloc( (void**)&d_u, sizeof(double) * 18) );
@@ -415,10 +414,10 @@ int main()
     CUDA_CALL ( cudaMalloc( (void**)&d_l_index, sizeof(size_t) * num_rows * max_row_size ) );
     
     CUDA_CALL ( cudaMemset( d_n, 0, sizeof(double) ) );
-    CUDA_CALL ( cudaMemset( d_df, 0, sizeof(double) ) );
-    CUDA_CALL ( cudaMemset( d_df1, 0, sizeof(double) ) );
-    CUDA_CALL ( cudaMemset( d_df2, 0, sizeof(double) ) );
-    CUDA_CALL ( cudaMemset( d_df3, 0, sizeof(double) ) );
+    // CUDA_CALL ( cudaMemset( d_df, 0, sizeof(double) ) );
+    // CUDA_CALL ( cudaMemset( d_df1, 0, sizeof(double) ) );
+    // CUDA_CALL ( cudaMemset( d_df2, 0, sizeof(double) ) );
+    // CUDA_CALL ( cudaMemset( d_df3, 0, sizeof(double) ) );
     CUDA_CALL ( cudaMemcpy( d_kai, &kai, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_eta, &eta, sizeof(double), cudaMemcpyHostToDevice) );
     CUDA_CALL ( cudaMemcpy( d_beta, &beta, sizeof(double), cudaMemcpyHostToDevice) );
@@ -430,25 +429,56 @@ int main()
 
     // node index
     vector<size_t> node_index = {0, 1, 3, 4};
-    size_t* d_node_index;
-    cudaMalloc( (void**)&d_node_index, sizeof(size_t) * 4 );
-    cudaMemcpy(d_node_index, &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+    // size_t* d_node_index = &node_index[0];
+    // cudaMalloc( (void**)&d_node_index, sizeof(size_t) * 4 );
+    // cudaMemcpy(d_node_index, &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
     
 
     vector<size_t> node_index1 = {1, 2, 4, 5};
-    size_t* d_node_index1;
-    cudaMalloc( (void**)&d_node_index1, sizeof(size_t) * 4 );
-    cudaMemcpy(d_node_index1, &node_index1[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+    // size_t* d_node_index1;
+    // cudaMalloc( (void**)&d_node_index1, sizeof(size_t) * 4 );
+    // cudaMemcpy(d_node_index1, &node_index1[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
 
     vector<size_t> node_index2 = {3, 4, 6, 7};
-    size_t* d_node_index2;
-    cudaMalloc( (void**)&d_node_index2, sizeof(size_t) * 4 );
-    cudaMemcpy(d_node_index2, &node_index2[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+    // size_t* d_node_index2;
+    // cudaMalloc( (void**)&d_node_index2, sizeof(size_t) * 4 );
+    // cudaMemcpy(d_node_index2, &node_index2[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
 
     vector<size_t> node_index3 = {4, 5, 7, 8};
-    size_t* d_node_index3;
-    cudaMalloc( (void**)&d_node_index3, sizeof(size_t) * 4 );
-    cudaMemcpy(d_node_index3, &node_index3[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+    // size_t* d_node_index3;
+    // cudaMalloc( (void**)&d_node_index3, sizeof(size_t) * 4 );
+    // cudaMemcpy(d_node_index3, &node_index3[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice);
+
+
+    // vector<double*> df_array;
+    // df_array.push_back(d_df);
+    // df_array.push_back(d_df1);
+    // df_array.push_back(d_df2);
+    // df_array.push_back(d_df3);
+
+
+    vector<double> df = {0, 0, 0, 0};
+    double* d_df;
+    CUDA_CALL( cudaMalloc( (void**)&d_df, sizeof(double) * 4 ) );
+    CUDA_CALL( cudaMemcpy(d_df, &df[0], sizeof(double) * 4, cudaMemcpyHostToDevice) );  
+
+
+    vector<size_t*> d_node_index;
+    d_node_index.resize(4);
+
+    CUDA_CALL( cudaMalloc( (void**)&d_node_index[0], sizeof(size_t) * 4 ) );
+    CUDA_CALL( cudaMemcpy(d_node_index[0], &node_index[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
+
+    CUDA_CALL( cudaMalloc( (void**)&d_node_index[1], sizeof(size_t) * 4 ) );
+    CUDA_CALL( cudaMemcpy(d_node_index[1], &node_index1[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
+
+    CUDA_CALL( cudaMalloc( (void**)&d_node_index[2], sizeof(size_t) * 4 ) );
+    CUDA_CALL( cudaMemcpy(d_node_index[2], &node_index2[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
+
+    CUDA_CALL( cudaMalloc( (void**)&d_node_index[3], sizeof(size_t) * 4 ) );
+    CUDA_CALL( cudaMemcpy(d_node_index[3], &node_index3[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
+
+
 
 
     // get block and grid dimensions
@@ -464,19 +494,33 @@ int main()
 
     calcInnerLoop<<<1,1>>>( d_n, h, d_eta, d_beta );
     
-    // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
-    calcDrivingForce ( d_df, d_kai, 3, d_temp, d_u, d_node_index, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( d_df1, d_kai, 3, d_temp, d_u, d_node_index1, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( d_df2, d_kai, 3, d_temp, d_u, d_node_index2, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( d_df3, d_kai, 3, d_temp, d_u, d_node_index3, d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    // // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
+    calcDrivingForce ( &d_df[0], d_kai, 3, d_temp, d_u, d_node_index[0], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[1], d_kai, 3, d_temp, d_u, d_node_index[1], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[2], d_kai, 3, d_temp, d_u, d_node_index[2], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    calcDrivingForce ( &d_df[3], d_kai, 3, d_temp, d_u, d_node_index[3], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
     cudaDeviceSynchronize();
     
-     
+    printVector_GPU<<<1,4>>>( d_df, 4 );
     // Bisection algo
     cout << "bisection: " << endl;
     cudaDeviceSynchronize();
     
+    double *d_lambda_l;
+    double *d_lambda_u;
+    double *d_lambda_tr;
+
+    cudaMalloc( (void**)&d_lambda_l, sizeof(double) );
+    cudaMalloc( (void**)&d_lambda_u, sizeof(double) );
+    cudaMalloc( (void**)&d_lambda_tr, sizeof(double) );
+    cudaMalloc( (void**)&d_mutex, sizeof(int) );
+
+    cudaMemset( d_lambda_tr, 0, sizeof(double) );
+    cudaMemset( d_lambda_u, 0, sizeof(double) );
+    cudaMemset( d_lambda_l, 0, sizeof(double) );
 
 
+    // calcLambdaUpper<<< 1, 4 >>>(d_p, d_lambda_u, d_mutex, 1.0, d_laplacian, 12, 4);
+    // calcLambdaLower<<< 1, 4 >>>(d_p, d_lambda_l, d_mutex, 1.0, d_laplacian, 12, 4);
     
 }
