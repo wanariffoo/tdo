@@ -201,11 +201,12 @@ void calcKaiTrial(
     
     __shared__ double del_kai[256];
 
+    // if ( id == 0 )
+    // printf("%f\n", *lambda_trial);
+
     if ( id < numElements )
     {
         del_kai[id] = ( del_t / eta ) * ( df[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, N ) ) );
-        
-            printf("%d %f \n", id, del_kai[id]);
         
         if ( del_kai[id] + kai[id] > 1 )
         kai_trial[id] = 1;
@@ -215,6 +216,8 @@ void calcKaiTrial(
         
         else
         kai_trial[id] = del_kai[id] + kai[id];
+        
+        // printf("%d %f \n", id, kai_trial[id]);
     }
 }
 
@@ -222,7 +225,7 @@ void calcKaiTrial(
 __global__ 
 void sumOfVector_GPU(double* sum, double* x, size_t n)
 {
-	int id = blockDim.x * blockIdx.x + threadIdx.x;
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
 	int stride = blockDim.x*gridDim.x;
     
     // if ( id < n )
@@ -235,7 +238,6 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 	while(id < n)
 	{
 		temp += x[id];
-		
 		id += stride;
 	}
 	
@@ -259,58 +261,39 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 		atomicAdd_double(sum, cache[0]);
 }
 
-__global__
-void calcRhoTrial(double* rho_tr, double* kai_tr, double* lambda_l, double* lambda_u, double* lambda_tr, double rho, double volume, size_t numElements)
-{
-    int id = blockDim.x * blockIdx.x + threadIdx.x;
-	int stride = blockDim.x*gridDim.x;
-    
-	__shared__ double cache[1024];
-    cache[threadIdx.x] = 0;
-    
-	double temp = 0.0;
-	while(id < numElements)
-	{
-		temp += kai_tr[id];
-		
-		id += stride;
-	}
+
+// __global__
+// void calcRhoTrial(
+//     double* rho_tr, 
+//     double* lambda_l, 
+//     double* lambda_u, 
+//     double* lambda_tr, 
+//     double rho, 
+//     double volume
+// {
+//     int id = blockDim.x * blockIdx.x + threadIdx.x;
 	
-    cache[threadIdx.x] = temp;
+//     if(id == 0)
+//         *rho_tr /= volume;
+//     }
     
-	__syncthreads();
-	
-	// reduction
-	unsigned int i = blockDim.x/2;
-	while(i != 0){
-		if(threadIdx.x < i){
-			cache[threadIdx.x] += cache[threadIdx.x + i];
-		}
-		__syncthreads();
-		i /= 2;
-	}
-
-
-	// reduce sum from all blocks' cache
-	if(threadIdx.x == 0)
-        atomicAdd_double(rho_tr, cache[0]);
-   
-    if(id == 0)
-        *kai_tr /= volume;
-}
-
 __global__
 void calcLambdaTrial(double* lambda_tr, double* lambda_l, double* lambda_u, double* rho_tr, double rho, double volume)
 {
+    *rho_tr /= volume;
+    // printf("%f\n", *rho_tr);
+
     if ( *rho_tr > rho )
+    {
         *lambda_l = *lambda_tr;
+        // printf("aps\n");
+    }
     
     else
         *lambda_u = *lambda_tr;
 
     *lambda_tr = 0.5 * ( *lambda_u + *lambda_l );
 
-    printf("%f\n", *lambda_u + *lambda_l);
 }
 
 // x[] = u[]^T * A * u[]
@@ -579,7 +562,7 @@ int main()
     
     // printVector_GPU<<<1,4>>>( d_df, 4 );
 
-    // Bisection algo
+    // Bisection init
     cout << "bisection: " << endl;
     cudaDeviceSynchronize();
     
@@ -603,15 +586,13 @@ int main()
     cudaMemcpy(d_laplacian, &laplace_array[0], sizeof(double) * 4, cudaMemcpyHostToDevice);
 
 
-    // TODO: THIS!!!!!!!!!!!!!
-    calcLambdaUpper<<< 1, 4 >>>(d_df, d_lambda_u, d_mutex, 1.0, d_kai, 12, N, 4);
-    calcLambdaLower<<< 1, 4 >>>(d_df, d_lambda_l, d_mutex, 1.0, d_kai, 12, N, 4);
+    // bisection algo
 
-    
-    // vector<double> kai_tr;
-    // kai_tr.resize(4);
-    
-    
+    // n is calculated in host
+
+    size_t n_innerloop = (6 / eta) * ( beta / (h*h) );
+    cout << n_innerloop << endl;
+
     double* d_kai_tr;
     cudaMalloc( (void**)&d_kai_tr, sizeof(double) * 4 );
     cudaMemset( d_kai_tr, 0, sizeof(double) * 4);
@@ -620,10 +601,6 @@ int main()
     double* d_rho_tr;
     cudaMalloc( (void**)&d_rho_tr, sizeof(double));
     cudaMemset( d_rho_tr, 0, sizeof(double));
-
-    // double* d_lambda_tr;
-    // cudaMalloc( (void**)&d_lambda_tr, sizeof(double));
-    // cudaMemset( d_lambda_tr, 0, sizeof(double));
     
     bool inner_foo = 1;
     bool* d_inner_foo;
@@ -631,21 +608,27 @@ int main()
     cudaMemset( d_inner_foo, 1, sizeof(bool) );
     double volume = 1.0;
 
-    while (inner_foo)
+    for ( int j = 0 ; j < 2; j++)
     {
-        calcKaiTrial<<<1,4>>> ( d_kai, d_df, d_lambda_tr, 1.0, 12, 1, d_kai_tr, 2, 4);
-        
-        calcRhoTrial<<<1,4>>>( d_rho_tr, d_kai_tr, d_lambda_l, d_lambda_u, d_lambda_tr, 0.4, volume, 4);
-        // cudaDeviceSynchronize();
-        
-        calcLambdaTrial<<<1,1>>>( d_lambda_tr, d_lambda_l, d_lambda_u, d_rho_tr, 0.4, 1.0 );
-        
-        checkRhoTrial<<<1,1>>>( d_inner_foo, d_rho_tr, 0.4 );
+        setToZero<<<1,1>>>(d_lambda_tr, 1);
+        calcLambdaUpper<<< 1, 4 >>>(d_df, d_lambda_u, d_mutex, 1.0, d_kai, 12, N, 4);
+        calcLambdaLower<<< 1, 4 >>>(d_df, d_lambda_l, d_mutex, 1.0, d_kai, 12, N, 4);
 
-        cudaMemcpy(d_inner_foo, d_inner_foo, sizeof(bool), cudaMemcpyDeviceToHost);
-        
+        for ( int i = 0 ; i < 30 ; i++ )
+        {
+            calcKaiTrial<<<1,4>>> ( d_kai, d_df, d_lambda_tr, 1.0, 12, 1, d_kai_tr, 2, 4);
+            setToZero<<<1,1>>>(d_rho_tr, 1);
+            sumOfVector_GPU <<< 1, 4 >>> (d_rho_tr, d_kai_tr, 4);
+            cudaDeviceSynchronize();
+            calcLambdaTrial<<<1,1>>>( d_lambda_tr, d_lambda_l, d_lambda_u, d_rho_tr, 0.4, 1.0 );
+            checkRhoTrial<<<1,1>>>( d_inner_foo, d_rho_tr, 0.4 );
+        }
+        print_GPU<<<1,1>>>( d_lambda_tr );
     }
-    // print_GPU<<<1,1>>>( d_lambda_u );
-    print_GPU<<<1,1>>>( d_lambda_tr );
+        
+    printVector_GPU<<<1,4>>>(d_kai_tr, 4);
+    cout << "end of bisection" << endl;
     cudaDeviceSynchronize();
+
+    // update 
 }
