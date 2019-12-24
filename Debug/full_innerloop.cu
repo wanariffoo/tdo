@@ -185,14 +185,15 @@ double laplacian(double *array, size_t ind, size_t N)
 
 // TODO: change kai to something else
 __global__
-void getKaiTrial(   
+void calcKaiTrial(   
     double *kai, 
-    double *p, 
+    double *df, 
     double *lambda_trial, 
     double del_t,
     double eta,
     double beta,
     double* kai_trial,
+    size_t N,
     size_t numElements
 )
 {
@@ -200,16 +201,21 @@ void getKaiTrial(
     
     __shared__ double del_kai[256];
 
-    del_kai[id] = ( del_t / eta ) * ( p[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, numElements ) ) );
-
-    if ( del_kai[id] + kai[id] > 1 )
+    if ( id < numElements )
+    {
+        del_kai[id] = ( del_t / eta ) * ( df[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, N ) ) );
+        
+            printf("%d %f \n", id, del_kai[id]);
+        
+        if ( del_kai[id] + kai[id] > 1 )
         kai_trial[id] = 1;
-
-    else if ( del_kai[id] + kai[id] < 1e-9 )
+        
+        else if ( del_kai[id] + kai[id] < 1e-9 )
         kai_trial[id] = 1e-9;
-
-    else
+        
+        else
         kai_trial[id] = del_kai[id] + kai[id];
+    }
 }
 
 
@@ -253,6 +259,60 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 		atomicAdd_double(sum, cache[0]);
 }
 
+__global__
+void calcRhoTrial(double* rho_tr, double* kai_tr, double* lambda_l, double* lambda_u, double* lambda_tr, double rho, double volume, size_t numElements)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+    
+	__shared__ double cache[1024];
+    cache[threadIdx.x] = 0;
+    
+	double temp = 0.0;
+	while(id < numElements)
+	{
+		temp += kai_tr[id];
+		
+		id += stride;
+	}
+	
+    cache[threadIdx.x] = temp;
+    
+	__syncthreads();
+	
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] += cache[threadIdx.x + i];
+		}
+		__syncthreads();
+		i /= 2;
+	}
+
+
+	// reduce sum from all blocks' cache
+	if(threadIdx.x == 0)
+        atomicAdd_double(rho_tr, cache[0]);
+   
+    if(id == 0)
+        *kai_tr /= volume;
+}
+
+__global__
+void calcLambdaTrial(double* lambda_tr, double* lambda_l, double* lambda_u, double* rho_tr, double rho, double volume)
+{
+    if ( *rho_tr > rho )
+        *lambda_l = *lambda_tr;
+    
+    else
+        *lambda_u = *lambda_tr;
+
+    *lambda_tr = 0.5 * ( *lambda_u + *lambda_l );
+
+    printf("%f\n", *lambda_u + *lambda_l);
+}
+
 // x[] = u[]^T * A * u[]
 // x[] = u[]^T * A * u[]
 __global__
@@ -282,6 +342,13 @@ void UpdateDrivingForce(double *df, double p, double *kai)
     *df *= (0.5) * p * pow(*kai, p - 1);
 }
 
+__global__
+void checkRhoTrial(bool* inner_foo, double *rho_tr, double rho)
+{
+    if ( abs( *rho_tr - rho ) < 1e-7 )
+        *inner_foo = false;
+
+}
 // calculate the driving force per element
 __host__
 void calcDrivingForce(
@@ -540,8 +607,45 @@ int main()
     calcLambdaUpper<<< 1, 4 >>>(d_df, d_lambda_u, d_mutex, 1.0, d_kai, 12, N, 4);
     calcLambdaLower<<< 1, 4 >>>(d_df, d_lambda_l, d_mutex, 1.0, d_kai, 12, N, 4);
 
-    print_GPU<<<1,1>>>( d_lambda_u );
-    print_GPU<<<1,1>>>( d_lambda_l );
-    cudaDeviceSynchronize();
     
+    // vector<double> kai_tr;
+    // kai_tr.resize(4);
+    
+    
+    double* d_kai_tr;
+    cudaMalloc( (void**)&d_kai_tr, sizeof(double) * 4 );
+    cudaMemset( d_kai_tr, 0, sizeof(double) * 4);
+
+    //NOTE: reuse this from somewhere?
+    double* d_rho_tr;
+    cudaMalloc( (void**)&d_rho_tr, sizeof(double));
+    cudaMemset( d_rho_tr, 0, sizeof(double));
+
+    // double* d_lambda_tr;
+    // cudaMalloc( (void**)&d_lambda_tr, sizeof(double));
+    // cudaMemset( d_lambda_tr, 0, sizeof(double));
+    
+    bool inner_foo = 1;
+    bool* d_inner_foo;
+    cudaMalloc( (void**)&d_inner_foo, sizeof(bool) );
+    cudaMemset( d_inner_foo, 1, sizeof(bool) );
+    double volume = 1.0;
+
+    while (inner_foo)
+    {
+        calcKaiTrial<<<1,4>>> ( d_kai, d_df, d_lambda_tr, 1.0, 12, 1, d_kai_tr, 2, 4);
+        
+        calcRhoTrial<<<1,4>>>( d_rho_tr, d_kai_tr, d_lambda_l, d_lambda_u, d_lambda_tr, 0.4, volume, 4);
+        // cudaDeviceSynchronize();
+        
+        calcLambdaTrial<<<1,1>>>( d_lambda_tr, d_lambda_l, d_lambda_u, d_rho_tr, 0.4, 1.0 );
+        
+        checkRhoTrial<<<1,1>>>( d_inner_foo, d_rho_tr, 0.4 );
+
+        cudaMemcpy(d_inner_foo, d_inner_foo, sizeof(bool), cudaMemcpyDeviceToHost);
+        
+    }
+    // print_GPU<<<1,1>>>( d_lambda_u );
+    print_GPU<<<1,1>>>( d_lambda_tr );
+    cudaDeviceSynchronize();
 }

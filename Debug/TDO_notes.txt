@@ -24,6 +24,7 @@
 
     - while assembling in CPU, have GPU malloc and memcpy stuff, like residuum and displacement vectors, gmg multilevel matrices,
 
+    - get average iterations of bisection, and don't do the foo memcpy, but do a fixed iteration times
 
 TODO: read these:
     https://devblogs.nvidia.com/how-overlap-data-transfers-cuda-cc/
