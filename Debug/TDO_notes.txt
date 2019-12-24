@@ -26,6 +26,11 @@
 
     - get average iterations of bisection, and don't do the foo memcpy, but do a fixed iteration times
 
+    - while(foo) boolean, don't do the memcpy, but get an estimate of how many iterations needed
+        - draw a graph ( # of iterations vs N size ), and find the linear correlation
+        - have a kernel in the end to check the final result, if "failed" is returned, display a message to increase # of iterations
+        
+
 TODO: read these:
     https://devblogs.nvidia.com/how-overlap-data-transfers-cuda-cc/
     https://devblogs.nvidia.com/faster-parallel-reductions-kepler/

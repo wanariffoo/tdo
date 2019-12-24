@@ -93,7 +93,7 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, dou
     
 
 	while(index + offset < numElements){
-        temp = fminf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) + eta ) );
+        temp = fminf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) - eta ) );
 		offset += stride;
 	}
     
@@ -208,6 +208,7 @@ void calcKaiTrial(
     {
         del_kai[id] = ( del_t / eta ) * ( df[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, N ) ) );
         
+
         if ( del_kai[id] + kai[id] > 1 )
         kai_trial[id] = 1;
         
@@ -320,10 +321,20 @@ void uTAu_GPU(double *x, double *u, size_t *node_index, double* value, size_t* i
 
 // df = ( 1/2*omega ) * p * kai^(p-1) * sum(local stiffness matrices)
 __global__
-void UpdateDrivingForce(double *df, double p, double *kai)
+void UpdateDrivingForce(double *df, double *uTKu, double p, double *kai, double local_volume, size_t N)
 {
-    *df *= (0.5) * p * pow(*kai, p - 1);
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if ( id < N )
+        df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
 }
+
+// __global__
+// void UpdateDrivingForce(double *df, double p, double *kai)
+// {
+//         *df *= (0.5) * p * pow(*kai, p - 1);
+// }
+
 
 __global__
 void checkRhoTrial(bool* inner_foo, double *rho_tr, double rho)
@@ -357,7 +368,7 @@ void calcDrivingForce(
     // printVector_GPU<<<1, num_rows * max_row_size>>>( value, num_rows * max_row_size );
     sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
     
-    UpdateDrivingForce<<<1,1>>>(df, p, kai);
+    // UpdateDrivingForce<<<1,1>>>(df, p, kai);
     cudaDeviceSynchronize();
 }
 
@@ -530,41 +541,6 @@ int main()
     CUDA_CALL( cudaMalloc( (void**)&d_kai, sizeof(size_t) * 4 ) );
     CUDA_CALL( cudaMemcpy(d_kai, &kai[0], sizeof(size_t) * 4, cudaMemcpyHostToDevice) );  
 
-
-
-
-    // get block and grid dimensions
-    dim3 gridDim;
-    dim3 blockDim;
-    calculateDimensions( num_rows, gridDim, blockDim );
-    
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // start inner loop when you have u vector
-    ///////////////////////////////////////////////////////////////////////////////////////
-
-    calcInnerLoop<<<1,1>>>( d_n, h, d_eta, d_beta );
-    cudaDeviceSynchronize();
-    print_GPU <<< 1, 1 >>> ( d_n );
-    cudaDeviceSynchronize();
-
-
-
-
-    
-    // // printVector_GPU<<<1,num_rows>>>(d_u, num_rows);
-    calcDrivingForce ( &d_df[0], &d_kai[0], 3, d_temp, d_u, d_node_index[0], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( &d_df[1], &d_kai[1], 3, d_temp, d_u, d_node_index[1], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( &d_df[2], &d_kai[2], 3, d_temp, d_u, d_node_index[2], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    calcDrivingForce ( &d_df[3], &d_kai[3], 3, d_temp, d_u, d_node_index[3], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
-    cudaDeviceSynchronize();
-    
-    // printVector_GPU<<<1,4>>>( d_df, 4 );
-
-    // Bisection init
-    cout << "bisection: " << endl;
-    cudaDeviceSynchronize();
     
     double *d_lambda_l;
     double *d_lambda_u;
@@ -586,13 +562,6 @@ int main()
     cudaMemcpy(d_laplacian, &laplace_array[0], sizeof(double) * 4, cudaMemcpyHostToDevice);
 
 
-    // bisection algo
-
-    // n is calculated in host
-
-    size_t n_innerloop = (6 / eta) * ( beta / (h*h) );
-    cout << n_innerloop << endl;
-
     double* d_kai_tr;
     cudaMalloc( (void**)&d_kai_tr, sizeof(double) * 4 );
     cudaMemset( d_kai_tr, 0, sizeof(double) * 4);
@@ -608,25 +577,83 @@ int main()
     cudaMemset( d_inner_foo, 1, sizeof(bool) );
     double volume = 1.0;
 
-    for ( int j = 0 ; j < 2; j++)
+    // get block and grid dimensions
+    dim3 gridDim;
+    dim3 blockDim;
+    calculateDimensions( num_rows, gridDim, blockDim );
+    
+    size_t numElements = 4;
+
+
+    double* d_uTKu;
+    cudaMalloc( (void**)&d_uTKu, sizeof(double) * numElements);
+    cudaMemset( d_uTKu, 0, sizeof(double) * numElements);
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    // start inner loop when you have u vector
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    // initialization
+
+
+
+    // n is calculated in host
+    size_t n_innerloop = (6 / eta) * ( beta / (h*h) );
+    // cout << n_innerloop << endl;
+    double l_volume = 0.5*0.5;
+    // initial driving force
+    for ( int i = 0 ; i < numElements ; i++)
+    calcDrivingForce ( &d_df[i], &d_kai[i], 3, d_temp, d_u, d_node_index[i], d_l_value, d_l_index, max_row_size, num_rows, gridDim, blockDim );
+    cudaDeviceSynchronize();
+    
+    vectorEquals_GPU<<<1,4>>>(d_uTKu, d_df, 4);
+    cudaDeviceSynchronize();
+
+
+    // printVector_GPU<<<1,4>>>(d_df, 4);
+    for ( int j = 0 ; j < n_innerloop; j++ )
     {
+        cout << "j = " << j << endl;
+        // printVector_GPU<<<1,4>>>(d_kai, 4);
+        // cudaDeviceSynchronize();
+        
+        // ( 1 / 2*element_volume ) * p * pow(kai_element, (p-1) ) * u^T * element_stiffness_matrix * u
+        UpdateDrivingForce<<<1,numElements>>> ( d_df, d_uTKu, 3, d_kai, l_volume, numElements);
+        
+        // printVector_GPU<<<1,4>>>( d_df, 4);
+        // cudaDeviceSynchronize();
+        
+        // bisection algo: 
+        
         setToZero<<<1,1>>>(d_lambda_tr, 1);
         calcLambdaUpper<<< 1, 4 >>>(d_df, d_lambda_u, d_mutex, 1.0, d_kai, 12, N, 4);
         calcLambdaLower<<< 1, 4 >>>(d_df, d_lambda_l, d_mutex, 1.0, d_kai, 12, N, 4);
-
+        
+        // print_GPU<<<1,1>>> ( d_lambda_l );
+        // cudaDeviceSynchronize();
+        // print_GPU<<<1,1>>> ( d_lambda_u );
+        // cudaDeviceSynchronize();
+        
         for ( int i = 0 ; i < 30 ; i++ )
         {
-            calcKaiTrial<<<1,4>>> ( d_kai, d_df, d_lambda_tr, 1.0, 12, 1, d_kai_tr, 2, 4);
+            calcKaiTrial<<<1,4>>> ( d_kai, d_df, d_lambda_tr, del_t, eta, beta, d_kai_tr, 2, numElements);
             setToZero<<<1,1>>>(d_rho_tr, 1);
             sumOfVector_GPU <<< 1, 4 >>> (d_rho_tr, d_kai_tr, 4);
-            cudaDeviceSynchronize();
+            
             calcLambdaTrial<<<1,1>>>( d_lambda_tr, d_lambda_l, d_lambda_u, d_rho_tr, 0.4, 1.0 );
-            checkRhoTrial<<<1,1>>>( d_inner_foo, d_rho_tr, 0.4 );
+            // checkRhoTrial<<<1,1>>>( d_inner_foo, d_rho_tr, 0.4 );
         }
-        print_GPU<<<1,1>>>( d_lambda_tr );
+        // print_GPU<<<1,1>>>( d_lambda_tr );
+
+        // kai(j) = kai(j+1)
+        vectorEquals_GPU<<<1,4>>>( d_kai, d_kai_tr, 4 );
+
+        printVector_GPU<<<1,4>>>( d_kai, 4);
+        cudaDeviceSynchronize();
+
     }
         
-    printVector_GPU<<<1,4>>>(d_kai_tr, 4);
     cout << "end of bisection" << endl;
     cudaDeviceSynchronize();
 

@@ -426,4 +426,14 @@ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_
 // }
 
 
+// a = b
+__global__ 
+void vectorEquals_GPU(double* a, double* b, size_t num_rows)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+		a[id] = b[id];
+}
+
 #endif // MYHEADER_H
