@@ -55,6 +55,36 @@ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
     }
 }
 
+
+// returns value of an ELLPack matrix A at (x,y)
+__device__
+double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size)
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {
+        if(vIndex[x * max_row_size + k] == y)
+            return vValue[x * max_row_size + k];
+    }
+
+    return 0.0;
+}
+
+// sets the value of an ELLPack matrix A at (x,y)
+__device__
+void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value )
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {
+        if(vIndex[x * max_row_size + k] == y)
+        {
+            vValue[x * max_row_size + k] += value;
+            // printf("%f \n", vValue[x * max_row_size + k]);
+                k = max_row_size; // to exit for loop
+            }
+    }
+
+}
+
 __global__
 void setToZero(double* a, size_t num_rows)
 {

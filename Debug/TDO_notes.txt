@@ -29,13 +29,15 @@
     - while(foo) boolean, don't do the memcpy, but get an estimate of how many iterations needed
         - draw a graph ( # of iterations vs N size ), and find the linear correlation
         - have a kernel in the end to check the final result, if "failed" is returned, display a message to increase # of iterations
-        
+
+
+https://www.youtube.com/watch?v=I-W9jw7fwOg&list=PLqMASTX2e0SZb_ca77KBAHy10pz5vWEMp&index=5&t=0s
 
 TODO: read these:
     https://devblogs.nvidia.com/how-overlap-data-transfers-cuda-cc/
     https://devblogs.nvidia.com/faster-parallel-reductions-kepler/
     https://devblogs.nvidia.com/finite-difference-methods-cuda-cc-part-1/   (from prof)
-
+    https://devblogs.nvidia.com/efficient-matrix-transpose-cuda-cc/
 
 
 
