@@ -4,6 +4,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <vector>
 
 #define CUDA_CALL( call )                                                                                          \
     {                                                                                                                  \
@@ -411,6 +412,82 @@ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_
                     index [counter] = num_rows;
                 }
             }
+        }
+    }
+}
+
+
+std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std::size_t num_cols)
+{
+	std::size_t max_row_size = 0;
+
+	for ( int i = 0; i < num_rows ; i++ )
+	{
+		std::size_t max_in_row = 0;
+
+		for ( int j = 0 ; j < num_cols ; j++ )
+		{
+			if ( array[ j + i*num_cols ] != 0 )
+				max_in_row++;
+
+		}
+
+		if ( max_in_row >= max_row_size )
+			max_row_size = max_in_row;
+	}
+
+	
+	return max_row_size;
+
+}
+
+// transforms a flattened matrix (array) to ELLPACK's vectors value and index
+// max_row_size has to be calculated prior to this
+void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows)
+{
+    
+	for ( int id = 0 ; id < num_rows ; id++)
+    {
+        size_t counter = id*max_row_size;
+        size_t nnz = 0;
+        
+			// printf("array = %e\n", array [ 1 ]);
+        for ( int j = 0 ; nnz < max_row_size ; j++ )
+        {
+            if ( array [ j + id*num_rows ] != 0 )
+            {
+				// printf("array = %e\n", array [ j + id*num_rows ]);
+                value [counter] = array [ j + id*num_rows ];
+                index [counter] = j;
+				// printf("value = %e\n", value[counter]);
+                counter++;
+                nnz++;
+            }
+            
+            if ( j == num_rows - 1 )
+            {
+                for ( int i = counter ; nnz < max_row_size ; counter++ && nnz++ )
+                {
+                    value [counter] = 0.0;
+                    index [counter] = num_rows;
+                }
+            }
+        }
+    }
+}
+
+// sets identity rows and columns of the DOF in which a BC is applied
+void applyMatrixBC(double *array, size_t index, size_t num_rows, size_t num_cols)
+{
+    for ( int i = 0 ; i < num_rows ; i++ )
+    {
+        for ( int j = 0 ; j < num_cols ; j++ )
+        {
+            if ( i == index && j == index )
+                array[ i + num_cols*j ] = 1.0;
+                
+            else if ( i == index || j == index )
+                array[ i + num_cols*j ] = 0.0;
         }
     }
 }

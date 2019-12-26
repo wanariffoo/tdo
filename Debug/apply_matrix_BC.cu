@@ -373,7 +373,7 @@ void calcDrivingForce(
 }
 
 __global__
-void applyMatrixBC(double *vValue, size_t *vIndex, size_t index, size_t num_rows, size_t num_cols, size_t max_row_size)
+void applyMatrixBC_GPU(double *vValue, size_t *vIndex, size_t index, size_t num_rows, size_t num_cols, size_t max_row_size)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     int idy = blockDim.y * blockIdx.y + threadIdx.y;
@@ -389,7 +389,7 @@ void applyMatrixBC(double *vValue, size_t *vIndex, size_t index, size_t num_rows
 
 }
 
-void applyMatrixBC_(double *array, size_t index, size_t num_rows, size_t num_cols)
+void applyMatrixBC(double *array, size_t index, size_t num_rows, size_t num_cols)
 {
     for ( int i = 0 ; i < num_rows ; i++ )
     {
@@ -436,7 +436,7 @@ int main()
     };
 
     for ( int i = 0 ; i < bc_index.size() ; ++i )
-        applyMatrixBC_(&globalmatrix[0], bc_index[i], num_rows, num_cols);
+        applyMatrixBC(&globalmatrix[0], bc_index[i], num_rows, num_cols);
 
     for ( int i = 0 ; i < num_rows ; i++ )
     {
