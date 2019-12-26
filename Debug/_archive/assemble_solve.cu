@@ -9,7 +9,6 @@
 // #include "../include/mycudaheader.h"
 // #include "precond.h"
 #include "cudakernels.h"
-#include "solver.h"
 
 using namespace std;
 
@@ -105,6 +104,51 @@ int main()
     
     // Calculating the required CUDA grid and block dimensions
     calculateDimensions(num_rows, gridDim, blockDim);
+    
+    // NOTE: temp
+    
+    // previous residuum
+    double *d_res0;
+    CUDA_CALL( cudaMalloc((void**)&d_res0, sizeof(double) * num_rows) );
+    CUDA_CALL( cudaMemset(d_res0, 0, sizeof(double) * num_rows) );
+    
+    // current residuum
+    double *d_res;
+    CUDA_CALL( cudaMalloc((void**)&d_res, sizeof(double) * num_rows) );
+    CUDA_CALL( cudaMemset(d_res, 0, sizeof(double) * num_rows) );
+
+    // minimum required residuum for convergence
+    double *d_m_minRes;
+    CUDA_CALL( cudaMalloc((void**)&d_m_minRes, sizeof(double)) );
+    CUDA_CALL( cudaMemset(d_m_minRes, 1.000e-99, sizeof(double)) );
+    
+    // minimum required reduction for convergence
+    double *d_m_minRed;
+    CUDA_CALL( cudaMalloc((void**)&d_m_minRed, sizeof(double)) );
+    CUDA_CALL( cudaMemset(d_m_minRed, 1.000e-10, sizeof(double)) );
+    
+    // temporary residuum vectors for GMG
+    vector<double*> d_rtmp;
+    d_rtmp.resize(2);
+    CUDA_CALL( cudaMalloc((void**)&d_rtmp[0], sizeof(double) * 8 ) );
+    CUDA_CALL( cudaMemset(d_rtmp[0], 0, sizeof(double) * 8 ) );
+    CUDA_CALL( cudaMalloc((void**)&d_rtmp[1], sizeof(double) * 18 ) );
+    CUDA_CALL( cudaMemset(d_rtmp[1], 0, sizeof(double) * 18 ) );
+
+    // temporary correction vectors for GMG
+    vector<double*> d_ctmp;
+    d_ctmp.resize(2);
+    CUDA_CALL( cudaMalloc((void**)&d_ctmp[0], sizeof(double) * 8 ) );
+    CUDA_CALL( cudaMemset(d_ctmp[0], 0, sizeof(double) * 8 ) );
+    CUDA_CALL( cudaMalloc((void**)&d_ctmp[1], sizeof(double) * 18 ) );
+    CUDA_CALL( cudaMemset(d_ctmp[1], 0, sizeof(double) * 18 ) );
+    
+
+    size_t m_numPreSmooth = 1;
+
+
+
+
 
 
     /*
@@ -114,28 +158,16 @@ int main()
     */
 
 
-    Solver GMG(d_value, d_index, max_row_size, d_u, d_b, 2, num_rows, num_cols);
+    // r = b - A*u
+    ComputeResiduum_GPU<<<gridDim,blockDim>>>(num_rows, max_row_size, d_value, d_index, d_u, d_r, d_b);
 
-    GMG.init();
-    GMG.set_num_presmooth(3);
-    GMG.set_num_postsmooth(3);
-
-    cudaDeviceSynchronize();
-    GMG.solve(d_u, d_b);
-
-    cudaDeviceSynchronize();
-
-
-    // // r = b - A*u
-    // ComputeResiduum_GPU<<<gridDim,blockDim>>>(num_rows, max_row_size, d_value, d_index, d_u, d_r, d_b);
-
-    // // d_res0 = norm(d_r)
-    // norm_GPU(d_res0, d_r, num_rows, gridDim, blockDim);
+    // d_res0 = norm(d_r)
+    norm_GPU(d_res0, d_r, num_rows, gridDim, blockDim);
         
-    // // res = res0;
-    // equals_GPU<<<1,1>>>(d_res, d_res0);	
+    // res = res0;
+    equals_GPU<<<1,1>>>(d_res, d_res0);	
 
-    // printInitialResult_GPU<<<1,1>>>(d_res0, d_m_minRes, d_m_minRed);
+    printInitialResult_GPU<<<1,1>>>(d_res0, d_m_minRes, d_m_minRed);
 
     
     
@@ -171,8 +203,11 @@ int main()
     
     // Jacobi_Precond_GPU<<<gridDim,blockDim>>>(d_c, d_value, d_rtmp[1], 18);
 
-    // Solver GMG;
-    
+
+
+
+
+    cudaDeviceSynchronize();
 }
 
 

@@ -1,6 +1,6 @@
 
-# source = assemble_solve.cu cudakernels.cu solver.cu
-obj = assemble_solve.o cudakernels.o solver.o
+source = assemble_solve.cu cudakernels.cu
+obj = assemble_solve.o cudakernels.o
 
 
 # all: 
@@ -12,9 +12,6 @@ assemble_solve.o: assemble_solve.cu
 
 cudakernels.o: cudakernels.cu
 	nvcc cudakernels.cu -c
-
-solver.o: solver.cu
-	nvcc solver.cu -c
 
 clean:
 	rm -f ${obj} *.o
