@@ -406,7 +406,7 @@ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_
             
             if ( j == num_rows - 1 )
             {
-                for ( int i = counter ; nnz < max_row_size ; counter++ && nnz++ )
+                for ( ; nnz < max_row_size ; counter++ && nnz++ )
                 {
                     value [counter] = 0.0;
                     index [counter] = num_rows;
@@ -466,7 +466,7 @@ void transformToELL(std::vector<double> &array, std::vector<double> &value, std:
             
             if ( j == num_rows - 1 )
             {
-                for ( int i = counter ; nnz < max_row_size ; counter++ && nnz++ )
+                for ( ; nnz < max_row_size ; counter++ && nnz++ )
                 {
                     value [counter] = 0.0;
                     index [counter] = num_rows;
