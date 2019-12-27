@@ -3,23 +3,11 @@
 #include "cudakernels.h"
 using namespace std;
 
-Solver::Solver(vector<double*> d_value, size_t* d_index, size_t max_row_size, double* d_u, double* d_b, size_t numLevels, size_t num_rows, size_t num_cols) 
+Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows, vector<size_t> num_cols) 
+: m_d_value(d_value), m_d_index(d_index), m_max_row_size(max_row_size), m_numLevels(numLevels), m_num_rows(num_rows), m_num_cols(num_cols)
 {
     cout << "constructor" << endl;
-
-    // m_d_value(d_value), m_d_index(d_index), m_max_row_size(max_row_size), m_numLevels(numLevels), m_num_rows(num_rows), m_num_cols(num_cols)
-    // initialize the host variables
-    m_numLevels = numLevels;
-    m_d_value.resize(numLevels);
-    m_d_index.resize(numLevels);
-    m_num_cols.resize(numLevels);
-    m_num_rows.resize(numLevels);
     
-    // TODO: value and index here are only for finest level, you need to figure out how to pass the smaller grids as an argument
-    m_d_value = d_value;
-    // m_d_index[0] = d_index;
-
-
 
 }
 

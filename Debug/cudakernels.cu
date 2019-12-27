@@ -39,7 +39,7 @@ double atomicAdd_double(double* address, double val)
     return __longlong_as_double(old);
 }
 
-// TODO: to repair
+
 // Determines 1-dimensional CUDA block and grid sizes based on the number of rows N
 __host__ 
 void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
@@ -55,6 +55,13 @@ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
         blockDim.x = 1024; blockDim.y = 1; blockDim.z = 1;
         gridDim.x  = (int)ceil(N/blockDim.x)+1; gridDim.y = 1; gridDim.z = 1;
     }
+}
+
+// TODO: this is for 2D only, need 3D later
+// calculates the DOF of a grid with dimensions
+__host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim)
+{
+	return (Nx + 1) * (Ny + 1) * dim;
 }
 
 
@@ -453,37 +460,42 @@ std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std:
 
 // transforms a flattened matrix (array) to ELLPACK's vectors value and index
 // max_row_size has to be d prior to this
-void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows)
+// void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows)
+void transformToELL(std::vector<double> &array, double* value, size_t* index, size_t max_row_size, size_t num_rows)
 {
-    
-	for ( int id = 0 ; id < num_rows ; id++)
-    {
-        size_t counter = id*max_row_size;
-        size_t nnz = 0;
+	value[0] = 20;
+	// for ( int id = 0 ; id < num_rows ; id++)
+    // {
+    //     size_t counter = id*max_row_size;
+    //     size_t nnz = 0;
         
-			// printf("array = %e\n", array [ 1 ]);
-        for ( int j = 0 ; nnz < max_row_size ; j++ )
-        {
-            if ( array [ j + id*num_rows ] != 0 )
-            {
-				// printf("array = %e\n", array [ j + id*num_rows ]);
-                value [counter] = array [ j + id*num_rows ];
-                index [counter] = j;
-				// printf("value = %e\n", value[counter]);
-                counter++;
-                nnz++;
-            }
+	// 		// printf("array = %e\n", array [ 1 ]);
+    //     for ( int j = 0 ; nnz < max_row_size ; j++ )
+    //     {
+
+    //         if ( array [ j + id*num_rows ] != 0 )
+    //         {
+	// 			// printf("array = %e\n", array [ j + id*num_rows ]);
+	// 			value [counter] = array [ j + id*num_rows ];
+				
+					
+    //             index [counter] = j;
+	// 			// printf("value = %e\n", value[counter]);
+    //             counter++;
+    //             nnz++;
+    //         }
             
-            if ( j == num_rows - 1 )
-            {
-                for ( ; nnz < max_row_size ; counter++ && nnz++ )
-                {
-                    value [counter] = 0.0;
-                    index [counter] = num_rows;
-                }
-            }
-        }
-    }
+    //         if ( j == num_rows - 1 )
+    //         {
+    //             for ( ; nnz < max_row_size ; counter++ && nnz++ )
+    //             {
+    //                 value [counter] = 0.0;
+    //                 index [counter] = num_rows;
+    //             }
+    //         }
+    //     }
+	// }
+	
 }
 
 // sets identity rows and columns of the DOF in which a BC is applied

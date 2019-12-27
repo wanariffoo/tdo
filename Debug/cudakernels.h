@@ -28,6 +28,7 @@ __device__ double atomicAdd_double(double* address, double val);
 // Determines 1-dimensional CUDA block and grid sizes based on the number of rows N
 __host__ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim);
 
+__host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim);
 
 // returns value of an ELLPack matrix A at (x,y)
 __device__ double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size);
@@ -110,7 +111,8 @@ std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std:
 
 // transforms a flattened matrix (array) to ELLPACK's vectors value and index
 // max_row_size has to be d prior to this
-void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows);
+void transformToELL(std::vector<double> &array, double* value, size_t* index, size_t max_row_size, size_t num_rows);
+// void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows);
 
 // sets identity rows and columns of the DOF in which a BC is applied
 void applyMatrixBC(double *array, size_t index, size_t num_rows, size_t num_cols);
