@@ -79,10 +79,14 @@ bool Solver::init()
         CUDA_CALL( cudaMalloc((void**)&m_d_c, sizeof(double) * m_num_rows[m_topLev]) );
         CUDA_CALL( cudaMemset(m_d_c, 0, sizeof(double) * m_num_rows[m_topLev]) );
 
-
+        // TODO: change comment
         // previous residuum
         CUDA_CALL( cudaMalloc((void**)&m_d_res0, sizeof(double)) );
         CUDA_CALL( cudaMemset(m_d_res0, 0, sizeof(double)) );
+
+        // last residuum
+        CUDA_CALL( cudaMalloc((void**)&m_d_lastRes, sizeof(double)) );
+        CUDA_CALL( cudaMemset(m_d_lastRes, 0, sizeof(double)) );
         
         // current residuum
         CUDA_CALL( cudaMalloc((void**)&m_d_res, sizeof(double)) );
@@ -98,6 +102,11 @@ bool Solver::init()
         CUDA_CALL( cudaMalloc((void**)&m_d_m_minRed, sizeof(double)) );
         CUDA_CALL( cudaMemset(m_d_m_minRed, 1.000e-10, sizeof(double)) );
         
+        // steps
+        CUDA_CALL( cudaMalloc((void**)&m_d_step, sizeof(size_t)) );
+        CUDA_CALL( cudaMemset(m_d_step, 0, sizeof(size_t)) );
+        CUDA_CALL( cudaMalloc((void**)&m_d_bs_step, sizeof(size_t)) );
+        CUDA_CALL( cudaMemset(m_d_bs_step, 0, sizeof(size_t)) );
 
         /// GMG precond
         // residuum and correction vectors on each level
@@ -155,6 +164,17 @@ bool Solver::precond(double* d_c, double* d_r)
 
     precond_add_update_GPU(m_d_gmg_c[m_topLev], m_d_rtmp[m_topLev], m_topLev, m_gamma);
 
+    vectorEquals_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(d_c, m_d_gmg_c[m_topLev], m_num_rows[m_topLev]);
+	// cudaDeviceSynchronize();
+	vectorEquals_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(d_r, m_d_gmg_r[m_topLev], m_num_rows[m_topLev]);
+
+    return true;
+}
+
+bool Solver::base_solve()
+{
+    cout << "CG" << endl;
+
     return true;
 }
 
@@ -172,7 +192,9 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 	if( lev == 0 )
 	{
         cout << "base level" << endl;
+        base_solve();
 
+        return true;
     }
 
     
@@ -193,8 +215,70 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_r[lev-1], m_num_rows[lev-1] );
 
     /// r_coarse = P^T * r
+    ApplyTransposed_GPU<<<m_gridDim[lev-1],m_blockDim[lev-1]>>>(m_num_rows[lev-1], m_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+
+    setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_c[lev-1], m_num_rows[lev-1] );
+
+    
+    if(cycle == -1) // F-cycle
+	{
+
+		// cout << "F cycle" << endl; // DEBUG:
+		// cudaDeviceSynchronize();
+			// one F-Cycle ...
+		    if( !precond_add_update_GPU(m_d_ctmp[lev-1], m_d_rtmp[lev-1], lev-1, -1) )
+			{
+		        std::cout << "gmg failed on level " << lev << ". Aborting." << std::endl;
+		        return false;
+		    }
+
+		    // ... followed by a V-Cycle
+		   	if( !precond_add_update_GPU(m_d_ctmp[lev-1], m_d_rtmp[lev-1], lev-1, 1) )
+			{
+		        std::cout << "gmg failed on level " << lev << ". Aborting." << std::endl;
+		        return false;
+			}
+	}
+
+    else
+	{
+
+		// V- and W-cycle
+		for (int g = 0; g < cycle; ++g)
+		{
+
+			if( !precond_add_update_GPU(m_d_gmg_c[lev-1], m_d_gmg_r[lev-1], lev-1, cycle) )
+			{
+				std::cout << "gmg failed on level " << lev << ". Aborting." << std::endl;
+				return false;
+			}
+		
+		}
+    }
+    
+    /// prolongate coarse grid correction
+	// ctmp = P[lev-1] * c_coarse;
+    Apply_GPU<<<m_gridDim[lev-1],m_blockDim[lev-1]>>>( m_num_rows[lev-1], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], m_d_gmg_c[lev-1], m_d_ctmp[lev]);
 
 
+    /// add correction and update defect
+	// c += ctmp;
+	addVector_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(d_c, m_d_ctmp[lev], m_num_rows[lev]);
+    
+    UpdateResiduum_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>( m_num_rows[lev], m_max_row_size[lev] , m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
+    
+    
+    // postsmooth
+    for ( int i = 0 ; i < m_numPostSmooth ; i++)
+    {
+        smoother( m_d_ctmp[lev], d_r, lev );
+
+         // c += ctmp;
+        addVector_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>( d_c, m_d_ctmp[lev], m_num_rows[lev] );
+
+        UpdateResiduum_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
+
+    }
 
 
     return true;
@@ -203,12 +287,9 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 bool Solver::smoother(double* d_c, double* d_r, int lev)
 {
     
-    
-    // cout << "smoother" << endl;
+    cout << "smoother" << endl;
 
-    // Jacobi_Precond_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>(d_c, m_d_value, m_d_index, m_max_row_size, d_r, m_num_rows);
-
-   
+    Jacobi_Precond_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>(d_c, m_d_value[lev], m_d_index[lev], m_max_row_size[lev], d_r, m_num_rows[lev]);
 
     return true;
 }
@@ -234,6 +315,27 @@ bool Solver::solve(double* d_u, double* d_b)
     // foo loop
 
     precond(m_d_c, m_d_r);
+
+    // add correction to solution
+    // u += c;
+    addVector_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( d_u, m_d_c, m_num_rows[m_topLev] );
+
+    // update residuum r = r - A*c
+    UpdateResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], m_d_c, m_d_r );
+
+    // remember last residuum norm
+    // lastRes = res;
+    equals_GPU<<<1,1>>>(m_d_lastRes, m_d_res);
+
+    // compute new residuum norm
+    // res = r.norm();
+    // norm_GPU<<<gridDim,blockDim>>>(d_res, d_r, A.num_rows());
+    // TODO:
+    norm_GPU(m_d_res, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
+
+    printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
+
+
 
 
     return true;

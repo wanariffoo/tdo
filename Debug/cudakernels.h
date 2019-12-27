@@ -142,7 +142,10 @@ __global__ void ComputeResiduum_GPU(const std::size_t num_rows, const std::size_
 /// r = r - A*x
 __global__ void UpdateResiduum_GPU( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
 
+__global__ void Apply_GPU(const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
 
+__global__ void ApplyTransposed_GPU( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
 
+__global__ void printResult_GPU(size_t* step, double* res, double* m_minRes, double* lastRes, double* res0, double* m_minRed);
 
 #endif // CUDAKERNELS_H

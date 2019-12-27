@@ -186,7 +186,7 @@ int main()
 
     GMG.init();
     GMG.set_num_prepostsmooth(1,1);
-
+    GMG.set_cycle('V');
     cudaDeviceSynchronize();
     GMG.solve(d_u, d_b);
 

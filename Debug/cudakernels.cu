@@ -650,3 +650,72 @@ void UpdateResiduum_GPU(
 }
 
 
+/// r = A*x
+__global__ 
+void Apply_GPU(	
+	const std::size_t num_rows, 
+	const std::size_t num_cols_per_row,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+	
+	if ( id < num_rows )
+	{
+		double dot = 0;
+
+		for ( int n = 0; n < num_cols_per_row; n++ )
+		{
+			int col = index [ num_cols_per_row * id + n ];
+			double val = value [ num_cols_per_row * id + n ];
+			dot += val * x [ col ];
+		}
+		r[id] = dot;
+	}
+	
+}
+
+
+/// r = A^T * x
+/// NOTE: This kernel should be run with A's number of rows as the number of threads
+/// e.g., r's size = 9, A's size = 25 x 9, x's size = 25
+/// ApplyTransposed_GPU<<<1, 25>>>()
+__global__ 
+void ApplyTransposed_GPU(	
+	const std::size_t num_rows, 
+	const std::size_t num_cols_per_row,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+	{
+		// r[id] = 0;
+		// __syncthreads();
+
+		for ( int n = 0; n < num_cols_per_row; n++ )
+		{
+			int col = index [ num_cols_per_row * id + n ];
+			float val = value [ num_cols_per_row * id + n ];
+			atomicAdd_double( &r[col], val*x[id] );
+		}
+	}
+}
+
+
+__global__ 
+void printResult_GPU(size_t* step, double* res, double* m_minRes, double* lastRes, double* res0, double* m_minRed)
+{
+	if(*step < 10)
+	printf("    %d    %e    %9.3e    %9.3e    %e    %9.3e    \n", *step, *res, *m_minRes, (*res)/(*lastRes), (*res)/(*res0), *m_minRed);
+
+	else
+	printf("   %d    %e    %9.3e    %9.3e    %e    %9.3e    \n", *step, *res, *m_minRes, (*res)/(*lastRes), (*res)/(*res0), *m_minRed);
+}
+
+

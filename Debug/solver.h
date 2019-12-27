@@ -19,6 +19,8 @@ public:
 
     bool solve(double* d_u, double* d_r);
 
+    bool base_solve();
+
     bool precond(double* d_c, double* d_r);
 
     bool precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle);
@@ -49,9 +51,13 @@ private:
     // correction vector
     double* m_d_c;
 
-    // previous residuum
+    // TODO: change comment, not previous
+    // previous residuum 
     double *m_d_res0;
     
+    // last residuum
+    double *m_d_lastRes;
+
     // current residuum
     double *m_d_res;
 
@@ -60,6 +66,10 @@ private:
     
     // minimum required reduction for convergence
     double *m_d_m_minRed;
+
+    // iteration steps
+    size_t* m_d_step;     // solver
+    size_t* m_d_bs_step;  // base solver
     
     // gmg's correction and residuum vectors of each level
     vector<double*> m_d_gmg_c;
