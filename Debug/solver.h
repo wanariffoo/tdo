@@ -19,6 +19,7 @@ public:
 
     bool solve(double* d_u, double* d_r);
 
+    bool precond(double* d_c, double* d_r);
     
     void set_num_presmooth(size_t n);
     void set_num_postsmooth(size_t n);
@@ -40,22 +41,26 @@ private:
     double* m_d_c;
 
     // previous residuum
-    double *d_res0;
+    double *m_d_res0;
     
     // current residuum
-    double *d_res;
+    double *m_d_res;
 
     // minimum required residuum for convergence
-    double *d_m_minRes;
+    double *m_d_m_minRes;
     
     // minimum required reduction for convergence
-    double *d_m_minRed;
+    double *m_d_m_minRed;
     
+    // gmg's correction and residuum vectors of each level
+    vector<double*> m_d_gmg_c;
+    vector<double*> m_d_gmg_r;
+
     // temporary residuum vectors for GMG
-    vector<double*> d_rtmp;
+    vector<double*> m_d_rtmp;
 
     // temporary correction vectors for GMG
-    vector<double*> d_ctmp;
+    vector<double*> m_d_ctmp;
 
     // number of pre-/post-smooth cycles
     size_t m_numPreSmooth;

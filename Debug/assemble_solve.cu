@@ -125,53 +125,6 @@ int main()
 
     cudaDeviceSynchronize();
 
-
-    // // r = b - A*u
-    // ComputeResiduum_GPU<<<gridDim,blockDim>>>(num_rows, max_row_size, d_value, d_index, d_u, d_r, d_b);
-
-    // // d_res0 = norm(d_r)
-    // norm_GPU(d_res0, d_r, num_rows, gridDim, blockDim);
-        
-    // // res = res0;
-    // equals_GPU<<<1,1>>>(d_res, d_res0);	
-
-    // printInitialResult_GPU<<<1,1>>>(d_res0, d_m_minRes, d_m_minRed);
-
-    
-    
-    // // foo loop
-
-    // // DEBUG:
-    // // precond(d_c, d_r);
-    
-    // std::size_t topLev = numLevels - 1;
-    
-	// // reset correction
-    // setToZero<<<gridDim, blockDim>>>(d_c, num_rows);
-    
-    // // Vector<double> rtmp(r);
-    // vectorEquals_GPU<<<gridDim, blockDim>>>( d_rtmp[topLev], d_r, num_rows );
-    
-
-    // // precond_add_update_GPU(d_gmg_c[topLev], d_rtmp[topLev], topLev, m_gamma);
-
-    // // DEBUG:
-    // // Level below
-	// 	dim3 blockDim_;
-	// 	dim3 gridDim_;
-	// 	calculateDimensions(8, blockDim_, gridDim_);
-		
-	// 	// Level below
-	// 	dim3 blockDim_cols;
-	// 	dim3 gridDim_cols;
-	// 	calculateDimensions(8, blockDim_cols, gridDim_cols);
-    
-    // // NOTE: no need this I think
-    // // setToZero<<< gridDim, blockDim >>>( d_ctmp[lev], 18 );		
-    
-    // Jacobi_Precond_GPU<<<gridDim,blockDim>>>(d_c, d_value, d_rtmp[1], 18);
-
-    // Solver GMG;
     
 }
 
