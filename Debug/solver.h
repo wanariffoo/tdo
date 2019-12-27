@@ -9,7 +9,7 @@ class Solver
 public:
 
     // constructor
-    Solver(double* d_value, size_t* d_index, size_t max_row_size, double* d_u, double* d_b, size_t numLevels, size_t num_rows, size_t num_cols);
+    Solver(vector<double*> d_value, size_t* d_index, size_t max_row_size, double* d_u, double* d_b, size_t numLevels, size_t num_rows, size_t num_cols);
 
     // deconstructor
     // TODO: deallocation of device variables
@@ -20,19 +20,25 @@ public:
     bool solve(double* d_u, double* d_r);
 
     bool precond(double* d_c, double* d_r);
+
+    bool precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle);
     
-    void set_num_presmooth(size_t n);
-    void set_num_postsmooth(size_t n);
+    void set_num_prepostsmooth(size_t pre_n, size_t post_n);
+
+    bool smoother(double* d_c, double* d_r, int lev);
+
+    void set_cycle(const char type);
 
 
 private:
 
-    double* m_d_value;
-    size_t* m_d_index;
+    vector<double*> m_d_value;
+    vector<size_t*> m_d_index;
+    vector<size_t> m_num_rows;
+    vector<size_t> m_num_cols;
     size_t m_max_row_size;
-    size_t m_num_rows;
-    size_t m_num_cols;
     size_t m_numLevels;
+    size_t m_topLev;
 
     // residuum vector
     double* m_d_r;
@@ -69,6 +75,11 @@ private:
     // cuda grid and block size for each level
     vector<dim3> m_gridDim;
     vector<dim3> m_blockDim;
+    vector<dim3> m_gridDim_cols;
+    vector<dim3> m_blockDim_cols;
+
+    // gmg-cycle
+    int m_gamma;
 
 
 

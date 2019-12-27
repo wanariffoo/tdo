@@ -69,7 +69,9 @@ int main()
     std::vector<double> value;
     std::vector<std::size_t> index;
 
-    double *d_value;
+    vector<double*> d_value;
+    d_value.resize(2);
+    // double *d_value;
     size_t *d_index;
 
     for ( int i = 0 ; i < bc_index.size() ; ++i )
@@ -88,7 +90,7 @@ int main()
     CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows) );
     CUDA_CALL( cudaMalloc((void**)&d_r, sizeof(double) * num_rows) );
     CUDA_CALL( cudaMalloc((void**)&d_c, sizeof(double) * num_rows) );
-    CUDA_CALL( cudaMalloc((void**)&d_value, sizeof(double) * max_row_size*num_rows) );
+    CUDA_CALL( cudaMalloc((void**)&d_value[0], sizeof(double) * max_row_size*num_rows) );
     CUDA_CALL( cudaMalloc((void**)&d_index, sizeof(size_t) * max_row_size*num_rows) );
 
     CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows) );
@@ -96,7 +98,7 @@ int main()
     CUDA_CALL( cudaMemset(d_c, 0, sizeof(double) * num_rows) );
     
 
-    CUDA_CALL( cudaMemcpy(d_value, &value[0], sizeof(double) * max_row_size*num_rows, cudaMemcpyHostToDevice) );
+    CUDA_CALL( cudaMemcpy(d_value[0], &value[0], sizeof(double) * max_row_size*num_rows, cudaMemcpyHostToDevice) );
     CUDA_CALL( cudaMemcpy(d_index, &index[0], sizeof(size_t) * max_row_size*num_rows, cudaMemcpyHostToDevice) );
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows, cudaMemcpyHostToDevice) );
 
@@ -116,12 +118,11 @@ int main()
 
     Solver GMG(d_value, d_index, max_row_size, d_u, d_b, 2, num_rows, num_cols);
 
-    GMG.init();
-    GMG.set_num_presmooth(3);
-    GMG.set_num_postsmooth(3);
+    // GMG.init();
+    GMG.set_num_prepostsmooth(1,1);
 
     cudaDeviceSynchronize();
-    GMG.solve(d_u, d_b);
+    // GMG.solve(d_u, d_b);
 
     cudaDeviceSynchronize();
 

@@ -99,6 +99,10 @@ __global__ void divide_GPU(double *x, double *y, double *z);
  
 
 
+// x += c
+__global__ void addVector_GPU(double *x, double *c, size_t num_rows);
+
+
 __global__ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows);
 
 
@@ -116,20 +120,11 @@ void applyMatrixBC(double *array, size_t index, size_t num_rows, size_t num_cols
 __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);
 
 
+////////////////////////////////////////////
+// SMOOTHERS
+////////////////////////////////////////////
 
-
-
-// ////////////////////////////////////////////
-// // JACOBI PRECOND
-// ////////////////////////////////////////////
-
-// __global__ void Jacobi_Precond_GPU(double* c, double* m_diag, double* r, size_t num_rows){
-
-// 	int id = blockDim.x * blockIdx.x + threadIdx.x;
-
-// 	if ( id < num_rows )
-// 		c[id] = m_diag[id] * r[id];
-// }
+__global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows);
 
 
 ////////////////////////////////////////////
@@ -142,29 +137,9 @@ __global__ void printInitialResult_GPU(double* res0, double* m_minRes, double* m
 /// r = b - A*x
 __global__ void ComputeResiduum_GPU(const std::size_t num_rows, const std::size_t num_cols_per_row,const double* value,const std::size_t* index,const double* x,double* r,double* b);
 
+/// r = r - A*x
+__global__ void UpdateResiduum_GPU( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
 
-
-
-// void precond(double* c, double* r)
-// {
-// 	//TODO: get numLevels for --> topLev = numLevels - 1;
-
-// 	size_t numLevels = 1;
-// 	size_t num_rows = 18;
-//     dim3 gridDim;
-//     dim3 blockDim;
-    
-//     // Calculating the required CUDA grid and block dimensions
-//     calculateDimensions(num_rows, gridDim, blockDim);
-
-
-//     std::size_t topLev = numLevels - 1;
-
-// 	// reset correction
-// 	setToZero<<<gridDim, blockDim>>>(d_c, num_rows);
-
-
-// }
 
 
 

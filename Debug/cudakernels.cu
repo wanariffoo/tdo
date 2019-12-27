@@ -380,6 +380,15 @@ void divide_GPU(double *x, double *y, double *z)
 }
  
 
+// x += c
+__global__
+void addVector_GPU(double *x, double *c, size_t num_rows)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+		x[id] += c[id];
+}
 
 __global__
 void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows)
@@ -549,16 +558,16 @@ void vectorEquals_GPU(double* a, double* b, size_t num_rows)
 
 
 // ////////////////////////////////////////////
-// // JACOBI PRECOND
+// // SMOOTHERS
 // ////////////////////////////////////////////
 
-// __global__ void Jacobi_Precond_GPU(double* c, double* m_diag, double* r, size_t num_rows){
+__global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows){
 
-// 	int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
 
-// 	if ( id < num_rows )
-// 		c[id] = m_diag[id] * r[id];
-// }
+	if ( id < num_rows )
+		c[id] = valueAt(id, id, value, index, max_row_size) * r[id];
+}
 
 
 // ////////////////////////////////////////////
@@ -601,27 +610,31 @@ void ComputeResiduum_GPU(
 }
 
 
+/// r = r - A*x
+__global__ 
+void UpdateResiduum_GPU(
+	const std::size_t num_rows, 
+	const std::size_t num_cols_per_row,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r)
+{
+  	int id = blockDim.x * blockIdx.x + threadIdx.x;
 
+	if ( id < num_rows )
+	{
+		double dot = 0.0;
 
-// void precond(double* c, double* r)
-// {
-// 	//TODO: get numLevels for --> topLev = numLevels - 1;
-
-// 	size_t numLevels = 1;
-// 	size_t num_rows = 18;
-//     dim3 gridDim;
-//     dim3 blockDim;
-    
-//     // Calculating the required CUDA grid and block dimensions
-//     calculateDimensions(num_rows, gridDim, blockDim);
-
-
-//     std::size_t topLev = numLevels - 1;
-
-// 	// reset correction
-// 	setToZero<<<gridDim, blockDim>>>(d_c, num_rows);
-
-
-// }
+		for ( int n = 0; n < num_cols_per_row; n++ )
+		{
+			std::size_t col = index [ num_cols_per_row * id + n ];
+			double val = value [ num_cols_per_row * id + n ];
+			dot += val * x [ col ];
+		}
+		r[id] = r[id] - dot;
+	}
+	
+}
 
 
