@@ -9,7 +9,7 @@ class Solver
 public:
 
     // constructor
-    Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows, vector<size_t> num_cols);
+    Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, vector<double*> d_p_value, vector<size_t*> d__pindex, vector<size_t> p_max_row_size,double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows, vector<size_t> num_cols);
 
     // deconstructor
     // TODO: deallocation of device variables
@@ -34,9 +34,12 @@ private:
 
     vector<double*> m_d_value;
     vector<size_t*> m_d_index;
+    vector<size_t> m_max_row_size;
+    vector<double*> m_d_p_value;
+    vector<size_t*> m_d_p_index;
+    vector<size_t> m_p_max_row_size;
     vector<size_t> m_num_rows;
     vector<size_t> m_num_cols;
-    vector<size_t> m_max_row_size;
     size_t m_numLevels;
     size_t m_topLev;
 
