@@ -307,7 +307,7 @@ void equals_GPU(double* a, double* b)
 
 // x = a * b
 __global__ 
-void dotProduct(double* x, double* a, double* b, size_t num_rows)
+void dotProduct_GPU(double* x, double* a, double* b, size_t num_rows)
 {
 	unsigned int id = threadIdx.x + blockDim.x*blockIdx.x;
 	unsigned int stride = blockDim.x*gridDim.x;
@@ -356,7 +356,7 @@ void LastBlockDotProduct(double* dot, double* x, double* y, size_t starting_inde
 
 // dot = a[] * b[]
 __host__
-void dotProduct_test(double* dot, double* a, double* b, size_t N, dim3 gridDim, dim3 blockDim)
+void dotProduct(double* dot, double* a, double* b, size_t N, dim3 gridDim, dim3 blockDim)
 {
     setToZero<<<1,1>>>( dot, 1 );
 
@@ -371,7 +371,7 @@ void dotProduct_test(double* dot, double* a, double* b, size_t N, dim3 gridDim, 
 	else
 	{
 		// dot products for the full blocks
-		dotProduct<<<gridDim.x - 1, blockDim>>>(dot, a, b, (gridDim.x - 1)*blockDim.x );
+		dotProduct_GPU<<<gridDim.x - 1, blockDim>>>(dot, a, b, (gridDim.x - 1)*blockDim.x );
 		
 		// dot products for the last incomplete block
 		LastBlockDotProduct<<<1, lastBlockSize>>>(dot, a, b, ( (gridDim.x - 1) * blockDim.x ) );
@@ -718,4 +718,87 @@ void printResult_GPU(size_t* step, double* res, double* m_minRes, double* lastRe
 	printf("   %d    %e    %9.3e    %9.3e    %e    %9.3e    \n", *step, *res, *m_minRes, (*res)/(*lastRes), (*res)/(*res0), *m_minRed);
 }
 
+__global__ void addStep(size_t* step){
 
+	++(*step);
+}
+
+// BASE SOLVER
+
+
+// p = z + p * beta;
+__global__ 
+void calculateDirectionVector(	
+	size_t* d_step,
+	double* d_p, 
+	double* d_z, 
+	double* d_rho, 
+	double* d_rho_old,
+	size_t num_rows)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+	{
+		// if(step == 1) p = z;
+		if(*d_step == 1)
+		{ 
+			d_p[id] = d_z[id]; 
+		}
+		
+		else
+		{
+			// p *= (rho / rho_old)
+			d_p[id] = d_p[id] * ( *d_rho / (*d_rho_old) );
+
+			// __syncthreads();
+		
+			// p += z;
+			d_p[id] = d_p[id] + d_z[id];
+		}
+	}
+}
+
+
+__host__
+void calculateAlpha(
+	double* d_alpha, 
+	double* d_rho, 
+	double* d_p, 
+	double* d_z, 
+	double* d_alpha_temp,
+	size_t num_rows,
+	dim3 gridDim,
+	dim3 blockDim)
+{
+
+	setToZero<<<1,1>>>( d_alpha_temp, 1);
+
+	// alpha_temp = () p * z )
+	dotProduct(d_alpha_temp, d_p, d_z, num_rows, gridDim, blockDim);
+
+	// d_alpha = *d_rho / (*alpha_temp)
+	divide_GPU<<<1,1>>>(d_alpha, d_rho, d_alpha_temp);
+
+}
+
+
+// x = x + alpha * p
+__global__ 
+void axpy_GPU(double* d_x, double* d_alpha, double* d_p, size_t num_rows)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+		d_x[id] += (*d_alpha * d_p[id]);
+}
+
+// x = x - alpha * p
+__global__ 
+void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t num_rows)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+		d_x[id] = d_x[id] - (*d_alpha * d_p[id]);
+}

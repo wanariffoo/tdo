@@ -186,13 +186,16 @@ int main()
 
     GMG.init();
     GMG.set_num_prepostsmooth(1,1);
+    GMG.set_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
     GMG.set_cycle('V');
     cudaDeviceSynchronize();
     GMG.solve(d_u, d_b);
 
     cudaDeviceSynchronize();
-
     
+    GMG.deallocate();    
+    cudaDeviceSynchronize();
 }
 
 
