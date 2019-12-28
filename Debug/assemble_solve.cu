@@ -9,6 +9,7 @@
 // #include "../include/mycudaheader.h"
 // #include "precond.h"
 #include "cudakernels.h"
+#include "assemble.h"
 #include "solver.h"
 
 using namespace std;
@@ -16,10 +17,19 @@ using namespace std;
 
 int main()
 {
+    // Material properties
+    double youngMod = 210e6;
+    double poisson = 0.3;
+
     // domain dimensions
     size_t dim = 2;
     size_t Nx = 1;
     size_t Ny = 1;
+
+    Assembler Assembly(dim, youngMod, poisson);
+
+
+
 
     // number of levels in GMG
     size_t numLevels = 2;
@@ -46,6 +56,7 @@ int main()
 
     // set DOF with boundary conditions
     vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
+
 
 
 
@@ -182,20 +193,20 @@ int main()
     // */
 
 
-    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows, num_cols);
+    // Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows, num_cols);
 
-    GMG.init();
-    GMG.set_num_prepostsmooth(1,1);
-    GMG.set_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_cycle('V');
-    cudaDeviceSynchronize();
-    GMG.solve(d_u, d_b);
+    // GMG.init();
+    // GMG.set_num_prepostsmooth(1,1);
+    // GMG.set_convergence_params(1, 1e-99, 1e-10);
+    // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    // GMG.set_cycle('V');
+    // cudaDeviceSynchronize();
+    // GMG.solve(d_u, d_b);
 
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
     
-    GMG.deallocate();    
-    cudaDeviceSynchronize();
+    // GMG.deallocate();    
+    // cudaDeviceSynchronize();
 }
 
 

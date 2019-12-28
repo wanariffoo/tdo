@@ -363,7 +363,6 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     for ( int i = 0 ; i < m_numPreSmooth ; i++)
     {
         smoother( m_d_ctmp[lev], d_r, lev );
-
         
         // c += ctmp;
         addVector_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>( d_c, m_d_ctmp[lev], m_num_rows[lev] );
