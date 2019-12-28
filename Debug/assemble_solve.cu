@@ -27,7 +27,7 @@ int main()
     size_t Ny = 1;
 
     Assembler Assembly(dim, youngMod, poisson);
-
+    Assembly.init();
 
 
 

@@ -9,7 +9,10 @@ class Assembler{
 
 public:
     Assembler(size_t dim, double youngMod, double poisson);
-    bool assembleLocal();
+
+    bool init();
+
+    bool assembleLocal(vector<double> &A_local, double youngMod, double poisson);
     bool assembleMaterialMat();
     // bool updateStiffMatrix();
 
@@ -22,7 +25,9 @@ private:
 
     size_t m_dim;
 
-    // material matrix
+    // material properties
+    double m_youngMod;
+    double m_poisson;
     vector<double> m_E;
 
     vector<double> m_A_local;
