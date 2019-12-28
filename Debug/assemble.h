@@ -12,8 +12,12 @@ public:
 
     bool init();
 
+    ~Assembler();
+
+    bool set_domain_size(size_t h, size_t Nx, size_t Ny);
+
     bool assembleLocal(vector<double> &A_local, double youngMod, double poisson);
-    bool assembleMaterialMat();
+    bool assembleGlobal()
     // bool updateStiffMatrix();
 
 

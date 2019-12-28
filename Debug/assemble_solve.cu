@@ -23,11 +23,16 @@ int main()
 
     // domain dimensions
     size_t dim = 2;
-    size_t Nx = 1;
-    size_t Ny = 1;
+    size_t h = 0.5;     // local element size
+    
+    // number of elements per dimension
+    size_t Nx = 2;
+    size_t Ny = 2;
+    
 
     Assembler Assembly(dim, youngMod, poisson);
     Assembly.init();
+    Assembly.set_domain_size(h, Nx, Ny);
 
 
 

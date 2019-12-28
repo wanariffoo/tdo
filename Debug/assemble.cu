@@ -1,5 +1,6 @@
 #include <iostream>
 #include "assemble.h"
+#include "cudakernels.h"
 
 using namespace std;
 
@@ -14,29 +15,44 @@ Assembler::Assembler(size_t dim, double youngMod, double poisson)
 
 }
 
+Assembler::~Assembler()
+{
+    cout << "assembler : deallocate" << endl;
+    CUDA_CALL( cudaFree(d_m_A_local) );
+}
+
+bool Assembler::set_domain_size(size_t h, size_t Nx, size_t Ny)
+{
+    return true;
+}
+
 bool Assembler::init()
 {
     assembleLocal(m_A_local, m_youngMod, m_poisson);
 
-    for ( int i = 0 ; i < 8 ; i++ )
-        {
-            for( int j = 0 ; j < 8 ; j++ )
-                cout << m_A_local[j + i*8] << " ";
 
-
-            cout << "\n";
-                // test2[i][j] += bar[GP][i][j];
-        }
-
+    CUDA_CALL( cudaMalloc((void**)&d_m_A_local, sizeof(double) * m_A_local.size()) );
+    CUDA_CALL( cudaMemcpy(d_m_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
+    
 
     return true;
 
+}
+
+bool Assembler::assembleGlobal()
+{
+    // TODO: if no BC is set, return false with error
+
+
+    return true;
 }
 
 // assembles the local stiffness matrix
 bool Assembler::assembleLocal(vector<double> &A_local, double youngMod, double poisson)
 {
     cout << "assembleLocal" << endl;
+
+    // TODO: you haven't added JACOBI, see "TODO:" just before this function's return true
 
     size_t num_cols;
 
@@ -103,51 +119,28 @@ bool Assembler::assembleLocal(vector<double> &A_local, double youngMod, double p
 
     
     // bar = B^T * foo
-
     for ( int GP = 0 ; GP < 4 ; GP++)
     {
-
         for ( int i = 0 ; i < 8 ; i++ )
         {
             for( int j = 0 ; j < 8 ; j++ )
             {
-                for ( int k = 0 ; k < 3 ; k++){
-                    
+                for ( int k = 0 ; k < 3 ; k++)
                     bar[GP][i][j] += B[GP][k][i] * foo[GP][k][j];
-                }
             }
         }
     }
 
-    vector<double> test(64,0.0);
-    double test2[8][8];
+
     for ( int GP = 0 ; GP < 4 ; GP++)
     {
         for ( int i = 0 ; i < 8 ; i++ )
         {
             for( int j = 0 ; j < 8 ; j++ )
-            {
-                m_A_local[j + i*num_cols] += bar[GP][i][j];
-                // test2[i][j] += bar[GP][i][j];
-
-            }
+                m_A_local[j + i*num_cols] += bar[GP][i][j];     // TODO: * jacobi here
         }
     }
 
-    //    for ( int i = 0 ; i < 8 ; i++ )
-    //     {
-    //         for( int j = 0 ; j < 8 ; j++ )
-    //             cout << test2[i][j] << " ";
-
-
-    //         cout << "\n";
-    //     }
-
-    return true;
-}
-
-bool Assembler::assembleMaterialMat()
-{
 
     return true;
 }

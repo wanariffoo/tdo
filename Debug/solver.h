@@ -13,7 +13,8 @@ public:
 
     // deconstructor
     // TODO: deallocation of device variables
-    void deallocate();
+    // void deallocate();
+    ~Solver();
 
     bool init();
 

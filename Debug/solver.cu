@@ -12,8 +12,10 @@ Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> 
 }
 
 // TODO: could try as a destructor
-void Solver::deallocate()
+// void Solver::deallocate()
+Solver::~Solver()
 {
+    cout << "solver : deallocate" << endl;
     CUDA_CALL( cudaFree(m_d_res0) );
     CUDA_CALL( cudaFree(m_d_res) );
     CUDA_CALL( cudaFree(m_d_lastRes) );
