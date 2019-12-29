@@ -18,8 +18,9 @@ public:
 
     bool set_domain_size(size_t h, size_t Nx, size_t Ny);
 
-    bool assembleLocal(double youngMod, double poisson);
+    bool assembleLocal();
     bool assembleGlobal();
+    void setBC(vector<size_t> bc_index);
 
     vector<double> assembleLocal_(double youngMod, double poisson);
     // bool updateStiffMatrix();
@@ -77,14 +78,17 @@ private:
 
     size_t m_h;
     size_t m_dim;
-    size_t m_num_rows;
+    size_t m_num_rows_l;    // local
+    size_t m_num_rows_g;    // global
+
+
     // material properties
     double m_youngMod;
     double m_poisson;
     vector<double> m_E;
 
     vector<double> m_A_local;
-
+    vector<size_t> m_bc_index;
     // device pointers
     double* d_m_A_local;
 

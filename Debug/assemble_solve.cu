@@ -29,12 +29,17 @@ int main()
     size_t Nx = 2;
     size_t Ny = 2;
     
+    // boundary conditions
+    vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
 
 
     vector<double> test;
     Assembler Assembly(dim, youngMod, poisson);
     Assembly.set_domain_size(h, Nx, Ny);
+    Assembly.setBC(bc_index);
+    
     Assembly.init();
+
     // test = Assembly.assembleLocal_(youngMod, poisson);
 
     // cout << test[0] << endl;

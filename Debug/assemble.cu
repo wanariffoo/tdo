@@ -84,40 +84,18 @@ bool Assembler::init()
     if ( m_dim == 2 )
     {
         m_A_local.resize(64, 0.0);
-        m_num_rows = 8;
+        m_num_rows_l = 8;
     }
 
     else if (m_dim == 3 )
     {
         m_A_local.resize(144, 0.0);
-        m_num_rows = 12;
+        m_num_rows_l = 12;
     }
 
     else
         cout << "error" << endl; //TODO: add error/assert
     
-    assembleLocal(m_youngMod, m_poisson);
-    assembleGlobal();
-    // cout << m_A_local[0] << endl;
-
-    // CUDA_CALL( cudaMalloc((void**)&d_m_A_local, sizeof(double) * m_A_local.size()) );
-    // CUDA_CALL( cudaMemcpy(d_m_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
-    
-    return true;
-
-}
-
-double Assembler::valueAt(size_t x, size_t y)
-{
-    return m_A_local[y + x*m_num_rows];
-}
-
-// to produce an ELLmatrix of the global stiffness in the device
-// will return d_value, d_index, d_max_row_size
-bool Assembler::assembleGlobal()
-{
-    // TODO: if no BC is set, return false with error
-
     // calculate the number of nodes/elements in the domain
     m_numElements = m_Nx * m_Ny;
     
@@ -131,7 +109,31 @@ bool Assembler::assembleGlobal()
     for ( int i = 0 ; i < m_dim ; i++ )
         m_numNodes *= m_numNodesPerDim[i];
 
-    cout << m_numNodes << endl;
+
+    // num of rows in global stiffness matrix
+    m_num_rows_g = m_numNodes * m_dim;
+
+    assembleLocal();
+    assembleGlobal();
+    // cout << m_A_local[0] << endl;
+
+    // CUDA_CALL( cudaMalloc((void**)&d_m_A_local, sizeof(double) * m_A_local.size()) );
+    // CUDA_CALL( cudaMemcpy(d_m_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
+    
+    return true;
+
+}
+
+double Assembler::valueAt(size_t x, size_t y)
+{
+    return m_A_local[y + x*m_num_rows_l];
+}
+
+// to produce an ELLmatrix of the global stiffness in the device
+// will return d_value, d_index, d_max_row_size
+bool Assembler::assembleGlobal()
+{
+    // TODO: if no BC is set, return false with error
 
     for ( int i = 0 ; i < m_numNodes ; ++i )
     {
@@ -157,7 +159,8 @@ bool Assembler::assembleGlobal()
 
     // create a function for this so that A_g is temporary
     
-    double A_g[m_numNodes*m_dim][m_numNodes*m_dim];
+    // double A_g[m_numNodes*m_dim][m_numNodes*m_dim];
+    vector<vector<double>> A_g (m_numNodes*m_dim, std::vector <double> (m_numNodes*m_dim, 0.0));
 
     for ( int i = 0 ; i < m_numNodes*m_dim; i++)
     {
@@ -178,12 +181,26 @@ bool Assembler::assembleGlobal()
                     A_g[ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x    , 2*y + 1      );
                     A_g[ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x + 1, 2*y          );
                     A_g[ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x + 1, 2*y + 1      );
-
-
-
             }
         }
     }
+
+    cout << m_num_rows_l << endl;
+    for ( int i = 0 ; i < m_bc_index.size() ; ++i )
+        applyMatrixBC(A_g, m_bc_index[i], m_num_rows_g);
+
+
+    for ( int x = 0 ; x < 18 ; x++ ) // TODO: dim  
+    {
+        for ( int y = 0 ; y < 18 ; y++ )        // TODO: dim   
+        {      
+            cout << A_g[x][y] << " ";
+        }
+
+        cout << " " << endl;
+    }
+
+
 
 
 
@@ -194,7 +211,7 @@ bool Assembler::assembleGlobal()
 
 // TODO: check this is not right!
 // assembles the local stiffness matrix
-bool Assembler::assembleLocal(double youngMod, double poisson)
+bool Assembler::assembleLocal()
 {
     cout << "assembleLocal" << endl;
 
@@ -204,9 +221,9 @@ bool Assembler::assembleLocal(double youngMod, double poisson)
 
     double E[3][3];
 
-    E[0][0] = E[1][1] = youngMod/(1 - poisson * poisson );
-    E[0][1] = E[1][0] = poisson * E[0][0];
-    E[2][2] = (1 - poisson) / 2 * E[0][0];
+    E[0][0] = E[1][1] = m_youngMod/(1 - m_poisson * m_poisson );
+    E[0][1] = E[1][0] = m_poisson * E[0][0];
+    E[2][2] = (1 - m_poisson) / 2 * E[0][0];
     E[2][0] = E[2][1] = E[1][2] = E[0][2];
 
     // bilinear shape function matrix (using 4 Gauss Points)
@@ -268,7 +285,7 @@ bool Assembler::assembleLocal(double youngMod, double poisson)
         for ( int i = 0 ; i < 8 ; i++ )
         {
             for( int j = 0 ; j < 8 ; j++ )
-                m_A_local[j + i*m_num_rows] += bar[GP][i][j];     // TODO: * jacobi here
+                m_A_local[j + i*m_num_rows_l] += bar[GP][i][j];     // TODO: * jacobi here
         }
     }
 
@@ -276,6 +293,10 @@ bool Assembler::assembleLocal(double youngMod, double poisson)
     return true;
 }
 
+void Assembler::setBC(vector<size_t> bc_index)
+{
+    m_bc_index = bc_index;
+}
 
 // assembles the local stiffness matrix
 vector<double> Assembler::assembleLocal_(double youngMod, double poisson)
