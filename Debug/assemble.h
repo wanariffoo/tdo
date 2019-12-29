@@ -5,6 +5,8 @@
 
 using namespace std;
 
+
+ 
 class Assembler{
 
 public:
@@ -16,9 +18,55 @@ public:
 
     bool set_domain_size(size_t h, size_t Nx, size_t Ny);
 
-    bool assembleLocal(vector<double> &A_local, double youngMod, double poisson);
-    bool assembleGlobal()
+    bool assembleLocal(double youngMod, double poisson);
+    bool assembleGlobal();
+
+    vector<double> assembleLocal_(double youngMod, double poisson);
     // bool updateStiffMatrix();
+
+    double valueAt(size_t x, size_t y);
+
+    class Node
+    {
+        public:
+            Node (int id);
+
+            void setXCoor(float x);
+            void setYCoor(float y);
+            float getXCoor(float x);
+            float getYCoor(float y);
+            void printCoor();
+            int index();
+    
+        private:
+            int m_index;
+            float m_coo[2];
+            int m_dof[2];
+            // vector<int> m_dof(2);
+    };
+
+    class Element
+    {
+        public:
+            Element(size_t ind);
+
+            size_t index();
+            void addNode(Node *x);
+            int nodeIndex(int i);
+            void printNodes();
+            double valueAt(size_t x, size_t y, size_t num_cols);
+            
+        private:
+            std::vector<Node*> m_node;
+            size_t m_index;
+
+            
+        
+    };
+    
+   
+
+
 
 
 private:
@@ -27,8 +75,9 @@ private:
     size_t m_Ny;
     size_t m_Nz;
 
+    size_t m_h;
     size_t m_dim;
-
+    size_t m_num_rows;
     // material properties
     double m_youngMod;
     double m_poisson;
@@ -39,8 +88,14 @@ private:
     // device pointers
     double* d_m_A_local;
 
-    
+    //
+    size_t m_numElements;
+    vector<size_t> m_numNodesPerDim;
+    size_t m_numNodes;
 
+    
+    vector<Node> m_node;
+    vector<Element> m_element;
 };
 
 

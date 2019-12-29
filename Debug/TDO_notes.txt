@@ -98,3 +98,9 @@ TODO:       use full u to calculate local driving forces
                 - have a kernel to get only the local displacements
 
         
+
+Questions:
+
+    NOTE: don't ask cause you could google this:
+    *** stack smashing detected ***: <unknown> terminated
+    Aborted (core dumped)

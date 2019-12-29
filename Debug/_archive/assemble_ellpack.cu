@@ -148,7 +148,6 @@ class Node
 public:
     Node (int id) : m_index(id){}
 
-
     void setXCoor(float x) { m_coo[0] = x;}
     void setYCoor(float y) { m_coo[1] = y;}
     float getXCoor(float x) { return m_coo[0];}
@@ -158,12 +157,11 @@ public:
     {
         cout << "node [" << m_index << "] = ( " << m_coo[0] << ", " << m_coo[1] << " )" << endl;
     }
+
     int index() 
     { 
         return m_index; 
     }
-
-   
 
 private:
     int m_index;
@@ -350,7 +348,6 @@ public:
                 {
                     m_vValue[x * m_max_row_size + k] += value;
                 }
-
             }
         }
     }
