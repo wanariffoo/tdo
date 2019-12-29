@@ -105,11 +105,11 @@ __global__ void addVector_GPU(double *x, double *c, size_t num_rows);
 __global__ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows);
 
 
-std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std::size_t num_cols);
+std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows);
 
 // transforms a flattened matrix (array) to ELLPACK's vectors value and index
 // max_row_size has to be d prior to this
-void transformToELL(std::vector<double> &array, double* value, size_t* index, size_t max_row_size, size_t num_rows);
+void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows);
 // void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows);
 
 // sets identity rows and columns of the DOF in which a BC is applied

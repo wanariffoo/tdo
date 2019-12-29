@@ -33,7 +33,7 @@ int main()
     vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
 
 
-    vector<double> test;
+    // vector<double> test;
     Assembler Assembly(dim, youngMod, poisson);
     Assembly.set_domain_size(h, Nx, Ny);
     Assembly.setBC(bc_index);

@@ -170,6 +170,12 @@ bool Assembler::assembleGlobal()
 
     cout << m_numElements << endl;
     
+
+    // TODO: !!!
+    see TDO sheet 12, check the discrepencies
+    think it's due to this for loop below here:
+
+
     for ( int elmn_index = 0 ; elmn_index < m_numElements ; elmn_index++ )
     {
         for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
@@ -185,20 +191,34 @@ bool Assembler::assembleGlobal()
         }
     }
 
-    cout << m_num_rows_l << endl;
-    for ( int i = 0 ; i < m_bc_index.size() ; ++i )
-        applyMatrixBC(A_g, m_bc_index[i], m_num_rows_g);
+    // for ( int i = 0 ; i < m_bc_index.size() ; ++i )
+    //     applyMatrixBC(A_g, m_bc_index[i], m_num_rows_g);
 
-
-    for ( int x = 0 ; x < 18 ; x++ ) // TODO: dim  
+    for ( int i = 0 ; i < m_num_rows_g ; i++ )
     {
-        for ( int y = 0 ; y < 18 ; y++ )        // TODO: dim   
-        {      
-            cout << A_g[x][y] << " ";
-        }
-
-        cout << " " << endl;
+        for ( int j = 0 ; j < m_num_rows_g ; j++ )
+            cout << A_g[i][j] << " ";
+        
+        cout << "\n";
     }
+
+
+
+
+
+    // calculate global max_num_rows
+    m_max_row_size = getMaxRowSize(A_g, m_num_rows_g);
+
+
+    // transformtoELL
+    // transformToELL(A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
+
+    // for ( int i = 0 ; i < m_max_row_size * m_num_rows_g ; i++ )
+    // cout << m_value_g[i] << " ";
+
+    // cout << "\n";
+
+    
 
 
 

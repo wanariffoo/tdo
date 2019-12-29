@@ -89,8 +89,14 @@ private:
 
     vector<double> m_A_local;
     vector<size_t> m_bc_index;
+
+    vector<double> m_value_g;
+    vector<size_t> m_index_g;
+
     // device pointers
     double* d_m_A_local;
+
+    size_t m_max_row_size; // global
 
     //
     size_t m_numElements;

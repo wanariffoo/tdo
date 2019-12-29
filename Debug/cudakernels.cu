@@ -434,7 +434,7 @@ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_
 }
 
 
-std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std::size_t num_cols)
+std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
 {
 	std::size_t max_row_size = 0;
 
@@ -442,9 +442,9 @@ std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std:
 	{
 		std::size_t max_in_row = 0;
 
-		for ( int j = 0 ; j < num_cols ; j++ )
+		for ( int j = 0 ; j < num_rows ; j++ )
 		{
-			if ( array[ j + i*num_cols ] != 0 )
+			if ( array[i][j] != 0 )
 				max_in_row++;
 
 		}
@@ -452,49 +452,46 @@ std::size_t getMaxRowSize(std::vector<double> &array, std::size_t num_rows, std:
 		if ( max_in_row >= max_row_size )
 			max_row_size = max_in_row;
 	}
-
 	
 	return max_row_size;
 
 }
 
-// transforms a flattened matrix (array) to ELLPACK's vectors value and index
-// max_row_size has to be d prior to this
-// void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows)
-void transformToELL(std::vector<double> &array, double* value, size_t* index, size_t max_row_size, size_t num_rows)
+// transforms a 2D array into ELLPACK's vectors value and index
+// max_row_size has to be determined prior to this
+void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows)
 {
-	value[0] = 20;
-	// for ( int id = 0 ; id < num_rows ; id++)
-    // {
-    //     size_t counter = id*max_row_size;
-    //     size_t nnz = 0;
-        
-	// 		// printf("array = %e\n", array [ 1 ]);
-    //     for ( int j = 0 ; nnz < max_row_size ; j++ )
-    //     {
 
-    //         if ( array [ j + id*num_rows ] != 0 )
-    //         {
-	// 			// printf("array = %e\n", array [ j + id*num_rows ]);
-	// 			value [counter] = array [ j + id*num_rows ];
-				
-					
-    //             index [counter] = j;
-	// 			// printf("value = %e\n", value[counter]);
-    //             counter++;
-    //             nnz++;
-    //         }
+	size_t counter;
+	size_t nnz;
+	
+	for ( int i = 0 ; i < num_rows ; i++)
+    {
+        
+		nnz = 0;
+			// printf("array = %e\n", array [ 1 ]);
+        for ( int j = 0 ; nnz < max_row_size ; j++ )
+        {
+
+            if ( array [i][j] != 0 )
+            {
+				// printf("array = %e\n", array [ j + id*num_rows ]);
+				value.push_back(array[i][j]);
+				index.push_back(j);
+                // nnz++;
+            }
             
-    //         if ( j == num_rows - 1 )
-    //         {
-    //             for ( ; nnz < max_row_size ; counter++ && nnz++ )
-    //             {
-    //                 value [counter] = 0.0;
-    //                 index [counter] = num_rows;
-    //             }
-    //         }
-    //     }
-	// }
+            if ( j == num_rows - 1 )
+            {
+                for ( ; nnz < max_row_size ; nnz++ )
+                {
+				value.push_back(0.0);
+				index.push_back(num_rows);
+                }
+
+            }
+        }
+	}
 	
 }
 
