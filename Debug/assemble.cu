@@ -172,11 +172,12 @@ bool Assembler::assembleGlobal()
     
 
     // TODO: !!!
-    see TDO sheet 12, check the discrepencies
-    think it's due to this for loop below here:
+    // see TDO sheet 12, check the discrepencies
+    // think it's due to this for loop below here:
+    // then do one loop and then update the next one
 
 
-    for ( int elmn_index = 0 ; elmn_index < m_numElements ; elmn_index++ )
+    for ( int elmn_index = 0 ; elmn_index < 4 ; elmn_index++ )
     {
         for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
         {
@@ -191,30 +192,18 @@ bool Assembler::assembleGlobal()
         }
     }
 
-    // for ( int i = 0 ; i < m_bc_index.size() ; ++i )
-    //     applyMatrixBC(A_g, m_bc_index[i], m_num_rows_g);
+    // applying BC on the matrix
+    // DOFs which are affected by BC will have identity rows { 0 0 .. 1 .. 0 0}
+    for ( int i = 0 ; i < m_bc_index.size() ; ++i )
+        applyMatrixBC(A_g, m_bc_index[i], m_num_rows_g);
 
-    for ( int i = 0 ; i < m_num_rows_g ; i++ )
-    {
-        for ( int j = 0 ; j < m_num_rows_g ; j++ )
-            cout << A_g[i][j] << " ";
-        
-        cout << "\n";
-    }
-
-
-
-
-
-    // calculate global max_num_rows
+    // calculate global max_num_rows, which will also be needed when allocating memory in device
     m_max_row_size = getMaxRowSize(A_g, m_num_rows_g);
 
+    // obtaining the ELLPACK value and index vectors from the global stiffness matrix
+    transformToELL(A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
 
-    // transformtoELL
-    // transformToELL(A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
 
-    // for ( int i = 0 ; i < m_max_row_size * m_num_rows_g ; i++ )
-    // cout << m_value_g[i] << " ";
 
     // cout << "\n";
 

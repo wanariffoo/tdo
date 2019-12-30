@@ -444,13 +444,13 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
 
 		for ( int j = 0 ; j < num_rows ; j++ )
 		{
-			if ( array[i][j] != 0 )
+			if ( array[i][j] < -1.0e-8 || array[i][j] > 1.0e-8 )
 				max_in_row++;
-
 		}
 
 		if ( max_in_row >= max_row_size )
 			max_row_size = max_in_row;
+		
 	}
 	
 	return max_row_size;
@@ -473,12 +473,12 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
         for ( int j = 0 ; nnz < max_row_size ; j++ )
         {
 
-            if ( array [i][j] != 0 )
+            if ( array[i][j] < -1.0e-8 || array[i][j] > 1.0e-8 )
             {
 				// printf("array = %e\n", array [ j + id*num_rows ]);
 				value.push_back(array[i][j]);
 				index.push_back(j);
-                // nnz++;
+                nnz++;
             }
             
             if ( j == num_rows - 1 )

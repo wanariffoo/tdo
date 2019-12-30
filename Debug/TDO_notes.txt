@@ -101,6 +101,10 @@ TODO:       use full u to calculate local driving forces
 
 Questions:
 
-    NOTE: don't ask cause you could google this:
-    *** stack smashing detected ***: <unknown> terminated
-    Aborted (core dumped)
+compiler saves 0 sometimes in the 1e-9 region.
+    - instead of say, 
+        a == 0.0, 
+
+        is this ok?
+        
+        a < 1e-8 && a > -1e-8
