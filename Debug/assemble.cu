@@ -355,8 +355,6 @@ bool Assembler::assembleGlobal()
             };
 
 
-            cout << m_P[0][8][6] << endl;
-
     // for ( int i = 0 ; i < m_num_rows[1] ; i++ )
     // {
     //     for ( int j = 0 ; j < m_num_rows[0] ; j++ )
@@ -423,12 +421,13 @@ bool Assembler::assembleGlobal()
     // // calculate global max_num_rows, which will also be needed when allocating memory in device
     m_max_row_size.resize(m_numLevels);
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-        m_max_row_size[lev] = getMaxRowSize(m_A_g[lev], m_num_rows[lev]);
+        m_max_row_size[lev] = getMaxRowSize(m_A_g[lev], m_num_rows[lev], m_num_rows[lev]);
 
     m_p_max_row_size.resize ( m_numLevels - 1 );
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        m_p_max_row_size[lev] = getMaxRowSize(m_P[lev], m_num_rows[lev+1]);
-
+        m_p_max_row_size[lev] = getMaxRowSize(m_P[lev], m_num_rows[lev+1], m_num_rows[lev]);
+    
+    cout << m_max_row_size[0] << endl;
     cout << m_p_max_row_size[0] << endl;
     // obtaining the ELLPACK value and index vectors from the global stiffness matrix
     
@@ -437,10 +436,17 @@ bool Assembler::assembleGlobal()
     // prolongation matrices
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
     {
-        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], 2, m_num_rows[lev+1]);    
-
+        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], m_p_max_row_size[lev], m_num_rows[lev+1]);    
     }
+
+
     // transformToELL(m_A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
+
+    for ( int i = 0 ; i < 36 ; i++ )
+    {
+        cout << m_p_value_g[0][i] << " ";
+    }
+        cout << "\n";
 
     // for ( int i = 0 ; i < m_num_rows[1] ; i++ )
     // {

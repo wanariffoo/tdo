@@ -434,15 +434,17 @@ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_
 }
 
 
-std::size_t getMaxRowSize(vector<vector<double>> &array, size_t num_rows)
+std::size_t getMaxRowSize(vector<vector<double>> &array, size_t num_rows, size_t num_cols)
 {
 	std::size_t max_row_size = 0;
+
+  
 
 	for ( int i = 0; i < num_rows ; i++ )
 	{
 		std::size_t max_in_row = 0;
 
-		for ( int j = 0 ; j < num_rows ; j++ )
+		for ( int j = 0 ; j < num_cols ; j++ )
 		{
 			if ( array[i][j] < -1.0e-8 || array[i][j] > 1.0e-8 )
 				max_in_row++;

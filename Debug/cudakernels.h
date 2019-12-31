@@ -105,7 +105,7 @@ __global__ void addVector_GPU(double *x, double *c, size_t num_rows);
 __global__ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows);
 
 
-std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows);
+std::size_t getMaxRowSize(vector<vector<double>> &array, size_t num_rows, size_t num_cols);
 
 // transforms a flattened matrix (array) to ELLPACK's vectors value and index
 // max_row_size has to be d prior to this
