@@ -26,18 +26,20 @@ int main()
     size_t h = 0.5;     // local element size
     
     // number of elements per dimension
-    size_t Nx = 2;
-    size_t Ny = 2;
+    // size_t Nx = 1;
+    // size_t Ny = 1;
+
+    vector<size_t> N = {1,1};
+
+    // multigrid precond
+    size_t numLevels = 2;
     
     // boundary conditions
     vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
 
-
-    // vector<double> test;
-    Assembler Assembly(dim, youngMod, poisson);
-    Assembly.set_domain_size(h, Nx, Ny);
+   
+    Assembler Assembly(dim, h, N, youngMod, poisson, numLevels);
     Assembly.setBC(bc_index);
-    
     Assembly.init();
 
     /*

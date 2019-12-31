@@ -115,7 +115,7 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
 // sets identity rows and columns of the DOF in which a BC is applied
 void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows);
 
-__host__ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows_g, size_t num_rows_l, size_t lev);
+__host__ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows, size_t num_rows_ );
 
 // a = b
 __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);

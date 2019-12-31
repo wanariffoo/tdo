@@ -10,13 +10,11 @@ using namespace std;
 class Assembler{
 
 public:
-    Assembler(size_t dim, double youngMod, double poisson);
+    Assembler(size_t dim, size_t h, vector<size_t> N, double youngMod, double poisson, size_t numLevels);
 
     bool init();
 
     ~Assembler();
-
-    bool set_domain_size(size_t h, size_t Nx, size_t Ny);
 
     bool assembleLocal();
     bool assembleGlobal();
@@ -49,7 +47,7 @@ public:
     class Element
     {
         public:
-            Element(size_t ind);
+            Element(int ind);
 
             size_t index();
             void addNode(Node *x);
@@ -72,14 +70,12 @@ public:
 
 private:
     // grid dimensions
-    size_t m_Nx;
-    size_t m_Ny;
-    size_t m_Nz;
+    vector<vector<size_t>> m_N;
 
     size_t m_h;
     size_t m_dim;
     size_t m_num_rows_l;    // local
-    size_t m_num_rows_g;    // global
+    vector<size_t> m_num_rows;    // global stiffness matrix of each grid-level
 
     // material properties
     double m_youngMod;
@@ -87,34 +83,59 @@ private:
     vector<double> m_E;
 
     // stiffness matrices of each level
-    vector<vector<double>> m_A_g;
+    vector<vector<vector<double>>> m_A_g;
 
     // prolongation matrices of each level
-    vector<vector<double>> m_P;
+    vector<vector<vector<double>>> m_P;
     size_t m_p_num_rows;
     size_t m_p_num_cols;
 
+    // multi-grid
+    size_t m_numLevels;
+    size_t m_topLev;
 
-    vector<double> m_A_local;
     vector<size_t> m_bc_index;
 
-    vector<double> m_value_g;
-    vector<size_t> m_index_g;
+    // local stiffness matrix (dense)
+    vector<double> m_A_local;
+
+    // prolongation matrices on each level
+    vector<vector<double>> m_p_value_g;
+    vector<vector<size_t>> m_p_index_g;    
+    vector<size_t> m_p_max_row_size;
 
 
-    // device pointers
-    double* d_m_A_local;
-
-    size_t m_max_row_size; // global
+    // global stiffness matrix's ELLPACK vectors on each grid-level
+    vector<vector<double>> m_value_g;
+    vector<vector<size_t>> m_index_g;
+    vector<size_t> m_max_row_size; 
 
     //
-    size_t m_numElements;
-    vector<size_t> m_numNodesPerDim;
-    size_t m_numNodes;
+    vector<size_t> m_numElements;
+    vector<vector<size_t>> m_numNodesPerDim;
+    vector<size_t> m_numNodes;
 
     
     vector<Node> m_node;
     vector<Element> m_element;
+
+
+
+    // CUDA
+
+    // local stiffness matrix
+    // ELLPACK format is not used as it is a dense matrix
+    double* d_m_A_local;
+
+    // global stiffness matrix on each grid-level
+    vector<double*> d_m_value_g;
+    vector<size_t*> d_m_index_g;
+
+    // prolongation matrices
+    vector<double*> d_m_p_value_g;
+    vector<size_t*> d_m_p_index_g;
+    
+    
 };
 
 

@@ -108,3 +108,9 @@ compiler saves 0 sometimes in the 1e-9 region.
         is this ok?
         
         a < 1e-8 && a > -1e-8
+
+    in program, 0 becomes 7e-9
+
+when initializing grid dimensions, Nx, Ny, Nz,
+    - this is the base grid?
+

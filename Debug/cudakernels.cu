@@ -434,7 +434,7 @@ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_
 }
 
 
-std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
+std::size_t getMaxRowSize(vector<vector<double>> &array, size_t num_rows)
 {
 	std::size_t max_row_size = 0;
 
@@ -448,7 +448,6 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
 				max_in_row++;
 		}
 
-		// CHECK: why is this here?
 		if ( max_in_row >= max_row_size )
 			max_row_size = max_in_row;
 		
@@ -462,7 +461,6 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
 // max_row_size has to be determined prior to this
 void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows)
 {
-
 	size_t nnz;
 	
 	for ( int i = 0 ; i < num_rows ; i++)
@@ -480,7 +478,7 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
                 nnz++;
             }
             
-            if ( j == num_rows - 1 )
+            if ( j == 8 - 1 )
             {
                 for ( ; nnz < max_row_size ; nnz++ )
                 {
@@ -757,27 +755,27 @@ void calculateDirectionVector(
 
 // A_ = P^T * A * P
 __host__
-void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows_g, size_t num_rows_l, size_t lev)
+void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows, size_t num_rows_)
 {
 	// temp vectors
-	std::vector<std::vector<double>> foo ( num_rows_g, std::vector <double> (num_rows_l, 0.0));
+	std::vector<std::vector<double>> foo ( num_rows, std::vector <double> (num_rows_, 0.0));
 
 	// foo = A * P
-	for ( int i = 0 ; i < num_rows_g ; i++ )
+	for ( int i = 0 ; i < num_rows ; i++ )
 	{
-		for( int j = 0 ; j < num_rows_l ; j++ )
+		for( int j = 0 ; j < num_rows_ ; j++ )
 		{
-			for ( int k = 0 ; k < num_rows_g ; k++)
+			for ( int k = 0 ; k < num_rows ; k++)
 				foo[i][j] += A[i][k] * P[k][j];
 		}
 	}
 
 	// A_ = P^T * foo
-	for ( int i = 0 ; i < num_rows_l ; i++ )
+	for ( int i = 0 ; i < num_rows_ ; i++ )
         {
-            for( int j = 0 ; j < num_rows_l ; j++ )
+            for( int j = 0 ; j < num_rows_ ; j++ )
             {
-                for ( int k = 0 ; k < num_rows_g ; k++)
+                for ( int k = 0 ; k < num_rows ; k++)
                     A_[i][j] += P[k][i] * foo[k][j];
             }
         }
