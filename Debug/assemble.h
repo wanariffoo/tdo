@@ -81,17 +81,26 @@ private:
     size_t m_num_rows_l;    // local
     size_t m_num_rows_g;    // global
 
-
     // material properties
     double m_youngMod;
     double m_poisson;
     vector<double> m_E;
+
+    // stiffness matrices of each level
+    vector<vector<double>> m_A_g;
+
+    // prolongation matrices of each level
+    vector<vector<double>> m_P;
+    size_t m_p_num_rows;
+    size_t m_p_num_cols;
+
 
     vector<double> m_A_local;
     vector<size_t> m_bc_index;
 
     vector<double> m_value_g;
     vector<size_t> m_index_g;
+
 
     // device pointers
     double* d_m_A_local;

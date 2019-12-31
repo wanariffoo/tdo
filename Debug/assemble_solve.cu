@@ -40,6 +40,20 @@ int main()
     
     Assembly.init();
 
+    /*
+    NOTE: after assembling you should have these :
+    global stiffness matrix ELLPACK
+        - vector<double*> d_value(numLevels)
+        - vector<size_t> d_index(numLevels)
+        - vector<size_t> max_row_size(numLevels)
+        - vector<double*> d_p_value(numLevels - 1)
+        - vector<size_t*> d_p_index(numLevels - 1)
+        - vector<size_t> p_max_row_size(numLevels -1 )
+    */
+   
+
+
+
     // test = Assembly.assembleLocal_(youngMod, poisson);
 
     // cout << test[0] << endl;

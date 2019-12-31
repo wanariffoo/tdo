@@ -160,23 +160,18 @@ bool Assembler::assembleGlobal()
     // create a function for this so that A_g is temporary
     
     // double A_g[m_numNodes*m_dim][m_numNodes*m_dim];
-    vector<vector<double>> A_g (m_numNodes*m_dim, std::vector <double> (m_numNodes*m_dim, 0.0));
+    // TODO: figure out if you keep this as member var or not
+    m_A_g.resize(m_numNodes*m_dim, vector<double>(m_numNodes*m_dim));
 
     for ( int i = 0 ; i < m_numNodes*m_dim; i++)
     {
         for ( int j = 0 ; j < m_numNodes*m_dim; j++)
-            A_g[i][j] = 0;
+            m_A_g[i][j] = 0;
     }
 
-    cout << m_numElements << endl;
-    
-
-    // TODO: !!!
-    // see TDO sheet 12, check the discrepencies
-    // think it's due to this for loop below here:
-    // then do one loop and then update the next one
 
 
+    // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
     for ( int elmn_index = 0 ; elmn_index < 4 ; elmn_index++ )
     {
         for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
@@ -184,34 +179,123 @@ bool Assembler::assembleGlobal()
             for ( int y = 0 ; y < 4 ; y++ )        // TODO: dim   
             {      
 
-                    A_g[ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x    , 2*y );
-                    A_g[ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x    , 2*y + 1      );
-                    A_g[ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x + 1, 2*y          );
-                    A_g[ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x + 1, 2*y + 1      );
+                    m_A_g[ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x    , 2*y );
+                    m_A_g[ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x    , 2*y + 1      );
+                    m_A_g[ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x + 1, 2*y          );
+                    m_A_g[ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x + 1, 2*y + 1      );
             }
         }
     }
 
+
+        // cout << m_A_g[15][14] << endl;
+
+        for ( int x = 0 ; x < m_numNodes*m_dim ; x++ ) // TODO: dim  
+        {
+            for ( int y = 0 ; y < m_numNodes*m_dim ; y++ )        // TODO: dim   
+            {      
+                if ( m_A_g[x][y] < 1e-8 && m_A_g[x][y] > -1e-8)
+                    m_A_g[x][y] = 0;
+            }
+        }
+
+        // cout << m_A_g[15][14] << endl;
+
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index.size() ; ++i )
-        applyMatrixBC(A_g, m_bc_index[i], m_num_rows_g);
+        applyMatrixBC(m_A_g, m_bc_index[i], m_num_rows_g);
 
     // calculate global max_num_rows, which will also be needed when allocating memory in device
-    m_max_row_size = getMaxRowSize(A_g, m_num_rows_g);
+    m_max_row_size = getMaxRowSize(m_A_g, m_num_rows_g);
+
+    // for ( int i = 0 ; i < m_num_rows_g ; i++)
+    // {
+    //     for ( int j = 0 ; j < m_num_rows_g ; j++)
+    //         cout << m_A_g[i][j] << " ";
+
+    //         cout << " " << endl;
+    // }
+
 
     // obtaining the ELLPACK value and index vectors from the global stiffness matrix
-    transformToELL(A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
+    transformToELL(m_A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
 
+    // prolong
 
-
-    // cout << "\n";
-
+    // TODO: create a function to build a prolongation matrix
+    // assembleProlMatrix(vector<vector<double>> m_prol, ... )
     
+    // TODO:
+    m_p_num_rows = 18; // m_num_rows[]
+    m_p_num_cols = 8; // m_num_rows[]
+    m_P =   {
+            {1,	0,	0,	0,	0,	0,	0,	0},
+            {0,	1,	0,	0,	0,	0,	0,	0},
+            {0,	0,	0.5,	0,	0,	0,	0,	0},
+            {0,	0,	0,	0.5,	0,	0,	0,	0},
+            {0,	0,	1,	0,	0,	0,	0,	0},
+            {0,	0,	0,	1,	0,	0,	0,	0},
+            {0,	0,	0,	0,	0,	0,	0,	0},
+            {0,	0,	0,	0,	0,	0,	0,	0},
+            {0,	0,	0.25,	0,	0,	0,	0.25,	0},
+            {0,	0,	0,	0.25,	0,	0,	0,	0.25},
+            {0,	0,	0.5,	0,	0,	0,	0.5,	0},
+            {0,	0,	0,	0.5,	0,	0,	0,	0.5},
+            {0,	0,	0,	0,	1,	0,	0,	0},
+            {0,	0,	0,	0,	0,	1,	0,	0},
+            {0,	0,	0,	0,	0,	0,	0.5,	0},
+            {0,	0,	0,	0,	0,	0,	0,	0.5},
+            {0,	0,	0,	0,	0,	0,	1,	0},
+            {0,	0,	0,	0,	0,	0,	0,	1}
+            };
+
+
+
+    m_P.resize(m_p_num_rows, vector<double>(m_p_num_cols));
+
+    // for ( int i = 0 ; i < m_p_num_rows ; i++ )
+    // {
+    //     for ( int j = 0 ; j < m_p_num_cols ; j++ )
+    //         cout << m_P[i][j] << " ";
+
+    //     cout << "\n";
+    // }
+
+    // DEBUG: temp
+    std::vector<std::vector<double>> A_coarse ( m_num_rows_l, std::vector <double> (m_num_rows_g, 0.0));
+
+    // for ( int i = 0 ; i < 4 ; i++ )
+    // {
+    //     for ( int j = 0 ; j < 4 ; j++ )
+    //         cout << A_coarse[i][j] << " ";
+
+    //     cout << "\n";
+    // }
+
+
+    PTAP(A_coarse, m_A_g, m_P, m_num_rows_g, m_num_rows_l, 1);
+
+
+    // TODO:
+    // create global element ... Element global(-1) : if ind = -1, this is global
+    // in this element, store all the node indices
+    // have a function to find the N S E W nodes
+    
+    // Node getNeighbourNode(Node node, enum NSEW)
+
+    // size_t node_index = getNeighbourNode()
+
+    // A[ test.index ][ ] or something like that
+
+    // use this to get the Node, and then 
 
 
 
 
+
+    // obtaining the coarse stiffness matrices from lower levels
+    // A_coarse = prol^T * A * prol
 
     return true;
 
@@ -245,6 +329,7 @@ bool Assembler::assembleLocal()
     // 4 matrices with size 3x8 to store each GP's stiffness matrix
     double foo[4][3][8];
     double bar[4][8][8];
+    // TODO: use std::vector!!!
 
     // intializing to zero
     for ( int GP = 0 ; GP < 4 ; GP++)

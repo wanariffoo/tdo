@@ -448,6 +448,7 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
 				max_in_row++;
 		}
 
+		// CHECK: why is this here?
 		if ( max_in_row >= max_row_size )
 			max_row_size = max_in_row;
 		
@@ -462,12 +463,10 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, std::size_t num_rows)
 void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows)
 {
 
-	size_t counter;
 	size_t nnz;
 	
 	for ( int i = 0 ; i < num_rows ; i++)
     {
-        
 		nnz = 0;
 			// printf("array = %e\n", array [ 1 ]);
         for ( int j = 0 ; nnz < max_row_size ; j++ )
@@ -754,6 +753,34 @@ void calculateDirectionVector(
 			d_p[id] = d_p[id] + d_z[id];
 		}
 	}
+}
+
+// A_ = P^T * A * P
+__host__
+void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows_g, size_t num_rows_l, size_t lev)
+{
+	// temp vectors
+	std::vector<std::vector<double>> foo ( num_rows_g, std::vector <double> (num_rows_l, 0.0));
+
+	// foo = A * P
+	for ( int i = 0 ; i < num_rows_g ; i++ )
+	{
+		for( int j = 0 ; j < num_rows_l ; j++ )
+		{
+			for ( int k = 0 ; k < num_rows_g ; k++)
+				foo[i][j] += A[i][k] * P[k][j];
+		}
+	}
+
+	// A_ = P^T * foo
+	for ( int i = 0 ; i < num_rows_l ; i++ )
+        {
+            for( int j = 0 ; j < num_rows_l ; j++ )
+            {
+                for ( int k = 0 ; k < num_rows_g ; k++)
+                    A_[i][j] += P[k][i] * foo[k][j];
+            }
+        }
 }
 
 
