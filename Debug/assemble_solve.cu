@@ -60,14 +60,22 @@ int main()
     // design variable
     double* d_kai;           // NOTE: can alloc this immediately
 
+    // vector u, b
+    vector<double> b(18, 0);
+    b[5] = -10;
+    double* d_u;
+    double* d_b;
+    // TODO: get num_rows
+    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * 18 ) );
+    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * 18 ) );
+
+    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * 18) );
+
+    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * 18, cudaMemcpyHostToDevice) );
     
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
     Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size);
-
-
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,32>>>( d_index[0], 32 );
 
     // cudaDeviceSynchronize();
     // printVector_GPU<<<1,64>>>( d_index[1], 64 );
@@ -91,6 +99,29 @@ int main()
         - vector<size_t> p_max_row_size(numLevels -1 )
     */
    
+
+    // /*
+    // ##################################################################
+    // #                           SOLVER                               #
+    // ##################################################################
+    // */
+
+
+    // TODO: remove num_cols
+    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows, num_rows);
+
+    GMG.init();
+    GMG.set_num_prepostsmooth(1,1);
+    GMG.set_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_cycle('V');
+    cudaDeviceSynchronize();
+    GMG.solve(d_u, d_b);
+
+    // cudaDeviceSynchronize();
+    
+    // GMG.deallocate();    
+    cudaDeviceSynchronize();
 
 
 
@@ -253,27 +284,6 @@ int main()
     // max_row_size of prol
 
 
-    // /*
-    // ##################################################################
-    // #                           SOLVER                               #
-    // ##################################################################
-    // */
-
-
-    // Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows, num_cols);
-
-    // GMG.init();
-    // GMG.set_num_prepostsmooth(1,1);
-    // GMG.set_convergence_params(1, 1e-99, 1e-10);
-    // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-    // GMG.set_cycle('V');
-    // cudaDeviceSynchronize();
-    // GMG.solve(d_u, d_b);
-
-    // cudaDeviceSynchronize();
-    
-    // GMG.deallocate();    
-    cudaDeviceSynchronize();
 }
 
 
