@@ -6,20 +6,10 @@
 using namespace std;
 
 
-// Node class definitions
+//// Node class definitions
 Assembler::Node::Node (int id) : m_index(id){}
-
-void Assembler::Node::setXCoor(float x) { m_coo[0] = x; }
-void Assembler::Node::setYCoor(float y) { m_coo[1] = y; }
-float Assembler::Node::getXCoor(float x) { return m_coo[0]; }
-float Assembler::Node::getYCoor(float y) { return m_coo[1]; }
 int Assembler::Node::index() { return m_index; }
 
-
-void Assembler::Node::printCoor()
-{
-    cout << "node [" << m_index << "] = ( " << m_coo[0] << ", " << m_coo[1] << " )" << endl;
-}
 
 
 // Element class definitions
@@ -50,12 +40,10 @@ void Assembler::Element::printNodes()
 
 
 
-Assembler::Assembler(size_t dim, size_t h, vector<size_t> N, double youngMod, double poisson, size_t numLevels)
-    : m_dim(dim), m_h(h), m_youngMod(youngMod), m_poisson(poisson), m_numLevels(numLevels)
+Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels)
+    : m_dim(dim), m_h(h), m_youngMod(youngMod), m_poisson(poisson), m_rho(rho), m_p(p), m_numLevels(numLevels)
 {
     cout << "assembler" << endl;
-
-    
 
     // m_N [lev][dim]
     // e.g., m_N[lev=1][dim=0] = number of elements in x-dimension on grid-level 1
@@ -70,9 +58,6 @@ Assembler::Assembler(size_t dim, size_t h, vector<size_t> N, double youngMod, do
             N[i] *= 2;
         }
     }
-
-  
-
 
 }
 
@@ -90,7 +75,6 @@ void Assembler::setBC(vector<size_t> bc_index)
 
 bool Assembler::init()
 {
-
 
     if ( m_dim == 2 )
     {
@@ -149,7 +133,26 @@ bool Assembler::init()
         m_num_rows[lev] = m_numNodes[lev] * m_dim;
 
 
+    // storing the design variable in each element
+    // initial value is rho in all elements
+    m_kai.resize(m_numElements[m_topLev], m_rho);
+
+    // for ( int i = 0 ; i < m_kai.size() ; i++)
+    //     cout << m_kai[i] << endl;
+
     assembleLocal();
+
+    // int a = 0;
+    // for ( int j = 0 ; j < 8 ; j++ )
+    // {
+    //     for ( int i = 0 ; i < 8 ; i++ )
+    //         {
+    //             cout << m_A_local[a] << " ";
+    //             a++;
+    //         }
+
+    //         cout << "\n";
+    // }
 
     assembleGlobal();
 
@@ -167,15 +170,13 @@ bool Assembler::assembleLocal()
 {
     cout << "assembleLocal" << endl;
 
-    // TODO: you haven't added JACOBI, see "TODO:" just before this function's return true
-
 
     double E[3][3];
 
     E[0][0] = E[1][1] = m_youngMod/(1 - m_poisson * m_poisson );
     E[0][1] = E[1][0] = m_poisson * E[0][0];
     E[2][2] = (1 - m_poisson) / 2 * E[0][0];
-    E[2][0] = E[2][1] = E[1][2] = E[0][2];
+    E[2][0] = E[2][1] = E[1][2] = E[0][2] = 0.0;
 
     // bilinear shape function matrix (using 4 Gauss Points)
     double B[4][3][8] = { { {-0.3943375,	0,	0.3943375,	0,	0.1056625,	0,	-0.1056625,	0}, {0,	-0.3943375,	0,	-0.1056625,	0,	0.1056625,	0,	0.3943375} , {-0.3943375,	-0.3943375,	-0.1056625,	0.3943375,	0.1056625,	0.1056625,	0.3943375,	-0.1056625} },
@@ -184,19 +185,35 @@ bool Assembler::assembleLocal()
                           { {-0.1056625,	0,	0.1056625,	0,	0.3943375,	0,	-0.3943375,	0}, {0,	-0.1056625,	0,	-0.3943375,	0,	0.3943375,	0,	0.1056625}, {-0.1056625,	-0.1056625,	-0.3943375,	0.1056625,	0.3943375,	0.3943375,	0.1056625,	-0.3943375} }
                         };
 
-    // 4 matrices with size 3x8 to store each GP's stiffness matrix
-    double foo[4][3][8];
 
-    // TODO: use std::vector!!!
-    // intializing to zero
-    for ( int GP = 0 ; GP < 4 ; GP++)
+
+    // applying jacobi
+    // B = inv(J) * N'
+    for ( int i = 0 ; i < 4 ; i++ )
     {
-        for ( int i = 0 ; i < 8 ; i++ )
+        for ( int j = 0 ; j < 3 ; j++ )
         {
-            for( int j = 0 ; j < 3 ; j++ )
-                foo[GP][j][i] = 0;
+            for ( int k = 0 ; k < 8 ; k++ )
+                B[i][j][k] *= ( 2 / m_h );  // TODO: check if this formula is correct
 
         }
+    }
+
+    //// 4 matrices with size 3x8 to store each GP's stiffness matrix
+
+    // foo as a temp vector
+    vector<vector<vector<double>>> foo;
+    foo.resize(4); // 4 Gauss Points
+    
+
+    for ( int GP = 0 ; GP < 4 ; GP++)
+    {
+        // number of rows in each level
+        foo[GP].resize(3);
+        
+        // number of columns in each level
+        for ( int j = 0 ; j < 3 ; j++ )
+                foo[GP][j].resize(8, 0.0);
     }
 
     /// calculating A_local = B^T * E * B
@@ -213,7 +230,7 @@ bool Assembler::assembleLocal()
         }
     }
 
-    // bar = B^T * foo
+    // bar = B^T * foo * det(J)
     for ( int GP = 0 ; GP < 4 ; GP++)
     {
         for ( int i = 0 ; i < 8 ; i++ )
@@ -221,10 +238,14 @@ bool Assembler::assembleLocal()
             for( int j = 0 ; j < 8 ; j++ )
             {
                 for ( int k = 0 ; k < 3 ; k++)
-                    m_A_local[j + i*m_num_rows_l] += B[GP][k][i] * foo[GP][k][j];
+                    m_A_local[j + i*m_num_rows_l] += B[GP][k][i] * foo[GP][k][j] * 0.25*0.25;
             }
         }
     }
+
+    // multiplying  det(J)
+    for ( int i = 0 ; i < 8 * 8 ; i++ )
+        m_A_local[i] *= 0.4 * 0.4 * 0.4;
     
     return true;
 }
@@ -240,7 +261,7 @@ double Assembler::valueAt(size_t x, size_t y)
 bool Assembler::assembleGlobal()
 {
     // TODO: if no BC is set, return false with error
-
+    cout << "assembleGlobal" << endl;
     // adding nodes and elements to the top-level global grid
     for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
         m_node.push_back(Node(i));
@@ -283,19 +304,26 @@ bool Assembler::assembleGlobal()
         {
             for ( int y = 0 ; y < 4 ; y++ )        // TODO: dim   
             {      
-
-                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x    , 2*y );
-                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x    , 2*y + 1      );
-                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y)     ] += valueAt( 2*x + 1, 2*y          );
-                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += valueAt( 2*x + 1, 2*y + 1      );
+                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y)     ] += pow(m_rho, m_p) * valueAt( 2*x    , 2*y     );
+                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += pow(m_rho, m_p) * valueAt( 2*x    , 2*y + 1 );
+                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y)     ] += pow(m_rho, m_p) * valueAt( 2*x + 1, 2*y     );
+                    m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += pow(m_rho, m_p) * valueAt( 2*x + 1, 2*y + 1 );
             }
         }
     }
 
+    // for ( int i = 0 ; i < 18 ; i++)
+    // {
+    //     for ( int j = 0 ; j < 18 ; j++)
+    //         cout << m_A_g[m_topLev][i][j] << " ";
+
+    //     cout <<"\n";
+    // }
+
 
     
-    // TODO: make a function for this
-    // replacing any values <1e-7 to 0.0
+    
+    // cleanup: replacing any values <1e-7 to 0.0
     for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ ) // TODO: dim  
     {
         for ( int y = 0 ; y < m_numNodes[m_topLev]*m_dim ; y++ )        // TODO: dim   
@@ -305,18 +333,27 @@ bool Assembler::assembleGlobal()
         }
     }
 
-    //     // cout << m_A_g[15][14] << endl;
-
+    
     // applying BC on the matrix
-    // DOFs which are affected by BC will have identity rows { 0 0 .. 1 .. 0 0}
+    // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index.size() ; ++i )
         applyMatrixBC(m_A_g[m_topLev], m_bc_index[i], m_num_rows[m_topLev]);
+
+
+    // for ( int i = 0 ; i < 18 ; i++)
+    // {
+    //     for ( int j = 0 ; j < 18 ; j++)
+    //         cout << m_A_g[m_topLev][i][j] << " ";
+
+    //     cout <<"\n";
+    // }
+
 
 
     /// resizing the prolongation matrices according to the number of grid-levels
     m_P.resize( m_numLevels - 1 );
 
-    // CHECK: not sure!
+    
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
     {
         // number of columns in each level
@@ -363,12 +400,6 @@ bool Assembler::assembleGlobal()
     //     cout << "\n";
     // }
 
-
-    // TODO: transform later, after you get the A's in all levels
-    
-
-
-
     // for ( int i = 0 ; i < m_num_rows[1] ; i++ )
     // {
     //     for ( int j = 0 ; j < m_num_rows[1] ; j++ )
@@ -376,9 +407,6 @@ bool Assembler::assembleGlobal()
 
     //     cout << "\n";
     // }
-
-    // // DEBUG: temp
-    // std::vector<std::vector<double>> A_coarse ( m_num_rows_l, std::vector <double> (m_num_rows_g, 0.0));
 
     // // for ( int i = 0 ; i < 4 ; i++ )
     // // {
@@ -393,53 +421,25 @@ bool Assembler::assembleGlobal()
     for ( int lev = 0 ; lev < m_numLevels - 1; lev++ )
         PTAP(m_A_g[lev], m_A_g[lev+1], m_P[lev], m_num_rows[lev+1], m_num_rows[lev] );
 
-    // for ( int i = 0 ; i < m_num_rows[0] ; i++ )
-    // {
-    //     for ( int j = 0 ; j < m_num_rows[0] ; j++ )
-    //         cout << m_A_g[0][i][j] << " ";
-
-    //     cout << "\n";
-    // }
-
-
-    // TODO:
-    // create global element ... Element global(-1) : if ind = -1, this is global
-    // in this element, store all the node indices
-    // have a function to find the N S E W nodes
-    
-    // Node getNeighbourNode(Node node, enum NSEW)
-
-    // size_t node_index = getNeighbourNode()
-
-    // A[ test.index ][ ] or something like that
-
-    // use this to get the Node, and then 
-
-
-
-    
-    // // calculate global max_num_rows, which will also be needed when allocating memory in device
+     
+    // calculate global max_num_rows, which will also be needed when allocating memory in device
     m_max_row_size.resize(m_numLevels);
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
         m_max_row_size[lev] = getMaxRowSize(m_A_g[lev], m_num_rows[lev], m_num_rows[lev]);
+    
 
     m_p_max_row_size.resize ( m_numLevels - 1 );
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
         m_p_max_row_size[lev] = getMaxRowSize(m_P[lev], m_num_rows[lev+1], m_num_rows[lev]);
     
-    cout << m_max_row_size[0] << endl;
-    cout << m_p_max_row_size[0] << endl;
 
-
-
-    ////// obtaining the ELLPACK value and index vectors from the global stiffness matrix
+    //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
     
     // resizing the vectors
     m_p_value_g.resize( m_numLevels - 1 );
     m_p_index_g.resize( m_numLevels - 1 );
     m_value_g.resize( m_numLevels );
     m_index_g.resize( m_numLevels );
-
 
     // prolongation matrices
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
@@ -448,7 +448,7 @@ bool Assembler::assembleGlobal()
     // stiffness matrices
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
         transformToELL(m_A_g[lev], m_value_g[lev], m_index_g[lev], m_max_row_size[lev], m_num_rows[lev], m_num_rows[lev] );
-        // transformToELL(m_A_g[0], m_value_g[0], m_index_g[0], m_max_row_size[0], m_num_rows[0]);
+        
 
     // int a = 0;
     // for ( int j = 0 ; j < m_num_rows[1] ; j++ )
@@ -467,120 +467,48 @@ bool Assembler::assembleGlobal()
     // do async malloc then your init() should be AFTER the memcpy stuff, not before
 
 
-    // CUDA
+    //// CUDA
+
     // allocating memory in device
 
-    // // local stiffness
-    // CUDA_CALL( cudaMalloc((void**)&d_m_A_local, sizeof(double) * m_A_local.size() ) );
+    // local stiffness
+    CUDA_CALL( cudaMalloc((void**)&d_A_l, sizeof(double) * m_A_local.size() ) );
 
-    // // global matrices on each grid-level
+    // prolongation matrices on each grid-level
+    d_p_value.resize( m_numLevels - 1 );
+    d_p_index.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * m_max_row_size[lev] * m_num_rows[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * m_max_row_size[lev] * m_num_rows[lev] ) );
+    }
+    
+    // global matrices on each grid-level
+
+
     // for ( int lev = 0 ; lev < m_numLevels ; lev++ )
     // {
     //     CUDA_CALL( cudaMalloc((void**)&m_value_g[lev], sizeof(double) * m_max_row_size[lev] * m_num_rows[lev] ) );
     //     CUDA_CALL( cudaMalloc((void**)&m_index_g[lev], sizeof(size_t) * m_max_row_size[lev] * m_num_rows[lev] ) );
     // }
 
+    // CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows) );
+    // CUDA_CALL( cudaMemcpy(d_value, &value[0], sizeof(double) * max_row_size*num_rows, cudaMemcpyHostToDevice) );
+
 
     return true;
 
 }
 
-
-
-// // assembles the local stiffness matrix
-// vector<double> Assembler::assembleLocal_(double youngMod, double poisson)
-// {
-    // cout << "assembleLocal" << endl;
-    // vector<double> A_local;
-    // // TODO: you haven't added JACOBI, see "TODO:" just before this function's return true
-
-    // size_t num_cols;
-
-    // if ( m_dim == 2 )
-    // {
-    //     A_local.resize(64, 0.0);
-    //     num_cols = 8;
-    // }
-
-    // else if (m_dim == 3 )
-    // {
-    //     A_local.resize(144, 0.0);
-    //     num_cols = 12;
-    // }
-
-    // else
-    //     cout << "error" << endl; //TODO: add error/assert
-
-    // double E[3][3];
-
-    // E[0][0] = E[1][1] = youngMod/(1 - poisson * poisson );
-    // E[0][1] = E[1][0] = poisson * E[0][0];
-    // E[2][2] = (1 - poisson) / 2 * E[0][0];
-    // E[2][0] = E[2][1] = E[1][2] = E[0][2];
-
-    // // bilinear shape function matrix (using 4 Gauss Points)
-    // double B[4][3][8] = { { {-0.3943375,	0,	0.3943375,	0,	0.1056625,	0,	-0.1056625,	0}, {0,	-0.3943375,	0,	-0.1056625,	0,	0.1056625,	0,	0.3943375} , {-0.3943375,	-0.3943375,	-0.1056625,	0.3943375,	0.1056625,	0.1056625,	0.3943375,	-0.1056625} },
-    //                       { {-0.3943375,	0,	0.3943375,	0,	0.1056625,	0,	-0.1056625,	0}, {0,	-0.1056625,	0,	-0.3943375,	0,	0.3943375,	0,	0.1056625}, {-0.1056625,	-0.3943375,	-0.3943375,	0.3943375,	0.3943375,	0.1056625,	0.1056625,	-0.1056625} },
-    //                       { {-0.1056625,	0,	0.1056625,	0,	0.3943375,	0,	-0.3943375,	0}, {0,	-0.3943375,	0,	-0.1056625,	0,	0.1056625,	0,	0.3943375}, {-0.3943375,	-0.1056625,	-0.1056625,	0.1056625,	0.1056625,	0.3943375,	0.3943375,	-0.3943375} },
-    //                       { {-0.1056625,	0,	0.1056625,	0,	0.3943375,	0,	-0.3943375,	0}, {0,	-0.1056625,	0,	-0.3943375,	0,	0.3943375,	0,	0.1056625}, {-0.1056625,	-0.1056625,	-0.3943375,	0.1056625,	0.3943375,	0.3943375,	0.1056625,	-0.3943375} }
-    //                     };
-
-    // // 4 matrices with size 3x8 to store each GP's stiffness matrix
-    // double foo[4][3][8];
-    // double bar[4][8][8];
-
-    // // intializing to zero
-    // for ( int GP = 0 ; GP < 4 ; GP++)
+    // int a = 0;
+    // for ( int j = 0 ; j < 8 ; j++ )
     // {
     //     for ( int i = 0 ; i < 8 ; i++ )
-    //     {
-    //         for( int j = 0 ; j < 3 ; j++ )
-    //             foo[GP][j][i] = 0;
-
-    //         for( int j = 0 ; j < 8 ; j++ )
-    //             bar[GP][j][i] = 0;
-    //     }
-    // }
-
-    // // calculating A_local = B^T * E * B
-
-    // // foo = E * B
-    // for ( int GP = 0 ; GP < 4 ; GP++)
-    // {
-    //     for ( int i = 0 ; i < 3 ; i++ )
-    //     {
-    //         for( int j = 0 ; j < 8 ; j++ )
     //         {
-    //             for ( int k = 0 ; k < 3 ; k++)
-    //                 foo[GP][i][j] += E[i][k] * B[GP][k][j];
+    //             cout << m_A_local[a] << " ";
+    //             a++;
     //         }
-    //     }
+
+    //         cout << "\n";
     // }
-
-    
-    // // bar = B^T * foo
-    // for ( int GP = 0 ; GP < 4 ; GP++)
-    // {
-    //     for ( int i = 0 ; i < 8 ; i++ )
-    //     {
-    //         for( int j = 0 ; j < 8 ; j++ )
-    //         {
-    //             for ( int k = 0 ; k < 3 ; k++)
-    //                 bar[GP][i][j] += B[GP][k][i] * foo[GP][k][j];
-    //         }
-    //     }
-    // }
-
-
-    // for ( int GP = 0 ; GP < 4 ; GP++)
-    // {
-    //     for ( int i = 0 ; i < 8 ; i++ )
-    //     {
-    //         for( int j = 0 ; j < 8 ; j++ )
-    //             m_A_local[j + i*num_cols] += bar[GP][i][j];     // TODO: * jacobi here
-    //     }
-    // }
-
-
-//     return A_local;
-// }

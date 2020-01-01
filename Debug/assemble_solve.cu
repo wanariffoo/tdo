@@ -23,7 +23,7 @@ int main()
 
     // domain dimensions
     size_t dim = 2;
-    size_t h = 0.5;     // local element size
+    double h = 0.5;     // local element size
     
     // number of elements per dimension
     // size_t Nx = 1;
@@ -37,8 +37,12 @@ int main()
     // boundary conditions
     vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
 
+    // TDO
+    double rho = 0.4;
+    size_t p = 3;
+
     // TODO: missing rho and design variable
-    Assembler Assembly(dim, h, N, youngMod, poisson, numLevels);
+    Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
     Assembly.init();
 
