@@ -37,7 +37,7 @@ int main()
     // boundary conditions
     vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
 
-   
+    // TODO: missing rho and design variable
     Assembler Assembly(dim, h, N, youngMod, poisson, numLevels);
     Assembly.setBC(bc_index);
     Assembly.init();

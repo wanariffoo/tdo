@@ -417,7 +417,7 @@ bool Assembler::assembleGlobal()
 
 
 
-    // // TODO: maybe do this together with the lower levels?
+    
     // // calculate global max_num_rows, which will also be needed when allocating memory in device
     m_max_row_size.resize(m_numLevels);
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
@@ -429,33 +429,38 @@ bool Assembler::assembleGlobal()
     
     cout << m_max_row_size[0] << endl;
     cout << m_p_max_row_size[0] << endl;
-    // obtaining the ELLPACK value and index vectors from the global stiffness matrix
+
+
+
+    ////// obtaining the ELLPACK value and index vectors from the global stiffness matrix
     
+    // resizing the vectors
     m_p_value_g.resize( m_numLevels - 1 );
     m_p_index_g.resize( m_numLevels - 1 );
+    m_value_g.resize( m_numLevels );
+    m_index_g.resize( m_numLevels );
+
+
     // prolongation matrices
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    {
-        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], m_p_max_row_size[lev], m_num_rows[lev+1]);    
-    }
+        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev] );    
 
+    // stiffness matrices
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+        transformToELL(m_A_g[lev], m_value_g[lev], m_index_g[lev], m_max_row_size[lev], m_num_rows[lev], m_num_rows[lev] );
+        // transformToELL(m_A_g[0], m_value_g[0], m_index_g[0], m_max_row_size[0], m_num_rows[0]);
 
-    // transformToELL(m_A_g, m_value_g, m_index_g, m_max_row_size, m_num_rows_g);
-
-    for ( int i = 0 ; i < 36 ; i++ )
-    {
-        cout << m_p_value_g[0][i] << " ";
-    }
-        cout << "\n";
-
-    // for ( int i = 0 ; i < m_num_rows[1] ; i++ )
+    // int a = 0;
+    // for ( int j = 0 ; j < m_num_rows[1] ; j++ )
     // {
-    //     for ( int j = 0 ; j < m_num_rows[0] ; j++ )
-    //         cout << m_P[0][i][j] << " ";
+    //     for ( int i = 0 ; i < m_max_row_size[1] ; i++ )
+    //         {
+    //             cout << m_value_g[1][a] << " ";
+    //             a++;
+    //         }
 
-    //     cout << "\n";
+    //         cout << "\n";
     // }
-    
 
 
     // NOTE: can somehow do init for solving now while allocating memory in device?

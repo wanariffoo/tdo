@@ -109,7 +109,7 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, size_t num_rows, size_t
 
 // transforms a flattened matrix (array) to ELLPACK's vectors value and index
 // max_row_size has to be d prior to this
-void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows);
+void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows, size_t num_cols );
 // void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows);
 
 // sets identity rows and columns of the DOF in which a BC is applied

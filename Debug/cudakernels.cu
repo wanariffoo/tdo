@@ -461,7 +461,7 @@ std::size_t getMaxRowSize(vector<vector<double>> &array, size_t num_rows, size_t
 
 // transforms a 2D array into ELLPACK's vectors value and index
 // max_row_size has to be determined prior to this
-void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows)
+void transformToELL(vector<vector<double>> &array, vector<double> &value, vector<size_t> &index, size_t max_row_size, size_t num_rows, size_t num_cols )
 {
 	size_t nnz;
 	
@@ -480,7 +480,7 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
                 nnz++;
             }
             
-            if ( j == 8 - 1 )
+            if ( j == num_cols - 1 )
             {
                 for ( ; nnz < max_row_size ; nnz++ )
                 {
