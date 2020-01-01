@@ -58,6 +58,8 @@ Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, do
             N[i] *= 2;
         }
     }
+   
+    
 
 }
 
@@ -73,7 +75,16 @@ void Assembler::setBC(vector<size_t> bc_index)
     m_bc_index = bc_index;
 }
 
-bool Assembler::init()
+bool Assembler::init(
+    double* &d_A_local, 
+    vector<double*> &d_value, 
+    vector<size_t*> &d_index, 
+    vector<double*> &d_p_value, 
+    vector<size_t*> &d_p_index, 
+    double* &d_kai, 
+    vector<size_t> &num_rows, 
+    vector<size_t> &max_row_size, 
+    vector<size_t> &p_max_row_size)
 {
 
     if ( m_dim == 2 )
@@ -124,41 +135,85 @@ bool Assembler::init()
         for ( int i = 0 ; i < m_dim ; i++ )
             m_numNodes[lev] *= m_numNodesPerDim[lev][i];
     }
-
-
-    // num of rows in global stiffness matrix
-    m_num_rows.resize(m_numLevels);
-
+  
+    num_rows.resize(m_numLevels);
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-        m_num_rows[lev] = m_numNodes[lev] * m_dim;
+        num_rows[lev] = m_numNodes[lev] * m_dim;
 
 
     // storing the design variable in each element
     // initial value is rho in all elements
     m_kai.resize(m_numElements[m_topLev], m_rho);
 
-    // for ( int i = 0 ; i < m_kai.size() ; i++)
-    //     cout << m_kai[i] << endl;
-
     assembleLocal();
+    assembleGlobal(num_rows, max_row_size, p_max_row_size);
 
     // int a = 0;
     // for ( int j = 0 ; j < 8 ; j++ )
     // {
-    //     for ( int i = 0 ; i < 8 ; i++ )
+    //     for ( int i = 0 ; i < 4 ; i++ )
     //         {
-    //             cout << m_A_local[a] << " ";
+    //             cout << m_index_g[0][a] << " ";
     //             a++;
     //         }
 
     //         cout << "\n";
     // }
 
-    assembleGlobal();
-
-    // // CUDA_CALL( cudaMalloc((void**)&d_m_A_local, sizeof(double) * m_A_local.size()) );
-    // // CUDA_CALL( cudaMemcpy(d_m_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
     
+    //// CUDA
+
+    // allocating memory in device
+
+    // design variables
+    CUDA_CALL( cudaMalloc((void**)&d_kai, sizeof(double) * m_numElements[m_topLev] ) );
+
+    // local stiffness
+    CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_A_local.size() ) );
+
+    // prolongation matrices on each grid-level
+    d_p_value.resize( m_numLevels - 1 );
+    d_p_index.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
+    }
+    
+    // global matrices on each grid-level
+    d_value.resize( m_numLevels );
+    d_index.resize( m_numLevels );
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
+    }
+
+    cudaDeviceSynchronize();
+
+    // copy memory to device
+    
+    CUDA_CALL( cudaMemcpy(d_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
+    CUDA_CALL( cudaMemcpy(d_kai, &m_kai[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+    }
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_value[lev], &m_value_g[lev][0], sizeof(double) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+    }
+    
+    
+    
+
+
     return true;
 
 }
@@ -258,7 +313,7 @@ double Assembler::valueAt(size_t x, size_t y)
 
 // to produce an ELLmatrix of the global stiffness in the device
 // will return d_value, d_index, d_max_row_size
-bool Assembler::assembleGlobal()
+bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size)
 {
     // TODO: if no BC is set, return false with error
     cout << "assembleGlobal" << endl;
@@ -290,11 +345,11 @@ bool Assembler::assembleGlobal()
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
     {
         // number of columns in each level
-        m_A_g[lev].resize(m_num_rows[lev]);
+        m_A_g[lev].resize(num_rows[lev]);
         
         // number of rows in each level
-        for ( int j = 0 ; j < m_num_rows[lev] ; j++ )
-                m_A_g[lev][j].resize(m_num_rows[lev]);
+        for ( int j = 0 ; j < num_rows[lev] ; j++ )
+                m_A_g[lev][j].resize(num_rows[lev]);
     }
 
     // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
@@ -312,17 +367,6 @@ bool Assembler::assembleGlobal()
         }
     }
 
-    // for ( int i = 0 ; i < 18 ; i++)
-    // {
-    //     for ( int j = 0 ; j < 18 ; j++)
-    //         cout << m_A_g[m_topLev][i][j] << " ";
-
-    //     cout <<"\n";
-    // }
-
-
-    
-    
     // cleanup: replacing any values <1e-7 to 0.0
     for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ ) // TODO: dim  
     {
@@ -332,36 +376,23 @@ bool Assembler::assembleGlobal()
                 m_A_g[m_topLev][x][y] = 0.0;
         }
     }
-
     
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index.size() ; ++i )
-        applyMatrixBC(m_A_g[m_topLev], m_bc_index[i], m_num_rows[m_topLev]);
+        applyMatrixBC(m_A_g[m_topLev], m_bc_index[i], num_rows[m_topLev]);
 
-
-    // for ( int i = 0 ; i < 18 ; i++)
-    // {
-    //     for ( int j = 0 ; j < 18 ; j++)
-    //         cout << m_A_g[m_topLev][i][j] << " ";
-
-    //     cout <<"\n";
-    // }
-
-
-
-    /// resizing the prolongation matrices according to the number of grid-levels
+    // resizing the prolongation matrices according to the number of grid-levels
     m_P.resize( m_numLevels - 1 );
-
     
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
     {
         // number of columns in each level
-        m_P[lev].resize(m_num_rows[lev]);
+        m_P[lev].resize(num_rows[lev]);
         
         // number of rows in each level
-        for ( int j = 0 ; j < m_num_rows[lev] ; j++ )
-                m_P[lev][j].resize(m_num_rows[lev + 1]);
+        for ( int j = 0 ; j < num_rows[lev] ; j++ )
+                m_P[lev][j].resize(num_rows[lev + 1]);
     }
 
 
@@ -419,18 +450,16 @@ bool Assembler::assembleGlobal()
     // resizing the coarse stiffness matrices on each grid-level
 
     for ( int lev = 0 ; lev < m_numLevels - 1; lev++ )
-        PTAP(m_A_g[lev], m_A_g[lev+1], m_P[lev], m_num_rows[lev+1], m_num_rows[lev] );
+        PTAP(m_A_g[lev], m_A_g[lev+1], m_P[lev], num_rows[lev+1], num_rows[lev] );
 
-     
+    max_row_size.resize(m_numLevels);
+    p_max_row_size.resize(m_numLevels - 1);
     // calculate global max_num_rows, which will also be needed when allocating memory in device
-    m_max_row_size.resize(m_numLevels);
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-        m_max_row_size[lev] = getMaxRowSize(m_A_g[lev], m_num_rows[lev], m_num_rows[lev]);
+        max_row_size[lev] = getMaxRowSize(m_A_g[lev], num_rows[lev], num_rows[lev]);
     
-
-    m_p_max_row_size.resize ( m_numLevels - 1 );
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        m_p_max_row_size[lev] = getMaxRowSize(m_P[lev], m_num_rows[lev+1], m_num_rows[lev]);
+        p_max_row_size[lev] = getMaxRowSize(m_P[lev], num_rows[lev+1], num_rows[lev]);
     
 
     //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
@@ -443,11 +472,11 @@ bool Assembler::assembleGlobal()
 
     // prolongation matrices
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev] );    
+        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], p_max_row_size[lev], num_rows[lev+1], num_rows[lev] );    
 
     // stiffness matrices
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-        transformToELL(m_A_g[lev], m_value_g[lev], m_index_g[lev], m_max_row_size[lev], m_num_rows[lev], m_num_rows[lev] );
+        transformToELL(m_A_g[lev], m_value_g[lev], m_index_g[lev], max_row_size[lev], num_rows[lev], num_rows[lev] );
         
 
     // int a = 0;
@@ -467,34 +496,6 @@ bool Assembler::assembleGlobal()
     // do async malloc then your init() should be AFTER the memcpy stuff, not before
 
 
-    //// CUDA
-
-    // allocating memory in device
-
-    // local stiffness
-    CUDA_CALL( cudaMalloc((void**)&d_A_l, sizeof(double) * m_A_local.size() ) );
-
-    // prolongation matrices on each grid-level
-    d_p_value.resize( m_numLevels - 1 );
-    d_p_index.resize( m_numLevels - 1 );
-
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    {
-        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * m_max_row_size[lev] * m_num_rows[lev] ) );
-        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * m_max_row_size[lev] * m_num_rows[lev] ) );
-    }
-    
-    // global matrices on each grid-level
-
-
-    // for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    // {
-    //     CUDA_CALL( cudaMalloc((void**)&m_value_g[lev], sizeof(double) * m_max_row_size[lev] * m_num_rows[lev] ) );
-    //     CUDA_CALL( cudaMalloc((void**)&m_index_g[lev], sizeof(size_t) * m_max_row_size[lev] * m_num_rows[lev] ) );
-    // }
-
-    // CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows) );
-    // CUDA_CALL( cudaMemcpy(d_value, &value[0], sizeof(double) * max_row_size*num_rows, cudaMemcpyHostToDevice) );
 
 
     return true;

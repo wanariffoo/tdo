@@ -41,10 +41,44 @@ int main()
     double rho = 0.4;
     size_t p = 3;
 
-    // TODO: missing rho and design variable
+    vector<size_t> num_rows;
+    vector<size_t> max_row_size;
+    vector<size_t> p_max_row_size;
+
+    //// device pointers
+
+    // local stiffness
+    double* d_A_local;
+    // global stiffness matrix on each grid-level
+    vector<double*> d_value;
+    vector<size_t*> d_index;
+
+    // prolongation matrices
+    vector<double*> d_p_value;
+    vector<size_t*> d_p_index;
+
+    // design variable
+    double* d_kai;           // NOTE: can alloc this immediately
+
+    
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init();
+    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size);
+
+
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,32>>>( d_index[0], 32 );
+
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,64>>>( d_index[1], 64 );
+
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,32>>>( d_index[0], 32 );
+
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,32>>>( d_index[0], 32 );
+
+    // printf("%p\n", d_value[0]);
 
     /*
     NOTE: after assembling you should have these :

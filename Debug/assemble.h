@@ -12,12 +12,12 @@ class Assembler{
 public:
     Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels);
 
-    bool init();
+    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_kai, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
 
     ~Assembler();
 
     bool assembleLocal();
-    bool assembleGlobal();
+    bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
     void setBC(vector<size_t> bc_index);
  
     
@@ -87,7 +87,7 @@ private:
 
     vector<size_t> m_bc_index;
 
-    ////// TDO
+    //// TDO
     double m_rho;
     size_t m_p;
     vector<double> m_kai;
@@ -117,19 +117,20 @@ private:
 
 
 
-    ////// CUDA
+    //// CUDA
 
-    // local stiffness matrix
-    // ELLPACK format is not used as it is a dense matrix
-    double* d_A_l;
 
-    // global stiffness matrix on each grid-level
-    vector<double*> d_value;
-    vector<size_t*> d_index;
+    // // local stiffness matrix
+    // // ELLPACK format is not used as it is a dense matrix
+    // double* d_A_local;
 
-    // prolongation matrices
-    vector<double*> d_p_value;
-    vector<size_t*> d_p_index;
+    // // global stiffness matrix on each grid-level
+    // vector<double*> d_value;
+    // vector<size_t*> d_index;
+
+    // // prolongation matrices
+    // vector<double*> d_p_value;
+    // vector<size_t*> d_p_index;
     
     
 };
