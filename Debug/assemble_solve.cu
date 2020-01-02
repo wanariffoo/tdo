@@ -33,6 +33,9 @@ int main()
 
     // multigrid precond
     size_t numLevels = 2;
+
+    // smoother (jacobi damping parameter)
+    double damp = 2.0/3.0;
     
     // boundary conditions
     vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
@@ -62,7 +65,7 @@ int main()
 
     // vector u, b
     vector<double> b(18, 0);
-    b[5] = -10;
+    b[5] = -10000;
     double* d_u;
     double* d_b;
     // TODO: get num_rows
@@ -77,17 +80,6 @@ int main()
     Assembly.setBC(bc_index);
     Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size);
 
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,64>>>( d_index[1], 64 );
-
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,32>>>( d_index[0], 32 );
-
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,32>>>( d_index[0], 32 );
-
-    // printf("%p\n", d_value[0]);
-
     /*
     NOTE: after assembling you should have these :
     global stiffness matrix ELLPACK
@@ -99,6 +91,7 @@ int main()
         - vector<size_t> p_max_row_size(numLevels -1 )
     */
    
+       // printVector_GPU <<< 1 , num_rows[1] * max_row_size[1] >>> ( d_value[1], num_rows[1] * max_row_size[1] );
 
     // /*
     // ##################################################################
@@ -108,8 +101,8 @@ int main()
 
 
     // TODO: remove num_cols
-    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows, num_rows);
-
+    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    
     GMG.init();
     GMG.set_num_prepostsmooth(1,1);
     GMG.set_convergence_params(1, 1e-99, 1e-10);
@@ -117,7 +110,7 @@ int main()
     GMG.set_cycle('V');
     cudaDeviceSynchronize();
     GMG.solve(d_u, d_b);
-
+    // GMG.solve_(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows);
     // cudaDeviceSynchronize();
     
     // GMG.deallocate();    

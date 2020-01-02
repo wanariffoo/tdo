@@ -9,20 +9,19 @@ class Solver
 public:
 
     // constructor
-    Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, vector<double*> d_p_value, vector<size_t*> d_p_index, vector<size_t> p_max_row_size,double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows, vector<size_t> num_cols);
+    Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*> d_p_value, vector<size_t*> d_p_index, size_t numLevels, vector<size_t> num_rows, vector<size_t> max_row_size, vector<size_t> p_max_row_size, double damp);
 
-    // deconstructor
-    // TODO: deallocation of device variables
-    // void deallocate();
     ~Solver();
 
     bool init();
 
     bool solve(double* d_u, double* d_r);
+    // bool solve_(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, vector<double*> d_p_value, vector<size_t*> d_p_index, vector<size_t> p_max_row_size,double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows);
 
     bool base_solve(double* d_bs_u, double* d_bs_b);
 
     bool precond(double* d_c, double* d_r);
+    // bool precond_(double* d_c, double* d_r, double* d_value, size_t* d_index, size_t max_row_size, size_t m_num_rows);
 
     bool precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle);
     
@@ -87,6 +86,9 @@ private:
 
     // temporary correction vectors for GMG
     vector<double*> m_d_ctmp;
+
+    // smoother damping parameter
+    double m_damp;
 
     // number of pre-/post-smooth cycles
     size_t m_numPreSmooth;

@@ -3,11 +3,22 @@
 #include "cudakernels.h"
 using namespace std;
 
-Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, vector<double*> d_p_value, vector<size_t*> d_p_index, vector<size_t> p_max_row_size,double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows, vector<size_t> num_cols)
-: m_d_value(d_value), m_d_index(d_index), m_max_row_size(max_row_size), m_numLevels(numLevels), m_num_rows(num_rows), m_num_cols(num_cols), m_d_p_value(d_p_value), m_d_p_index(d_p_index), m_p_max_row_size(p_max_row_size) 
+Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*> d_p_value, vector<size_t*> d_p_index, size_t numLevels, vector<size_t> num_rows, vector<size_t> max_row_size, vector<size_t> p_max_row_size, double damp)
+: m_d_value(d_value), m_d_index(d_index), m_d_p_value(d_p_value), m_d_p_index(d_p_index), m_numLevels(numLevels), m_num_rows(num_rows), m_max_row_size(max_row_size), m_p_max_row_size(p_max_row_size), m_damp(damp) 
 {
-    cout << "constructor" << endl;
-    
+    cout << "solver : constructor" << endl;
+
+    // m_numLevels = numLevels;
+    // , m_num_rows(num_rows), m_max_row_size(max_row_size), m_p_max_row_size(p_max_row_size) 
+
+    // printVector_GPU <<< 1 , num_rows[1] * max_row_size[1] >>> ( d_value[1], num_rows[1] * max_row_size[1] );
+
+
+    // m_d_value.resize(1);
+    // m_d_value = d_value;
+
+    // printVector_GPU<<<1,15>>>( m_d_value[0], 15);
+    // printVector_GPU<<<1,15>>>( m_d_value[1], 15);
 
 }
 
@@ -38,25 +49,6 @@ Solver::~Solver()
     CUDA_CALL( cudaFree(m_d_bs_p) );
     CUDA_CALL( cudaFree(m_d_bs_alpha) );
     CUDA_CALL( cudaFree(m_d_bs_alpha_temp) );
-   
-   
-
-
-    for ( int i = 0 ; i < m_numLevels ; i++ )
-    {
-        CUDA_CALL( cudaFree(m_d_value[i]) );
-        CUDA_CALL( cudaFree(m_d_index[i]) );
-        CUDA_CALL( cudaFree(m_d_rtmp[i]) );
-        CUDA_CALL( cudaFree(m_d_ctmp[i]) );
-        CUDA_CALL( cudaFree(m_d_gmg_r[i]) );
-        CUDA_CALL( cudaFree(m_d_gmg_c[i]) );
-    }
-
-    for ( int i = 0 ; i < m_numLevels-1 ; i++ )
-    {
-        CUDA_CALL( cudaFree(m_d_p_value[i]) );
-        CUDA_CALL( cudaFree(m_d_p_index[i]) );
-    }
     
 }
 
@@ -96,7 +88,7 @@ void Solver::set_cycle(const char type)
     
 bool Solver::init()
 {
-        cout << "init" << endl;
+        cout << "solver : init" << endl;
 
         m_topLev = m_numLevels - 1;
         
@@ -104,28 +96,25 @@ bool Solver::init()
 
         m_gridDim.resize(m_numLevels);
         m_blockDim.resize(m_numLevels);
-        // TODO: for loop
-        calculateDimensions(8, m_gridDim[0], m_blockDim[0]);
-        calculateDimensions(18, m_gridDim[1], m_blockDim[1]);
-    
+
+        for ( int i = 0 ; i < m_numLevels ; i++ )
+            calculateDimensions(m_num_rows[i], m_gridDim[i], m_blockDim[i]);
 		    
 		m_gridDim_cols.resize(m_numLevels - 1);
         m_blockDim_cols.resize(m_numLevels - 1);
-		calculateDimensions(8, m_gridDim_cols[0], m_blockDim_cols[0]);
 
+        for ( int i = 0 ; i < m_numLevels - 1; i++ )
+		    calculateDimensions(m_num_rows[i], m_gridDim_cols[i], m_blockDim_cols[i]);
 
-
-        // TODO: store each level's num_rows in an array
-        // e.g., m_num_rows[lev]
-
+        
 
         CUDA_CALL( cudaMalloc((void**)&m_d_r, sizeof(double) * m_num_rows[m_topLev]) );
         CUDA_CALL( cudaMemset(m_d_r, 0, sizeof(double) * m_num_rows[m_topLev]) );
         CUDA_CALL( cudaMalloc((void**)&m_d_c, sizeof(double) * m_num_rows[m_topLev]) );
         CUDA_CALL( cudaMemset(m_d_c, 0, sizeof(double) * m_num_rows[m_topLev]) );
 
-        // TODO: change comment
-        // previous residuum
+        // TODO: perhaps you could use a temp variable here, no need to malloc?
+        // temp residuum
         CUDA_CALL( cudaMalloc((void**)&m_d_res0, sizeof(double)) );
         CUDA_CALL( cudaMemset(m_d_res0, 0, sizeof(double)) );
 
@@ -218,9 +207,6 @@ bool Solver::init()
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRes, sizeof(double) ) );
         CUDA_CALL( cudaMemset(m_d_bs_m_minRes, 1e-99, sizeof(double) ) );
        
-        
-
-
 
     return true;
 }
@@ -269,15 +255,15 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     equals_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_res);
     
-    cudaDeviceSynchronize();
-    cout << "## CG  ##################################################################" << endl;
-    cout << "  Iter     Residuum       Required       Rate        Reduction     Required" << endl;
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
+    // cout << "## CG  ##################################################################" << endl;
+    // cout << "  Iter     Residuum       Required       Rate        Reduction     Required" << endl;
+    // cudaDeviceSynchronize();
 	
 
 	
-    printInitialResult_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_m_minRes, m_d_bs_m_minRed);
-    cudaDeviceSynchronize();
+    // printInitialResult_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_m_minRes, m_d_bs_m_minRed);
+    // cudaDeviceSynchronize();
     
     addStep<<<1,1>>>(m_d_bs_step);
 
@@ -379,6 +365,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         // cudaDeviceSynchronize();
     }
 
+    
     // restrict defect
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_r[lev-1], m_num_rows[lev-1] );
 
@@ -445,8 +432,6 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         addVector_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>( d_c, m_d_ctmp[lev], m_num_rows[lev] );
 
         UpdateResiduum_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
-        
-
 
     }
 
@@ -459,7 +444,7 @@ bool Solver::smoother(double* d_c, double* d_r, int lev)
     
     cout << "smoother" << endl;
 
-    Jacobi_Precond_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>(d_c, m_d_value[lev], m_d_index[lev], m_max_row_size[lev], d_r, m_num_rows[lev]);
+    Jacobi_Precond_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>(d_c, m_d_value[lev], m_d_index[lev], m_max_row_size[lev], d_r, m_num_rows[lev], m_damp);
 
     return true;
 }
@@ -483,8 +468,11 @@ bool Solver::solve(double* d_u, double* d_b)
     printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
     cudaDeviceSynchronize();
     
+    int step = 20;
 
     // foo loop
+    for (int i = 0 ; i < step ; i++ )
+    {
 
     precond(m_d_c, m_d_r);
 
@@ -507,6 +495,7 @@ bool Solver::solve(double* d_u, double* d_b)
 
     printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
 
+    }
 
 
 

@@ -297,6 +297,20 @@ void printVector_GPU(int* x)
 	printf("[GPU] x[%d] = %d\n", id, x[id]);
 }
 
+// CHECK: might delete this
+__global__
+void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
+{
+		for ( int i = 0 ; i < num_rows ; i++)
+		{
+			for ( int j = 0 ; j < num_cols ; j++)
+			printf("%f ", valueAt(i, j, value, index, max_row_size) );
+
+			printf("\n");
+		}
+	
+}
+
 // (scalar) a = b
 __global__ 
 void equals_GPU(double* a, double* b)
@@ -569,12 +583,13 @@ void vectorEquals_GPU(double* a, double* b, size_t num_rows)
 // // SMOOTHERS
 // ////////////////////////////////////////////
 
-__global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows){
+__global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows, double damp){
 
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 
+	// B = damp / diag(A);
 	if ( id < num_rows )
-		c[id] = valueAt(id, id, value, index, max_row_size) * r[id];
+		c[id] = r[id] * damp / valueAt(id, id, value, index, max_row_size);
 }
 
 

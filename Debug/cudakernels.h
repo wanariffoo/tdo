@@ -81,6 +81,8 @@ __global__ void printVector_GPU(std::size_t* x, size_t num_rows);
 
 __global__ void printVector_GPU(int* x);
 
+__global__ void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
+
 // (scalar) a = b
 __global__ void equals_GPU(double* a, double* b);
 
@@ -125,7 +127,7 @@ __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);
 // SMOOTHERS
 ////////////////////////////////////////////
 
-__global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows);
+__global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows, double damp);
 
 
 ////////////////////////////////////////////
