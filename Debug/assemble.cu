@@ -43,7 +43,7 @@ void Assembler::Element::printNodes()
 Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels)
     : m_dim(dim), m_h(h), m_youngMod(youngMod), m_poisson(poisson), m_rho(rho), m_p(p), m_numLevels(numLevels)
 {
-    cout << "assembler" << endl;
+    // cout << "assembler" << endl;
 
     // m_N [lev][dim]
     // e.g., m_N[lev=1][dim=0] = number of elements in x-dimension on grid-level 1
@@ -65,7 +65,7 @@ Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, do
 
 Assembler::~Assembler()
 {
-    cout << "assembler : deallocate" << endl;
+    // cout << "assembler : deallocate" << endl;
     // CUDA_CALL( cudaFree(d_m_A_local) );
 }
 
@@ -223,7 +223,7 @@ bool Assembler::init(
 // assembles the local stiffness matrix
 bool Assembler::assembleLocal()
 {
-    cout << "assembleLocal" << endl;
+    // cout << "assembleLocal" << endl;
 
 
     double E[3][3];
@@ -316,7 +316,7 @@ double Assembler::valueAt(size_t x, size_t y)
 bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size)
 {
     // TODO: if no BC is set, return false with error
-    cout << "assembleGlobal" << endl;
+    // cout << "assembleGlobal" << endl;
     // adding nodes and elements to the top-level global grid
     for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
         m_node.push_back(Node(i));

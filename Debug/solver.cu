@@ -6,19 +6,7 @@ using namespace std;
 Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*> d_p_value, vector<size_t*> d_p_index, size_t numLevels, vector<size_t> num_rows, vector<size_t> max_row_size, vector<size_t> p_max_row_size, double damp)
 : m_d_value(d_value), m_d_index(d_index), m_d_p_value(d_p_value), m_d_p_index(d_p_index), m_numLevels(numLevels), m_num_rows(num_rows), m_max_row_size(max_row_size), m_p_max_row_size(p_max_row_size), m_damp(damp) 
 {
-    cout << "solver : constructor" << endl;
 
-    // m_numLevels = numLevels;
-    // , m_num_rows(num_rows), m_max_row_size(max_row_size), m_p_max_row_size(p_max_row_size) 
-
-    // printVector_GPU <<< 1 , num_rows[1] * max_row_size[1] >>> ( d_value[1], num_rows[1] * max_row_size[1] );
-
-
-    // m_d_value.resize(1);
-    // m_d_value = d_value;
-
-    // printVector_GPU<<<1,15>>>( m_d_value[0], 15);
-    // printVector_GPU<<<1,15>>>( m_d_value[1], 15);
 
 }
 
@@ -26,7 +14,7 @@ Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*>
 // void Solver::deallocate()
 Solver::~Solver()
 {
-    cout << "solver : deallocate" << endl;
+    // cout << "solver : deallocate" << endl;
     CUDA_CALL( cudaFree(m_d_res0) );
     CUDA_CALL( cudaFree(m_d_res) );
     CUDA_CALL( cudaFree(m_d_lastRes) );
@@ -88,7 +76,7 @@ void Solver::set_cycle(const char type)
     
 bool Solver::init()
 {
-        cout << "solver : init" << endl;
+        // cout << "solver : init" << endl;
 
         m_topLev = m_numLevels - 1;
         
@@ -213,7 +201,7 @@ bool Solver::init()
 
 bool Solver::precond(double* m_d_c, double* m_d_r)
 {
-    cout << "precond" << endl;
+    // cout << "precond" << endl;
     cudaDeviceSynchronize();
 
     // reset correction
@@ -246,7 +234,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
 
 bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 {
-    cout << "CG" << endl;
+    // cout << "CG" << endl;
 
     ComputeResiduum_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], d_bs_u, m_d_bs_r, d_bs_b);
 
@@ -271,7 +259,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // checkIterationConditions<<<1,1>>>(d_cg_foo, d_cg_step, d_cg_res, d_cg_res0, d_cg_m_minRes, d_cg_m_minRed, d_cg_m_maxIter);
 
     // foo loop
-    for ( int i = 0 ; i < 30 ; i++ )
+    for ( int i = 0 ; i < 20 ; i++ )
     {
     // TODO: check
     // smoother( m_d_bs_z, m_d_bs_r, 0);
@@ -315,12 +303,13 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     addStep<<<1,1>>>(m_d_bs_step);
     }
 
+
     return true;
 }
 
 bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle)
 {
-    cout << "precond_add_update" << endl;
+    // cout << "precond_add_update" << endl;
 
     // std::cout <<"gmg.cu : setToZero()" << std::endl;
     // Vector<double> ctmp(c.size(), 0.0, c.layouts());
@@ -331,7 +320,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     // if on base level
 	if( lev == 0 )
 	{
-        cout << "base level" << endl;
+        // cout << "base level" << endl;
         base_solve(m_d_ctmp[lev], d_r);
 
         // c += ctmp;
@@ -352,6 +341,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     {
         smoother( m_d_ctmp[lev], d_r, lev );
         
+
         // c += ctmp;
         addVector_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>( d_c, m_d_ctmp[lev], m_num_rows[lev] );
         
@@ -359,18 +349,30 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         // r -= A[lev] * ctmp;
         UpdateResiduum_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
        
-        // DEBUG: debugged until here in Octave
-        // cudaDeviceSynchronize();
-        // printVector_GPU<<< 1, 18 >>>( d_r,18 );
-        // cudaDeviceSynchronize();
+
     }
 
     
     // restrict defect
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_r[lev-1], m_num_rows[lev-1] );
 
+    // cudaDeviceSynchronize();
+    // printELL_GPU<<<1,1>>>(m_d_p_value[0], m_d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
+    // cudaDeviceSynchronize();
+
+    // CHECK: something's wrong here:
     /// r_coarse = P^T * r
-    ApplyTransposed_GPU<<<m_gridDim[lev-1],m_blockDim[lev-1]>>>(m_num_rows[lev-1], m_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+    ApplyTransposed_GPU<<<m_gridDim[lev-1],m_blockDim[lev-1]>>>(m_num_rows[lev-1], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+
+    cudaDeviceSynchronize();
+    cout << "aps" << endl;
+    cudaDeviceSynchronize();
+
+        // // DEBUG: debugged until here in Octave
+        // cudaDeviceSynchronize();
+        // printVector_GPU<<< 1, 26 >>>( m_d_p_index[lev-1], 26 );
+        // cudaDeviceSynchronize();
+    
 
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_c[lev-1], m_num_rows[lev-1] );
 
@@ -442,7 +444,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 bool Solver::smoother(double* d_c, double* d_r, int lev)
 {
     
-    cout << "smoother" << endl;
+    // cout << "smoother" << endl;
 
     Jacobi_Precond_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>(d_c, m_d_value[lev], m_d_index[lev], m_max_row_size[lev], d_r, m_num_rows[lev], m_damp);
 
@@ -451,7 +453,7 @@ bool Solver::smoother(double* d_c, double* d_r, int lev)
 
 bool Solver::solve(double* d_u, double* d_b)
 {
-    cout << "solve" << endl;
+    // cout << "solve" << endl;
 
     // r = b - A*u
     ComputeResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], d_u, m_d_r, d_b);
@@ -468,13 +470,15 @@ bool Solver::solve(double* d_u, double* d_b)
     printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
     cudaDeviceSynchronize();
     
-    int step = 20;
+    int step = 1;
 
     // foo loop
     for (int i = 0 ; i < step ; i++ )
     {
 
     precond(m_d_c, m_d_r);
+
+    
 
     // add correction to solution
     // u += c;
@@ -493,6 +497,7 @@ bool Solver::solve(double* d_u, double* d_b)
     // TODO:
     norm_GPU(m_d_res, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
 
+    cudaDeviceSynchronize();
     printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
 
     }
