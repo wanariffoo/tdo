@@ -69,6 +69,12 @@ int main()
     b[5] = -10000;
     double* d_u;
     double* d_b;
+
+    //// CUDA
+    vector<size_t*> d_node_index;
+    // d_node_index.resize(4);
+
+
     // TODO: get num_rows
     CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * 18 ) );
     CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * 18 ) );
@@ -79,7 +85,7 @@ int main()
     
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size);
+    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
 
     /*
     NOTE: after assembling you should have these :
@@ -92,8 +98,6 @@ int main()
         - vector<size_t> p_max_row_size(numLevels -1 )
     */
    
-       
-
     /*
     ##################################################################
     #                           SOLVER                               #

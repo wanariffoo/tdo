@@ -12,7 +12,7 @@ class Assembler{
 public:
     Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels);
 
-    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_kai, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
+    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_kai, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t*> &d_node_index);
 
     ~Assembler();
 
@@ -47,6 +47,7 @@ public:
             int nodeIndex(int i);
             void printNodes();
             double valueAt(size_t x, size_t y, size_t num_cols);
+            size_t getNodeIndex(int index);
             
         private:
             std::vector<Node*> m_node;
@@ -115,7 +116,7 @@ private:
     vector<Node> m_node;
     vector<Element> m_element;
 
-
+    vector<vector<size_t>> m_node_index;    
 
     //// CUDA
 

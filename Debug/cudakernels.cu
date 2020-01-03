@@ -868,18 +868,10 @@ void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_
             int global_col = ( node_index [ n / 2 ] * 2 ) + ( n % 2 ); // converts local node to global node
             x[id] += u[global_col] * d_A_local[ id + n*num_rows ];
 
-			if ( id == 0 )
-				printf("u[%d] = %e, A[%d] = %e, x += %e, global index = %d\n", id, u[global_col], id, d_A_local[ id + n*num_rows ], x[id], global_col );
-
         }
-        
-		if ( id == 0 )
-			printf("x+= %e\n", x[id]);
 
         x[id] *= u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ];
 
-		// if ( id == 0 )
-		// 	printf("x[%d] = %e, u[%d] = %e\n", id, x[id], ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) , u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ] );
     }
 
 }

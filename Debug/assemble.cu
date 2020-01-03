@@ -38,6 +38,10 @@ void Assembler::Element::printNodes()
     cout << m_node[ m_node.size() - 1]->index() << " }" << endl;
 }
 
+size_t Assembler::Element::getNodeIndex(int index)
+{
+    return m_node[index]->index();
+}
 
 
 Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels)
@@ -84,7 +88,8 @@ bool Assembler::init(
     double* &d_kai, 
     vector<size_t> &num_rows, 
     vector<size_t> &max_row_size, 
-    vector<size_t> &p_max_row_size)
+    vector<size_t> &p_max_row_size,
+    vector<size_t*> &d_node_index)
 {
 
     if ( m_dim == 2 )
@@ -213,10 +218,26 @@ bool Assembler::init(
         CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
     }
     
+    // DEBUG: TEST: node index
+    // m_node_index[num of elements][num nodes per element]
+    // m_node_index.resize(m_numElements, vector<size_t>(pow(2, m_dim)));
+    // m_node_index.resize(m_numElements, vector<size_t>(4));
+    // size_t m_node_index[m_numElements][pow(2, m_dim)];
 
 
+    m_node_index.resize(m_numElements[m_topLev]);
+    d_node_index.resize(m_numElements[m_topLev]);
+    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    {
+        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+    }
 
-
+    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_node_index[elem], sizeof(size_t) * pow(2, m_dim) ) );
+        CUDA_CALL( cudaMemcpy(d_node_index[elem], &m_node_index[elem][0], sizeof(size_t) * pow(2, m_dim), cudaMemcpyHostToDevice) );
+    }
 
     return true;
 
