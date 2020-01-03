@@ -114,3 +114,43 @@ compiler saves 0 sometimes in the 1e-9 region.
 when initializing grid dimensions, Nx, Ny, Nz,
     - this is the base grid?
 
+
+
+convergence is bad
+
+compared to matlab, does this make sense?
+ 0 : res = 10000.000000
+ 1 : res = 3145.270263
+ 2 : res = 1237.000420
+ 3 : res = 521.989391
+ 4 : res = 227.646893
+ 5 : res = 100.942866
+ 6 : res = 45.208322
+ 7 : res = 20.387368
+ 8 : res = 9.241632
+ 9 : res = 4.206005
+ 10 : res = 1.920187
+ 11 : res = 0.878768
+ 12 : res = 0.402930
+ 13 : res = 0.185024
+ 14 : res = 0.085060
+ 15 : res = 0.039139
+ 16 : res = 0.018022
+ 17 : res = 0.008302
+ 18 : res = 0.003826
+ 19 : res = 0.001764
+ 20 : res = 0.000814
+ 21 : res = 0.000375
+ 22 : res = 0.000173
+ 23 : res = 0.000080
+ 24 : res = 0.000037
+ 25 : res = 0.000017
+ 26 : res = 0.000008
+ 27 : res = 0.000004
+ 28 : res = 0.000002
+ 29 : res = 0.000001
+ 30 : res = 0.000000
+ 31 : res = 0.000000
+
+ 
+

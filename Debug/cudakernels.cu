@@ -839,3 +839,115 @@ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t num_rows)
 	if ( id < num_rows )
 		d_x[id] = d_x[id] - (*d_alpha * d_p[id]);
 }
+
+
+//// TDO
+
+
+// df = ( 1/2*omega ) * p * kai^(p-1) * sum(local stiffness matrices)
+__global__
+void UpdateDrivingForce(double *df, double *uTKu, double p, double *kai, double local_volume, size_t N)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if ( id < N )
+        df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
+}
+
+// x[] = u[]^T * A * u[]
+__global__
+void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+    
+    if ( id < num_rows )
+    {
+        x[id] = 0;
+        for ( int n = 0; n < num_rows; n++ )
+		{
+            int global_col = ( node_index [ n / 2 ] * 2 ) + ( n % 2 ); // converts local node to global node
+            x[id] += u[global_col] * d_A_local[ id + n*num_rows ];
+
+			if ( id == 0 )
+				printf("u[%d] = %e, A[%d] = %e, x += %e, global index = %d\n", id, u[global_col], id, d_A_local[ id + n*num_rows ], x[id], global_col );
+
+        }
+        
+		if ( id == 0 )
+			printf("x+= %e\n", x[id]);
+
+        x[id] *= u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ];
+
+		// if ( id == 0 )
+		// 	printf("x[%d] = %e, u[%d] = %e\n", id, x[id], ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) , u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ] );
+    }
+
+}
+
+
+__global__ 
+void sumOfVector_GPU(double* sum, double* x, size_t n)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+    
+    // if ( id < n )
+    // printf("%d : %e\n", id, x[id]);
+
+	__shared__ double cache[1024];
+    cache[threadIdx.x] = 0;
+    
+	double temp = 0.0;
+	while(id < n)
+	{
+		temp += x[id];
+		id += stride;
+	}
+	
+    cache[threadIdx.x] = temp;
+    
+	__syncthreads();
+	
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] += cache[threadIdx.x + i];
+		}
+		__syncthreads();
+		i /= 2;
+	}
+
+
+	// reduce sum from all blocks' cache
+	if(threadIdx.x == 0)
+		atomicAdd_double(sum, cache[0]);
+}
+
+// calculate the driving force per element
+__host__
+void calcDrivingForce(
+    double *df,             // driving force
+    double *kai,            // design variable
+    double p,               // penalization parameter
+    double *temp,           // dummy/temp vector
+    double *u,              // elemental displacement vector
+    size_t* node_index,
+	double* d_A_local,
+    size_t num_rows,        // local ELLPack stiffness matrix's number of rows
+    dim3 gridDim,           // grid and 
+    dim3 blockDim)          // block sizes needed for running CUDA kernels
+{
+
+    // temp[] = u[]^T * A * u[]
+    uTAu_GPU<<<gridDim, blockDim>>>(temp, u, node_index, d_A_local, num_rows);
+    cudaDeviceSynchronize();
+
+    // printVector_GPU<<<1, num_rows>>>( temp, num_rows );
+    // cudaDeviceSynchronize();
+    // // printVector_GPU<<<1, num_rows * max_row_size>>>( value, num_rows * max_row_size );
+    sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
+    cudaDeviceSynchronize();
+    
+    // UpdateDrivingForce<<<1,1>>>(df, p, kai);
+}

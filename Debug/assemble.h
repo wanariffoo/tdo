@@ -20,7 +20,7 @@ public:
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
     void setBC(vector<size_t> bc_index);
  
-    
+    size_t getNumElements() {return m_numElements[m_topLev];}
 
     double valueAt(size_t x, size_t y);
 

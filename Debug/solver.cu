@@ -1,6 +1,7 @@
 #include <iostream>
 #include "solver.h"
 #include "cudakernels.h"
+
 using namespace std;
 
 Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*> d_p_value, vector<size_t*> d_p_index, size_t numLevels, vector<size_t> num_rows, vector<size_t> max_row_size, vector<size_t> p_max_row_size, double damp)
@@ -483,8 +484,8 @@ bool Solver::solve(double* d_u, double* d_b)
     equals_GPU<<<1,1>>>(m_d_res, m_d_res0);	
 
 
-    printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
-    cudaDeviceSynchronize();
+    // printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
+    // cudaDeviceSynchronize();
     
     
 
@@ -514,11 +515,11 @@ bool Solver::solve(double* d_u, double* d_b)
     // TODO:
     norm_GPU(m_d_res, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
 
-    cudaDeviceSynchronize();
-    printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
 
     }
 
+    cudaDeviceSynchronize();
+    printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
 
 
     return true;

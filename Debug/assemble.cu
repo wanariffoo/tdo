@@ -145,20 +145,23 @@ bool Assembler::init(
     // initial value is rho in all elements
     m_kai.resize(m_numElements[m_topLev], m_rho);
 
+    // TODO: CHECK: assemblelocal is messed up a bit, recheck especially when it comes to the det(J)
     assembleLocal();
-    assembleGlobal(num_rows, max_row_size, p_max_row_size);
 
     // int a = 0;
     // for ( int j = 0 ; j < 8 ; j++ )
     // {
-    //     for ( int i = 0 ; i < 4 ; i++ )
+    //     for ( int i = 0 ; i < 8 ; i++ )
     //         {
-    //             cout << m_index_g[0][a] << " ";
+    //             cout << m_A_local[a] << " ";
     //             a++;
     //         }
 
     //         cout << "\n";
     // }
+    
+    // TODO: CHECK: check the numbers here as well
+    assembleGlobal(num_rows, max_row_size, p_max_row_size);
 
     
     //// CUDA
@@ -210,8 +213,9 @@ bool Assembler::init(
         CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
     }
     
-    
-    
+
+
+
 
 
     return true;
@@ -293,15 +297,21 @@ bool Assembler::assembleLocal()
             for( int j = 0 ; j < 8 ; j++ )
             {
                 for ( int k = 0 ; k < 3 ; k++)
-                    m_A_local[j + i*m_num_rows_l] += B[GP][k][i] * foo[GP][k][j] * 0.25*0.25;
+                    m_A_local[j + i*m_num_rows_l] += B[GP][k][i] * foo[GP][k][j]; 
             }
         }
     }
 
-    // multiplying  det(J)
-    for ( int i = 0 ; i < 8 * 8 ; i++ )
-        m_A_local[i] *= 0.4 * 0.4 * 0.4;
-    
+    // storing the value of B^T * E * B for later use in TDO
+
+
+
+
+    // TODO: insertion of these numbers has to be automated
+    // multiplying det(J)
+    // for ( int i = 0 ; i < 8 * 8 ; i++ )
+    //     m_A_local[i] *= pow(0.25,m_dim);
+
     return true;
 }
 
@@ -333,11 +343,6 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
     }
-
-    
-    // // double A_g[m_numNodes*m_dim][m_numNodes*m_dim];
-    // // TODO: figure out if you keep this as member var or not
-    // m_A_g.resize(m_numNodes[m_topLev]*m_dim, vector<double>(m_numNodes[m_topLev]*m_dim));
 
     // resizing the global stiffness matrices on each grid-level
     m_A_g.resize(m_numLevels);
@@ -494,6 +499,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
     // NOTE: can somehow do init for solving now while allocating memory in device?
     // do async malloc then your init() should be AFTER the memcpy stuff, not before
+
 
 
 
