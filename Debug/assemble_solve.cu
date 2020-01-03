@@ -108,6 +108,7 @@ int main()
     GMG.set_convergence_params(1, 1e-99, 1e-10);
     GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
     GMG.set_cycle('V');
+    GMG.set_steps(20, 50);
     cudaDeviceSynchronize();
     GMG.solve(d_u, d_b);
     // GMG.solve_(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows);

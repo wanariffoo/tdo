@@ -706,14 +706,11 @@ void ApplyTransposed_GPU(
 
 	if ( id < num_rows )
 	{
-		// r[id] = 0;
-		// __syncthreads();
 
 		for ( int n = 0; n < num_cols_per_row; n++ )
 		{
 			int col = index [ num_cols_per_row * id + n ];
-			float val = value [ num_cols_per_row * id + n ];
-			printf("%d : %e %e\n", id, val, x[id] );
+			double val = value [ num_cols_per_row * id + n ];
 			atomicAdd_double( &r[col], val*x[id] );
 		}
 	}

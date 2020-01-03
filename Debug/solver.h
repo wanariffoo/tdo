@@ -33,6 +33,9 @@ public:
 
     void set_cycle(const char type);
 
+    // DEBUG:
+    void set_steps(size_t step, size_t bs_step);
+
 
 private:
 
@@ -133,7 +136,9 @@ private:
     double* m_d_bs_m_minRed;
     double* m_d_bs_lastRes;
 
-    
+    // DEBUG:
+    size_t m_step;
+    size_t m_bs_step;
 
     
 
