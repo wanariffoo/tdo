@@ -135,7 +135,7 @@ int main()
     double eta = 12.0;
     double beta = 1.0;
 
-    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), d_A_local);
+    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index);
     tdo.init();
     tdo.innerloop();
 
