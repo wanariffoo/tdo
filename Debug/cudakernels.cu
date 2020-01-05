@@ -846,12 +846,13 @@ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t num_rows)
 
 // df = ( 1/2*omega ) * p * kai^(p-1) * sum(local stiffness matrices)
 __global__
-void UpdateDrivingForce(double *df, double *uTKu, double p, double *kai, double local_volume, size_t N)
+void UpdateDrivingForce(double *df, double p, double *kai, double local_volume, size_t N)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
 
     if ( id < N )
-        df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
+        df[id] *= ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
+        // df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
 }
 
 // x[] = u[]^T * A * u[]
@@ -910,7 +911,6 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 		i /= 2;
 	}
 
-
 	// reduce sum from all blocks' cache
 	if(threadIdx.x == 0)
 		atomicAdd_double(sum, cache[0]);
@@ -927,6 +927,7 @@ void calcDrivingForce(
     size_t* node_index,
 	double* d_A_local,
     size_t num_rows,        // local ELLPack stiffness matrix's number of rows
+	double local_volume,	// local domain size
     dim3 gridDim,           // grid and 
     dim3 blockDim)          // block sizes needed for running CUDA kernels
 {
@@ -934,12 +935,12 @@ void calcDrivingForce(
     // temp[] = u[]^T * A * u[]
     uTAu_GPU<<<gridDim, blockDim>>>(temp, u, node_index, d_A_local, num_rows);
     cudaDeviceSynchronize();
-
-    // printVector_GPU<<<1, num_rows>>>( temp, num_rows );
-    // cudaDeviceSynchronize();
-    // // printVector_GPU<<<1, num_rows * max_row_size>>>( value, num_rows * max_row_size );
+	// calculates the driving force in each element
     sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
     cudaDeviceSynchronize();
     
-    // UpdateDrivingForce<<<1,1>>>(df, p, kai);
+	//TODO: det_J not implemented yet
+	// df[] *= ( 1 / 2*omega ) * ( p * pow(kai[], p - 1 ) * det(J)
+    UpdateDrivingForce<<<gridDim,blockDim>>>(df, p, kai, local_volume, num_rows);
+	
 }
