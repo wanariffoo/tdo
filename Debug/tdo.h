@@ -6,7 +6,7 @@
 class TDO{
 
 public:
-    TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index);
+    TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double del_t);
     bool init();
     bool innerloop();
 
@@ -20,10 +20,15 @@ private:
     double m_local_volume;
     size_t m_numElements;
     size_t m_num_rows;
+    vector<size_t> m_N;
 
     // inner loop
     size_t m_n;
     size_t m_j;
+
+    // TDO
+    double m_del_t;
+
 
 
     double m_beta;
@@ -43,17 +48,24 @@ private:
     double* m_d_A_local;
 
     // driving force of each element
-    vector<double*> m_d_df;
-    double* m_d_uTAu;
+    double* m_d_df;
 
     int *m_d_mutex;
 
     double *m_d_temp;
     vector<size_t*> m_d_node_index;
-    double* d_df;
 
+    // bisection algorithm
+    double* m_d_lambda_l;
+    double* m_d_lambda_u;
+    double* m_d_lambda_tr;
+    
+    double* m_d_kai_tr;
 
+    //NOTE: reuse this from somewhere? temp variable?
+    double* m_d_rho_tr;   
 
+    
 
 };
 

@@ -170,13 +170,22 @@ __global__ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t n
 // TDO
 ////////////////////////////////////////////
 
-__global__ void UpdateDrivingForce(double *df, double p, double *kai, double local_volume, size_t N);
+__global__ void UpdateDrivingForce(double *df, double* uTau, double p, double *kai, double local_volume, size_t N);
 
 __global__ void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows);
 
-__host__ void calcDrivingForce(double *df, double *kai, double p, double *temp, double *u, size_t* node_index, double* d_A_local, size_t num_rows, double local_volume, dim3 gridDim, dim3 blockDim);
+__host__ void calcDrivingForce(double *df, double *kai, double p, double *temp, double *u, size_t* node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim);
 
 __global__ void sumOfVector_GPU(double* sum, double* x, size_t n);
 
+__device__ double laplacian_GPU( double *array, size_t ind, size_t N );
+
+__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements);
+
+__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements);
+
+__global__ void calcKaiTrial( double *kai, double *df, double *lambda_trial, double del_t, double eta, double beta, double* kai_trial, size_t N, size_t numElements);
+
+__global__ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *lambda_u, double *lambda_trial);
 
 #endif // CUDAKERNELS_H

@@ -79,6 +79,12 @@ void Assembler::setBC(vector<size_t> bc_index)
     m_bc_index = bc_index;
 }
 
+size_t Assembler::getNumElements() 
+{
+    return m_numElements[m_topLev];
+}
+
+
 bool Assembler::init(
     double* &d_A_local, 
     vector<double*> &d_value, 
@@ -120,7 +126,7 @@ bool Assembler::init(
         for ( int i = 0 ; i < m_dim ; i++)
             m_numElements[lev] *= m_N[lev][i];
     }
-
+    
 
     // m_numNodesPerDim[lev][dim]
     m_numNodesPerDim.resize(m_numLevels, vector<size_t>(m_dim));

@@ -846,12 +846,12 @@ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t num_rows)
 
 // df = ( 1/2*omega ) * p * kai^(p-1) * sum(local stiffness matrices)
 __global__
-void UpdateDrivingForce(double *df, double p, double *kai, double local_volume, size_t N)
+void UpdateDrivingForce(double *df, double* uTau, double p, double *kai, double local_volume, size_t N)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
 
     if ( id < N )
-        df[id] *= ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
+        df[id] = uTau[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
         // df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
 }
 
@@ -927,7 +927,6 @@ void calcDrivingForce(
     size_t* node_index,
 	double* d_A_local,
     size_t num_rows,        // local ELLPack stiffness matrix's number of rows
-	double local_volume,	// local domain size
     dim3 gridDim,           // grid and 
     dim3 blockDim)          // block sizes needed for running CUDA kernels
 {
@@ -941,6 +940,163 @@ void calcDrivingForce(
     
 	//TODO: det_J not implemented yet
 	// df[] *= ( 1 / 2*omega ) * ( p * pow(kai[], p - 1 ) * det(J)
-    UpdateDrivingForce<<<gridDim,blockDim>>>(df, p, kai, local_volume, num_rows);
+    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, p, kai, local_volume, num_rows);
 	
+}
+
+__device__
+double laplacian_GPU( double *array, size_t ind, size_t N )
+{
+    double value = 4.0 * array[ind];
+
+    // east element
+    if ( (ind + 1) % N != 0 )
+        value += -1.0 * array[ind + 1];
+    
+    // north element
+    if ( ind + N < N*N )    // TODO: N*N --> dim
+        value += -1.0 * array[ind + N];
+
+    // west element
+    if ( ind % N != 0 )
+        value += -1.0 * array[ind - 1];
+
+    // south element
+    if ( ind >= N )
+        value += -1.0 * array[ind - N];
+
+    return value;
+}
+
+__global__ 
+void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements)
+{
+	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int stride = gridDim.x*blockDim.x;
+	unsigned int offset = 0;
+
+	__shared__ double cache[1024];
+
+    *max = -1.0e9;
+    double temp = -1.0e9;
+    
+	while(index + offset < numElements){
+        // temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian[index] ) + eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) + eta ) );
+         
+		offset += stride;
+	}
+    
+	cache[threadIdx.x] = temp;
+	__syncthreads();
+
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] = fmaxf(cache[threadIdx.x], cache[threadIdx.x + i]);
+		}
+
+		__syncthreads();
+		i /= 2;
+	}
+
+	if(threadIdx.x == 0){
+		while(atomicCAS(mutex,0,1) != 0);  //lock
+		*max = fmaxf(*max, cache[0]);
+		atomicExch(mutex, 0);  //unlock
+    }
+}
+
+
+__global__ 
+void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements)
+{
+	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int stride = gridDim.x*blockDim.x;
+	unsigned int offset = 0;
+
+	__shared__ double cache[1024];
+
+    *min = 1.0e9;
+    double temp = 1.0e9;
+    
+
+	while(index + offset < numElements){
+        temp = fminf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) - eta ) );
+		offset += stride;
+	}
+    
+	cache[threadIdx.x] = temp;
+	__syncthreads();
+
+
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + i]);
+		}
+
+		__syncthreads();
+		i /= 2;
+	}
+
+	if(threadIdx.x == 0){
+		while(atomicCAS(mutex,0,1) != 0);  //lock
+		*min = fminf(*min, cache[0]);
+		atomicExch(mutex, 0);  //unlock
+    }
+    
+}
+
+__global__
+void calcKaiTrial(   
+    double *kai, 
+    double *df, 
+    double *lambda_trial, 
+    double del_t,
+    double eta,
+    double beta,
+    double* kai_trial,
+    size_t N,
+    size_t numElements
+)
+{
+    unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+    
+    __shared__ double del_kai[256];
+
+    // if ( id == 0 )
+    // printf("%f\n", *lambda_trial);
+
+    if ( id < numElements )
+    {
+        del_kai[id] = ( del_t / eta ) * ( df[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, N ) ) );
+        
+
+        if ( del_kai[id] + kai[id] > 1 )
+        kai_trial[id] = 1;
+        
+        else if ( del_kai[id] + kai[id] < 1e-9 )
+        kai_trial[id] = 1e-9;
+        
+        else
+        kai_trial[id] = del_kai[id] + kai[id];
+        
+        // printf("%d %f \n", id, kai_trial[id]);
+    }
+}
+
+
+__global__
+void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *lambda_u, double *lambda_trial)
+{
+    if ( *rho_trial > rho )
+        *lambda_l = *lambda_trial;
+
+    else
+        *lambda_u = *lambda_trial;
+
+    *lambda_trial = 0.5 * ( *lambda_l + *lambda_u );
 }

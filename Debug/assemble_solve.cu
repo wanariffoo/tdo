@@ -44,6 +44,7 @@ int main()
     // TDO
     double rho = 0.4;
     size_t p = 3;
+    double del_t = 1.0;
 
     vector<size_t> num_rows;
     vector<size_t> max_row_size;
@@ -128,6 +129,7 @@ int main()
     ##################################################################
     */
 
+    
     // TDO algorithm, tdo.cu
     // produces updated d_kai
 
@@ -135,7 +137,7 @@ int main()
     double eta = 12.0;
     double beta = 1.0;
 
-    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index);
+    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
     tdo.init();
     tdo.innerloop();
 

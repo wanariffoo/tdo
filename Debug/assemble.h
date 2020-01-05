@@ -20,7 +20,7 @@ public:
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
     void setBC(vector<size_t> bc_index);
  
-    size_t getNumElements() {return m_numElements[m_topLev];}
+    size_t getNumElements();
 
     double valueAt(size_t x, size_t y);
 
@@ -92,6 +92,7 @@ private:
     double m_rho;
     size_t m_p;
     vector<double> m_kai;
+    double del_t;
 
     // local stiffness matrix (dense)
     vector<double> m_A_local;
