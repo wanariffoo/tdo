@@ -52,7 +52,11 @@ bool TDO::init()
 
 bool TDO::innerloop()
 {
+    // TODO:
+    m_N[0] = 2;
 
+    // TODO:
+    m_rho = 0.4;
     // calculating the driving force of each element
     // df[] = ( 1 / 2*omega ) * ( p * pow(kai[], p - 1 ) ) * sum( u^T * A_local * u * det(J) )
 
@@ -70,9 +74,11 @@ bool TDO::innerloop()
     vectorEquals_GPU<<<m_gridDim,m_blockDim>>>(m_d_temp, m_d_df, m_numElements);
 
 
+
+
     // NOTE:
     //// for loop
-     for ( int j = 0 ; j < m_n; j++ )
+     for ( int j = 0 ; j < m_n ; j++ )
     {
 
         // df[] = ( 1 / 2*element_volume ) * p * pow(kai_element, (p-1) ) * temp[]
@@ -82,20 +88,31 @@ bool TDO::innerloop()
         // cudaDeviceSynchronize();
         // printVector_GPU<<<1,4>>> ( m_d_df, 4 );
 
+
+
         // bisection algo: 
             
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
-        calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_beta, m_d_kai, m_eta, m_N[0], m_numElements);
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_beta, m_d_kai, m_eta, m_N[0], m_numElements);
+        calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_beta, m_d_kai, m_eta, m_N[0], m_numElements);
         
+        
+        // print_GPU <<< 1 , 1 >>> ( m_d_lambda_l );
+        // print_GPU <<< 1 , 1 >>> ( m_d_lambda_u );
+        // cudaDeviceSynchronize();
 
-        for ( int i = 0 ; i < 30 ; i++ )
+        for ( int i = 0 ; i < 20 ; i++ )
         {
             calcKaiTrial<<<m_gridDim,m_blockDim>>> ( m_d_kai, m_d_df, m_d_lambda_tr, m_del_t, m_eta, m_beta, m_d_kai_tr, m_N[0], m_numElements);
+
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_kai_tr, m_numElements);
 
-            calcLambdaTrial<<<1,1>>>( m_d_rho_tr, 0.4, m_d_lambda_tr, m_d_lambda_l, m_d_lambda_u);
+            // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_kai_tr, m_numElements);
+            // cudaDeviceSynchronize();
+
+            calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
+
         }
 
         // kai(j) = kai(j+1)

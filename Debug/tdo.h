@@ -28,7 +28,7 @@ private:
 
     // TDO
     double m_del_t;
-
+    double m_rho;
 
 
     double m_beta;

@@ -1065,15 +1065,14 @@ void calcKaiTrial(
 {
     unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
     
-    __shared__ double del_kai[256];
+    __shared__ double del_kai[1024];
 
-    // if ( id == 0 )
-    // printf("%f\n", *lambda_trial);
 
     if ( id < numElements )
     {
         del_kai[id] = ( del_t / eta ) * ( df[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, N ) ) );
         
+		// printf("%d : %e \n", id, del_kai[id]);
 
         if ( del_kai[id] + kai[id] > 1 )
         kai_trial[id] = 1;
