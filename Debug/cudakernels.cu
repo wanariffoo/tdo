@@ -78,6 +78,22 @@ double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_ro
     return 0.0;
 }
 
+// adds the value to an ELLPack matrix A at (x,y)
+__device__
+void addAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value )
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {
+        if(vIndex[y * max_row_size + k] == x)
+        {
+            
+            vValue[y * max_row_size + k] += value;
+            // printf("%f \n", vValue[x * max_row_size + k]);
+                k = max_row_size; // to exit for loop
+            }
+    }
+}
+
 // sets the value of an ELLPack matrix A at (x,y)
 __device__
 void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value )
@@ -86,12 +102,10 @@ void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_s
     {
         if(vIndex[y * max_row_size + k] == x)
         {
-            vValue[y * max_row_size + k] += value;
-            // printf("%f \n", vValue[x * max_row_size + k]);
+            vValue[y * max_row_size + k] = value;
                 k = max_row_size; // to exit for loop
             }
     }
-
 }
 
 __global__
@@ -599,31 +613,25 @@ void assembleGrid2D_GPU(
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
     int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
-	// printf("(%d, %d) = %e\n", idx, idy, A_local[ ( 2*node_index[ idx/2 ] + ( idx % 2 ) ) + 8 * ( 2*node_index[ idy/2 ] + ( idy % 2 ) )]);
-	// if ( idx == 6 && idy == 2 )
-	// {
-	// 	printf("%lu %lu %lu %lu\n", node_index[0], node_index[1], node_index[2], node_index[3]);
-	// 	printf("global(%lu, %lu)\n", 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ) );
-	// 	printf("(%d, %d) = %e\n", idx, idy, A_local[ ( idx + idy * ( 4 * dim ) ) ]);
-	// }
-
-    setAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
+	if ( idx < num_rows && idy < num_rows )
+    	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
 
 
+}
 
 
-		// A_local[ ( idx + idy * ( 4 * dim ) ) ]
-		// x = 2*(idx/2) + ( idx % 2 )
-		// y = 2*(idy/2) + ( idy % 2 )
+__global__
+void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows)
+{
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
-	// printf("%e\n", A_local[0]);
-	// printf("%e\n", valueAt(0,0, value, index, max_row_size));
-// (size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size)
-
-	// setAt( 0, 0, value, index, max_row_size, 2.0 );
-	// setAt( idx, idy, value, index, max_row_size, 4.0 );
-
-} 
+	if ( idx == bc_index && idy == bc_index )
+		setAt( idx, idy, value, index, max_row_size, 1.0 );
+               
+	else if ( idx == bc_index || idy == bc_index )
+		setAt( idx, idy, value, index, max_row_size, 0.0 );
+}
 
 
 // ////////////////////////////////////////////

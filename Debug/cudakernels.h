@@ -33,6 +33,9 @@ __host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim);
 // returns value of an ELLPack matrix A at (x,y)
 __device__ double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size);
 
+// adds the value to an ELLPack matrix A at (x,y)
+__device__ void addAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value );
+
 // sets the value of an ELLPack matrix A at (x,y)
 __device__ void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value );
 
@@ -128,6 +131,8 @@ __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);
 ////////////////////////////////////////////
 
 __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_kai, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index );
+
+__global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
 
 ////////////////////////////////////////////
 // SMOOTHERS

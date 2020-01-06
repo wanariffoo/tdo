@@ -541,10 +541,11 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 void Assembler::UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, double* &d_A_local)
 {
-
+    // TODO: cleanup this function
+    // TODO: add kai
 
     vector<size_t*> d_node_index;
-
+    size_t* d_bc_index;
     d_node_index.resize(4);
 
     for ( int i = 0 ; i < 4 ; i++ )
@@ -553,8 +554,14 @@ void Assembler::UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, 
         CUDA_CALL( cudaMemcpy(d_node_index[i], &m_node_index[i][0], sizeof(size_t) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
     }
 
+    
+        CUDA_CALL( cudaMalloc( (void**)&d_bc_index, sizeof(size_t) * m_bc_index.size() ) );
+        CUDA_CALL( cudaMemcpy(d_bc_index, &m_bc_index[0], sizeof(size_t) * m_bc_index.size(), cudaMemcpyHostToDevice) );
+
     // dim3 gridDim;
     // dim3 blockDim;
+
+    // cout << m_bc_index[0] << endl;
 
     // calculateDimensions( m_num_rows[m_topLev] * m_max_row_size[m_topLev], gridDim, blockDim );
 
@@ -565,12 +572,19 @@ void Assembler::UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, 
     assembleGrid2D_GPU<<<1,blockDim>>>( 2, 2, &d_kai[2], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], 12, 18, d_node_index[2]);
     assembleGrid2D_GPU<<<1,blockDim>>>( 2, 2, &d_kai[3], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], 12, 18, d_node_index[3]);
 
+    cudaDeviceSynchronize();
+    blockDim.x = 18;
+    blockDim.y = 18;
+    blockDim.z = 1;
 
-
+    for ( int i = 0 ; i < m_bc_index.size() ; i++ )
+    applyMatrixBC_GPU<<<1,blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], 12, m_bc_index[i], 18);
+    
 
     // printVector_GPU<<<1,4>>> (d_node_index[0], 4);
-    printELL_GPU<<<1,1>>>(d_value[m_topLev], d_index[m_topLev], 12, 18, 18 );
+    // printELL_GPU<<<1,1>>>(d_value[m_topLev], d_index[m_topLev], 12, 18, 18 );
     cudaDeviceSynchronize();
 
 
 }
+
