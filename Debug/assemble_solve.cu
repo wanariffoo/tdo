@@ -143,7 +143,9 @@ int main()
 
 
     // update stiffness matrix with new d_kai
-
+    // TODO: get d_value, d_index and d_A_local from the class, 
+    // in the end, it's only Update..(d_kai)
+    Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
 
     // // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
     // for ( int elmn_index = 0 ; elmn_index < 4 ; elmn_index++ )

@@ -17,6 +17,8 @@ TDO::TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double e
     // local volume
     m_local_volume = pow(m_h, m_dim);
 
+
+
     
 }
 
@@ -76,6 +78,7 @@ bool TDO::innerloop()
 
 
 
+
     // NOTE:
     //// for loop
      for ( int j = 0 ; j < m_n ; j++ )
@@ -120,8 +123,6 @@ bool TDO::innerloop()
 
     }
 
-    printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_kai, m_numElements);
-    cudaDeviceSynchronize();
 
     cudaDeviceSynchronize();
     return true;

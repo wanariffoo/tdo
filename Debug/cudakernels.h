@@ -124,6 +124,12 @@ __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);
 
 
 ////////////////////////////////////////////
+// ASSEMBLER
+////////////////////////////////////////////
+
+__global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_kai, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index );
+
+////////////////////////////////////////////
 // SMOOTHERS
 ////////////////////////////////////////////
 

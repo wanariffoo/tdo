@@ -21,7 +21,6 @@
                     setAt( 2*node_index[i], 2*node_index[j] + 1 , g_value, g_index, g_max_row_size, valueAt( 2*i, 2*j + 1 , l_value, l_index, l_max_row_size) );
         - NOTE: look into running the kernels in a 2D grid
 
-
     - while assembling in CPU, have GPU malloc and memcpy stuff, like residuum and displacement vectors, gmg multilevel matrices,
 
     - get average iterations of bisection, and don't do the foo memcpy, but do a fixed iteration times
@@ -29,6 +28,13 @@
     - while(foo) boolean, don't do the memcpy, but get an estimate of how many iterations needed
         - draw a graph ( # of iterations vs N size ), and find the linear correlation
         - have a kernel in the end to check the final result, if "failed" is returned, display a message to increase # of iterations
+
+    - this foo loop
+        - check first in device if it's convergent,
+            - if not convergent, don't send the d_foo to host, but instead continue with loop
+            - if it's convergent, send the d_foo to host, and the host will stop the loop
+
+
 
 
 https://www.youtube.com/watch?v=I-W9jw7fwOg&list=PLqMASTX2e0SZb_ca77KBAHy10pz5vWEMp&index=5&t=0s

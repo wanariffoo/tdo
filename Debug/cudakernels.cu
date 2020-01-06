@@ -84,9 +84,9 @@ void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_s
 {
     for(size_t k = 0; k < max_row_size; ++k)
     {
-        if(vIndex[x * max_row_size + k] == y)
+        if(vIndex[y * max_row_size + k] == x)
         {
-            vValue[x * max_row_size + k] += value;
+            vValue[y * max_row_size + k] += value;
             // printf("%f \n", vValue[x * max_row_size + k]);
                 k = max_row_size; // to exit for loop
             }
@@ -577,6 +577,53 @@ void vectorEquals_GPU(double* a, double* b, size_t num_rows)
 
 
 
+
+
+////////////////////////////////////////////
+// ASSEMBLER
+////////////////////////////////////////////
+  
+__global__
+void assembleGrid2D_GPU(
+    size_t N,               		// number of elements per row
+    size_t dim,             		// dimension
+	double* kai,					// the updated design variable value of each element
+    double* A_local,      		// local stiffness matrix
+    double* value,        // global element's ELLPACK value vector
+    size_t* index,        // global element's ELLPACK index vector
+    size_t max_row_size,  			// global element's ELLPACK maximum row size
+    size_t num_rows,      			// global element's ELLPACK number of rows
+    size_t* node_index      // vector that contains the corresponding global indices of the node's local indices
+)        
+{
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	// printf("(%d, %d) = %e\n", idx, idy, A_local[ ( 2*node_index[ idx/2 ] + ( idx % 2 ) ) + 8 * ( 2*node_index[ idy/2 ] + ( idy % 2 ) )]);
+	// if ( idx == 6 && idy == 2 )
+	// {
+	// 	printf("%lu %lu %lu %lu\n", node_index[0], node_index[1], node_index[2], node_index[3]);
+	// 	printf("global(%lu, %lu)\n", 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ) );
+	// 	printf("(%d, %d) = %e\n", idx, idy, A_local[ ( idx + idy * ( 4 * dim ) ) ]);
+	// }
+
+    setAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
+
+
+
+
+		// A_local[ ( idx + idy * ( 4 * dim ) ) ]
+		// x = 2*(idx/2) + ( idx % 2 )
+		// y = 2*(idy/2) + ( idy % 2 )
+
+	// printf("%e\n", A_local[0]);
+	// printf("%e\n", valueAt(0,0, value, index, max_row_size));
+// (size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size)
+
+	// setAt( 0, 0, value, index, max_row_size, 2.0 );
+	// setAt( idx, idy, value, index, max_row_size, 4.0 );
+
+} 
 
 
 // ////////////////////////////////////////////

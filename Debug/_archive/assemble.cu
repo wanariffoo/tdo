@@ -300,14 +300,13 @@ void assembleGrid_GPU(
 }
 
 
+
+// NOTE: sorry I messed up with the parameters, please replace d_A_local with Alocal's 3 ellpack vectors :)
 __global__
 void assembleGrid2D_GPU(
     size_t N,               // number of elements per row
     size_t dim,             // dimension
-    double* l_value,        // local element's ELLPACK value vector
-    size_t* l_index,        // local element's ELLPACK index vector
-    size_t l_max_row_size,  // local element's ELLPACK maximum row size
-    size_t l_num_rows,      // local element's ELLPACK number of rows
+    double* d_A_local,      // local stiffness matrix
     double* g_value,        // global element's ELLPACK value vector
     size_t* g_index,        // global element's ELLPACK index vector
     size_t g_max_row_size,  // global element's ELLPACK maximum row size

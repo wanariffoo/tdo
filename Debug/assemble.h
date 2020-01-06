@@ -19,6 +19,7 @@ public:
     bool assembleLocal();
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
     void setBC(vector<size_t> bc_index);
+    void UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, double* &d_A_local);
  
     size_t getNumElements();
 
@@ -54,6 +55,7 @@ public:
             size_t m_index;
         
     };
+
     
    
 
@@ -121,6 +123,7 @@ private:
 
     //// CUDA
 
+    double* m_d_A_local;
 
     // // local stiffness matrix
     // // ELLPACK format is not used as it is a dense matrix

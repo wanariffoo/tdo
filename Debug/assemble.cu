@@ -176,6 +176,10 @@ bool Assembler::init(
 
     
     //// CUDA
+    
+    // TODO: CHECK:
+    m_d_A_local = d_A_local;
+
 
     // allocating memory in device
 
@@ -535,14 +539,38 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 }
 
-    // int a = 0;
-    // for ( int j = 0 ; j < 8 ; j++ )
-    // {
-    //     for ( int i = 0 ; i < 8 ; i++ )
-    //         {
-    //             cout << m_A_local[a] << " ";
-    //             a++;
-    //         }
+void Assembler::UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, double* &d_A_local)
+{
 
-    //         cout << "\n";
-    // }
+
+    vector<size_t*> d_node_index;
+
+    d_node_index.resize(4);
+
+    for ( int i = 0 ; i < 4 ; i++ )
+    {
+        CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * m_numElements[m_topLev]) );
+        CUDA_CALL( cudaMemcpy(d_node_index[i], &m_node_index[i][0], sizeof(size_t) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+    }
+
+    // dim3 gridDim;
+    // dim3 blockDim;
+
+    // calculateDimensions( m_num_rows[m_topLev] * m_max_row_size[m_topLev], gridDim, blockDim );
+
+    setToZero <<< 1 , 216 >>> ( d_value[m_topLev], 216 );
+    dim3 blockDim(8,8,1);
+    assembleGrid2D_GPU<<<1,blockDim>>>( 2, 2, &d_kai[0], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], 12, 18, d_node_index[0]);
+    assembleGrid2D_GPU<<<1,blockDim>>>( 2, 2, &d_kai[1], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], 12, 18, d_node_index[1]);
+    assembleGrid2D_GPU<<<1,blockDim>>>( 2, 2, &d_kai[2], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], 12, 18, d_node_index[2]);
+    assembleGrid2D_GPU<<<1,blockDim>>>( 2, 2, &d_kai[3], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], 12, 18, d_node_index[3]);
+
+
+
+
+    // printVector_GPU<<<1,4>>> (d_node_index[0], 4);
+    printELL_GPU<<<1,1>>>(d_value[m_topLev], d_index[m_topLev], 12, 18, 18 );
+    cudaDeviceSynchronize();
+
+
+}
