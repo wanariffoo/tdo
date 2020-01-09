@@ -147,30 +147,8 @@ int main()
     // in the end, it's only Update..(d_kai)
     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
 
-    // // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
-    // for ( int elmn_index = 0 ; elmn_index < 4 ; elmn_index++ )
-    // {
-    //     for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
-    //     {
-    //         for ( int y = 0 ; y < 4 ; y++ )        // TODO: dim   
-    //         {      
-    //                 m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y)     ] += pow(d_kai[elem], m_p) * valueAt( 2*x    , 2*y     );
-    //                 m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x)     ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += pow(d_kai[elem], m_p) * valueAt( 2*x    , 2*y + 1 );
-    //                 m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y)     ] += pow(d_kai[elem], m_p) * valueAt( 2*x + 1, 2*y     );
-    //                 m_A_g[m_topLev][ 2*m_element[elmn_index].nodeIndex(x) + 1 ][ 2*m_element[elmn_index].nodeIndex(y) + 1 ] += pow(d_kai[elem], m_p) * valueAt( 2*x + 1, 2*y + 1 );
-    //         }
-    //     }
-    // }
+    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
-    // // cleanup: replacing any values <1e-7 to 0.0
-    // for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ ) // TODO: dim  
-    // {
-    //     for ( int y = 0 ; y < m_numNodes[m_topLev]*m_dim ; y++ )        // TODO: dim   
-    //     {      
-    //         if ( m_A_g[m_topLev][x][y] < 1e-7 && m_A_g[m_topLev][x][y] > -1e-7)
-    //             m_A_g[m_topLev][x][y] = 0.0;
-    //     }
-    // }
 
 
 
