@@ -92,9 +92,10 @@ bool TDO::innerloop()
         // printVector_GPU<<<1,4>>> ( m_d_df, 4 );
 
 
-
+        // TODO: laplacian_GPU in these kernels only work on sym. matrices
+            // esp for north elements, N*N --> Nx * Ny
         // bisection algo: 
-            
+        
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_beta, m_d_kai, m_eta, m_N[0], m_numElements);
         calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_beta, m_d_kai, m_eta, m_N[0], m_numElements);
