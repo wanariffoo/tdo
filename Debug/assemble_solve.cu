@@ -39,7 +39,14 @@ int main()
     double damp = 2.0/3.0;
     
     // boundary conditions
-    vector<size_t> bc_index = {0, 1, 6, 7, 12, 13};
+    // TODO: give BC cases
+        // MBB with fixed sides
+        // MBB with ...
+    // TODO: assembleBC( size_t case );
+
+    vector<vector<size_t>> bc_index(numLevels);
+    bc_index[0] = {0, 1, 4, 5};
+    bc_index[1] = {0, 1, 6, 7, 12, 13};
 
     // TDO
     double rho = 0.4;
@@ -134,18 +141,18 @@ int main()
     // produces updated d_kai
 
     // converge?
-    double eta = 12.0;
-    double beta = 1.0;
+    // double eta = 12.0;
+    // double beta = 1.0;
 
-    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
-    tdo.init();
-    tdo.innerloop();    // get updated d_kai
+    // TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
+    // tdo.init();
+    // tdo.innerloop();    // get updated d_kai
 
 
-    // update stiffness matrix with new d_kai
-    // TODO: get d_value, d_index and d_A_local from the class, 
-    // in the end, it's only Update..(d_kai)
-    Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
+    // // update stiffness matrix with new d_kai
+    // // TODO: get d_value, d_index and d_A_local from the class, 
+    // // in the end, it's only Update..(d_kai)
+    // Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
 
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 

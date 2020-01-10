@@ -19,7 +19,7 @@ public:
     bool assembleLocal();
     bool assembleProlMatrix(size_t lev);
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
-    void setBC(vector<size_t> bc_index);
+    void setBC(vector<vector<size_t>> bc_index);
     void UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, double* &d_A_local);
  
     size_t getNumElements();
@@ -57,11 +57,6 @@ public:
         
     };
 
-    
-   
-
-
-
 
 private:
     // grid dimensions
@@ -89,7 +84,7 @@ private:
     size_t m_numLevels;
     size_t m_topLev;
 
-    vector<size_t> m_bc_index;
+    vector<vector<size_t>> m_bc_index;
 
     //// TDO
     double m_rho;

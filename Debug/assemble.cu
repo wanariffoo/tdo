@@ -76,7 +76,7 @@ Assembler::~Assembler()
 }
 
 
-void Assembler::setBC(vector<size_t> bc_index)
+void Assembler::setBC(vector<vector<size_t>> bc_index)
 {
     m_bc_index = bc_index;
 }
@@ -194,15 +194,14 @@ bool Assembler::init(
 
 
 
-    // for ( int i = 0 ; i < num_rows[1] ; i++ )
-    // {
-    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
-    //         cout << m_P[0][i][j] << " ";
+    for ( int i = 0 ; i < num_rows[1] ; i++ )
+    {
+        for ( int j = 0 ; j < num_rows[0] ; j++ )
+            cout << m_P[0][i][j] << " ";
 
-    //     cout << "\n";
-    // }
+        cout << "\n";
+    }
 
-    // cout << m_P[0][17][7] << endl;
 
 
 
@@ -394,7 +393,7 @@ bool Assembler::assembleProlMatrix(size_t lev)
     
     for ( int k = lev ; k != 0 ; k-- )
     {
-        for ( int i = 0 ; i < m_numNodes[0]*m_dim ; i += 2)
+        for ( int i = 0 ; i < m_numNodes[k-1]*m_dim ; i += 2)
         {
             for ( int j = 0 ; j < m_dim ; j++ )
             {
@@ -438,6 +437,34 @@ bool Assembler::assembleProlMatrix(size_t lev)
         }
     }
     
+    
+
+    // CHECK: have to loop through the fine DOFs?
+    // applying BC to relevant DOFs
+    for ( int k = lev ; k != 0 ; k-- )
+    {
+        // loop through each coarse DOF
+        for ( int j = 0 ; j < m_numNodes[k-1]*m_dim ; j++ )
+        {
+            for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
+            {
+                if ( j == m_bc_index[k-1][m] )
+                {
+                    for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
+                    {
+                        m_P[k-1][i][j] = 0;
+                    }
+
+                    // m_P[k-1][ ( 2*(j % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( j / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1)  ][ j ] = 1;
+                }
+            }
+        }
+    }
+
+
+
+
+
     return true;
 }
 
@@ -505,8 +532,8 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
-    for ( int i = 0 ; i < m_bc_index.size() ; ++i )
-        applyMatrixBC(m_A_g[m_topLev], m_bc_index[i], num_rows[m_topLev]);
+    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; ++i )
+        applyMatrixBC(m_A_g[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev]);
 
     // // resizing the prolongation matrices according to the number of grid-levels
     // m_P.resize( m_numLevels - 1 );
@@ -669,7 +696,7 @@ void Assembler::UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, 
     blockDim.z = 1;
 
     for ( int i = 0 ; i < m_bc_index.size() ; i++ )
-    applyMatrixBC_GPU<<<1,blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], 12, m_bc_index[i], 18);
+    applyMatrixBC_GPU<<<1,blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], 12, m_bc_index[m_topLev][i], 18);
     
 
     // printVector_GPU<<<1,4>>> (d_node_index[0], 4);
