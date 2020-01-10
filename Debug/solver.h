@@ -16,7 +16,7 @@ public:
     bool init();
 
     bool solve(double* d_u, double* d_r);
-    // bool solve_(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, vector<double*> d_p_value, vector<size_t*> d_p_index, vector<size_t> p_max_row_size,double* d_u, double* d_b, size_t numLevels, vector<size_t> num_rows);
+    
 
     bool base_solve(double* d_bs_u, double* d_bs_b);
 

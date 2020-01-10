@@ -194,96 +194,96 @@ bool Assembler::init(
 
 
 
-    for ( int i = 0 ; i < num_rows[1] ; i++ )
-    {
-        for ( int j = 0 ; j < num_rows[0] ; j++ )
-            cout << m_P[0][i][j] << " ";
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
+    //         cout << m_P[0][i][j] << " ";
 
-        cout << "\n";
+    //     cout << "\n";
+    // }
+
+
+
+
+
+
+    // TODO: CHECK: check the numbers here as well
+    assembleGlobal(num_rows, max_row_size, p_max_row_size);
+
+    
+    //// CUDA
+    
+    // TODO: CHECK:
+    m_d_A_local = d_A_local;
+
+
+    // allocating memory in device
+
+    // design variables
+    CUDA_CALL( cudaMalloc((void**)&d_kai, sizeof(double) * m_numElements[m_topLev] ) );
+
+    // local stiffness
+    CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_A_local.size() ) );
+
+    // prolongation matrices on each grid-level
+    d_p_value.resize( m_numLevels - 1 );
+    d_p_index.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
+    }
+    
+    // global matrices on each grid-level
+    d_value.resize( m_numLevels );
+    d_index.resize( m_numLevels );
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
     }
 
+    cudaDeviceSynchronize();
 
-
-
-
-
-    // // TODO: CHECK: check the numbers here as well
-    // assembleGlobal(num_rows, max_row_size, p_max_row_size);
-
+    // copy memory to device
     
-    // //// CUDA
+    CUDA_CALL( cudaMemcpy(d_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
+    CUDA_CALL( cudaMemcpy(d_kai, &m_kai[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+    }
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_value[lev], &m_value_g[lev][0], sizeof(double) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+    }
     
-    // // TODO: CHECK:
-    // m_d_A_local = d_A_local;
+    // DEBUG: TEST: node index
+    // m_node_index[num of elements][num nodes per element]
+    // m_node_index.resize(m_numElements, vector<size_t>(pow(2, m_dim)));
+    // m_node_index.resize(m_numElements, vector<size_t>(4));
+    // size_t m_node_index[m_numElements][pow(2, m_dim)];
 
 
-    // // allocating memory in device
+    m_node_index.resize(m_numElements[m_topLev]);
+    d_node_index.resize(m_numElements[m_topLev]);
+    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    {
+        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+    }
 
-    // // design variables
-    // CUDA_CALL( cudaMalloc((void**)&d_kai, sizeof(double) * m_numElements[m_topLev] ) );
-
-    // // local stiffness
-    // CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_A_local.size() ) );
-
-    // // prolongation matrices on each grid-level
-    // d_p_value.resize( m_numLevels - 1 );
-    // d_p_index.resize( m_numLevels - 1 );
-
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    // {
-    //     CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
-    //     CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
-    // }
-    
-    // // global matrices on each grid-level
-    // d_value.resize( m_numLevels );
-    // d_index.resize( m_numLevels );
-
-    // for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    // {
-    //     CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
-    //     CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
-    // }
-
-    // cudaDeviceSynchronize();
-
-    // // copy memory to device
-    
-    // CUDA_CALL( cudaMemcpy(d_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
-    // CUDA_CALL( cudaMemcpy(d_kai, &m_kai[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
-
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    // {
-    //     CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
-    //     CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
-    // }
-
-    // for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    // {
-    //     CUDA_CALL( cudaMemcpy(d_value[lev], &m_value_g[lev][0], sizeof(double) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
-    //     CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
-    // }
-    
-    // // DEBUG: TEST: node index
-    // // m_node_index[num of elements][num nodes per element]
-    // // m_node_index.resize(m_numElements, vector<size_t>(pow(2, m_dim)));
-    // // m_node_index.resize(m_numElements, vector<size_t>(4));
-    // // size_t m_node_index[m_numElements][pow(2, m_dim)];
-
-
-    // m_node_index.resize(m_numElements[m_topLev]);
-    // d_node_index.resize(m_numElements[m_topLev]);
-    // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    // {
-    //     for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
-    //         m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
-    // }
-
-    // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    // {
-    //     CUDA_CALL( cudaMalloc((void**)&d_node_index[elem], sizeof(size_t) * pow(2, m_dim) ) );
-    //     CUDA_CALL( cudaMemcpy(d_node_index[elem], &m_node_index[elem][0], sizeof(size_t) * pow(2, m_dim), cudaMemcpyHostToDevice) );
-    // }
+    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_node_index[elem], sizeof(size_t) * pow(2, m_dim) ) );
+        CUDA_CALL( cudaMemcpy(d_node_index[elem], &m_node_index[elem][0], sizeof(size_t) * pow(2, m_dim), cudaMemcpyHostToDevice) );
+    }
 
     return true;
 
@@ -444,7 +444,7 @@ bool Assembler::assembleProlMatrix(size_t lev)
     for ( int k = lev ; k != 0 ; k-- )
     {
         // loop through each coarse DOF
-        for ( int j = 0 ; j < m_numNodes[k-1]*m_dim ; j++ )
+        for ( int j = 0 ; j < m_numNodes[k-1] ; j += m_dim )
         {
             for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
             {
@@ -452,10 +452,14 @@ bool Assembler::assembleProlMatrix(size_t lev)
                 {
                     for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
                     {
-                        m_P[k-1][i][j] = 0;
+                        // loop through each dimension
+                        for ( int n = 0 ; n < m_dim ; n++ )
+                            m_P[k-1][i][j*m_dim +n] = 0;
                     }
 
-                    // m_P[k-1][ ( 2*(j % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( j / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1)  ][ j ] = 1;
+                    // loop through each dimension
+                    for ( int n = 0 ; n < m_dim ; n++ )
+                        m_P[k-1][ ( 2*(j*m_dim % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( j*m_dim / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + n ][ j*m_dim + n] = 1;
                 }
             }
         }
@@ -473,6 +477,9 @@ bool Assembler::assembleProlMatrix(size_t lev)
 // will return d_value, d_index, d_max_row_size
 bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size)
 {
+
+    
+
     // TODO: if no BC is set, return false with error
     // cout << "assembleGlobal" << endl;
     // adding nodes and elements to the top-level global grid
@@ -555,31 +562,31 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     
 
     // DEBUG: temporary prolong
-    m_P[0] =   {
-            {1,	0,	0,	0,	0,	0,	0,	0},
-            {0,	1,	0,	0,	0,	0,	0,	0},
-            {0,	0,	0.5,	0,	0,	0,	0,	0},
-            {0,	0,	0,	0.5,	0,	0,	0,	0},
-            {0,	0,	1,	0,	0,	0,	0,	0},
-            {0,	0,	0,	1,	0,	0,	0,	0},
-            {0,	0,	0,	0,	0,	0,	0,	0},
-            {0,	0,	0,	0,	0,	0,	0,	0},
-            {0,	0,	0.25,	0,	0,	0,	0.25,	0},
-            {0,	0,	0,	0.25,	0,	0,	0,	0.25},
-            {0,	0,	0.5,	0,	0,	0,	0.5,	0},
-            {0,	0,	0,	0.5,	0,	0,	0,	0.5},
-            {0,	0,	0,	0,	1,	0,	0,	0},
-            {0,	0,	0,	0,	0,	1,	0,	0},
-            {0,	0,	0,	0,	0,	0,	0.5,	0},
-            {0,	0,	0,	0,	0,	0,	0,	0.5},
-            {0,	0,	0,	0,	0,	0,	1,	0},
-            {0,	0,	0,	0,	0,	0,	0,	1}
-            };
+    // m_P[0] =   {
+    //         {1,	0,	0,	0,	0,	0,	0,	0},
+    //         {0,	1,	0,	0,	0,	0,	0,	0},
+    //         {0,	0,	0.5,	0,	0,	0,	0,	0},
+    //         {0,	0,	0,	0.5,	0,	0,	0,	0},
+    //         {0,	0,	1,	0,	0,	0,	0,	0},
+    //         {0,	0,	0,	1,	0,	0,	0,	0},
+    //         {0,	0,	0,	0,	0,	0,	0,	0},
+    //         {0,	0,	0,	0,	0,	0,	0,	0},
+    //         {0,	0,	0.25,	0,	0,	0,	0.25,	0},
+    //         {0,	0,	0,	0.25,	0,	0,	0,	0.25},
+    //         {0,	0,	0.5,	0,	0,	0,	0.5,	0},
+    //         {0,	0,	0,	0.5,	0,	0,	0,	0.5},
+    //         {0,	0,	0,	0,	1,	0,	0,	0},
+    //         {0,	0,	0,	0,	0,	1,	0,	0},
+    //         {0,	0,	0,	0,	0,	0,	0.5,	0},
+    //         {0,	0,	0,	0,	0,	0,	0,	0.5},
+    //         {0,	0,	0,	0,	0,	0,	1,	0},
+    //         {0,	0,	0,	0,	0,	0,	0,	1}
+    //         };
 
 
-    // for ( int i = 0 ; i < m_num_rows[1] ; i++ )
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
     // {
-    //     for ( int j = 0 ; j < m_num_rows[0] ; j++ )
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
     //         cout << m_P[0][i][j] << " ";
 
     //     cout << "\n";
