@@ -107,17 +107,17 @@ int main()
 
 
 
-    // TODO: remove num_cols
-    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    // // TODO: remove num_cols
+    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
-    GMG.init();
-    GMG.set_num_prepostsmooth(1,1);
-    GMG.set_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_cycle('V');
-    GMG.set_steps(150, 50);
-    cudaDeviceSynchronize();
-    GMG.solve(d_u, d_b);
+    // GMG.init();
+    // GMG.set_num_prepostsmooth(1,1);
+    // GMG.set_convergence_params(1, 1e-99, 1e-10);
+    // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    // GMG.set_cycle('V');
+    // GMG.set_steps(150, 50);
+    // cudaDeviceSynchronize();
+    // GMG.solve(d_u, d_b);
     // GMG.solve_(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_u, d_b, numLevels, num_rows);
     // cudaDeviceSynchronize();
     
@@ -147,7 +147,7 @@ int main()
     // in the end, it's only Update..(d_kai)
     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
 
-    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
 
 

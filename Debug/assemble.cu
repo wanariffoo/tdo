@@ -62,6 +62,8 @@ Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, do
             N[i] *= 2;
         }
     }
+
+    
    
     
 
@@ -150,7 +152,7 @@ bool Assembler::init(
     num_rows.resize(m_numLevels);
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
         num_rows[lev] = m_numNodes[lev] * m_dim;
-
+    
 
     // storing the design variable in each element
     // initial value is rho in all elements
@@ -170,84 +172,119 @@ bool Assembler::init(
 
     //         cout << "\n";
     // }
-    
-    // TODO: CHECK: check the numbers here as well
-    assembleGlobal(num_rows, max_row_size, p_max_row_size);
+
+    // resizing the prolongation matrices according to the number of grid-levels
+    m_P.resize( m_numLevels - 1 );
+
+    m_P[0].resize(num_rows[1], vector<double>(num_rows[0]));
+
+
+    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
+    // {
+    //     // number of columns in each level
+    //     m_P[lev].resize(num_rows[lev]);
+        
+    //     // number of rows in each level
+    //     for ( int j = 0 ; j < num_rows[lev] ; j++ )
+    //             m_P[lev][j].resize(num_rows[lev + 1]);
+    // }
+
+    assembleProlMatrix(m_topLev);
+
+
+
+
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
+    //         cout << m_P[0][i][j] << " ";
+
+    //     cout << "\n";
+    // }
+
+    // cout << m_P[0][17][7] << endl;
+
+
+
+
+
+    // // TODO: CHECK: check the numbers here as well
+    // assembleGlobal(num_rows, max_row_size, p_max_row_size);
 
     
-    //// CUDA
+    // //// CUDA
     
-    // TODO: CHECK:
-    m_d_A_local = d_A_local;
+    // // TODO: CHECK:
+    // m_d_A_local = d_A_local;
 
 
-    // allocating memory in device
+    // // allocating memory in device
 
-    // design variables
-    CUDA_CALL( cudaMalloc((void**)&d_kai, sizeof(double) * m_numElements[m_topLev] ) );
+    // // design variables
+    // CUDA_CALL( cudaMalloc((void**)&d_kai, sizeof(double) * m_numElements[m_topLev] ) );
 
-    // local stiffness
-    CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_A_local.size() ) );
+    // // local stiffness
+    // CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_A_local.size() ) );
 
-    // prolongation matrices on each grid-level
-    d_p_value.resize( m_numLevels - 1 );
-    d_p_index.resize( m_numLevels - 1 );
+    // // prolongation matrices on each grid-level
+    // d_p_value.resize( m_numLevels - 1 );
+    // d_p_index.resize( m_numLevels - 1 );
 
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    {
-        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
-        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
-    }
+    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    // {
+    //     CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
+    //     CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
+    // }
     
-    // global matrices on each grid-level
-    d_value.resize( m_numLevels );
-    d_index.resize( m_numLevels );
+    // // global matrices on each grid-level
+    // d_value.resize( m_numLevels );
+    // d_index.resize( m_numLevels );
 
-    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    {
-        CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
-        CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
-    }
+    // for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    // {
+    //     CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
+    //     CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
+    // }
 
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
 
-    // copy memory to device
+    // // copy memory to device
     
-    CUDA_CALL( cudaMemcpy(d_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
-    CUDA_CALL( cudaMemcpy(d_kai, &m_kai[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+    // CUDA_CALL( cudaMemcpy(d_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
+    // CUDA_CALL( cudaMemcpy(d_kai, &m_kai[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
 
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    {
-        CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
-        CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
-    }
+    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    // {
+    //     CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+    //     CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+    // }
 
-    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    {
-        CUDA_CALL( cudaMemcpy(d_value[lev], &m_value_g[lev][0], sizeof(double) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
-        CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
-    }
+    // for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    // {
+    //     CUDA_CALL( cudaMemcpy(d_value[lev], &m_value_g[lev][0], sizeof(double) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+    //     CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+    // }
     
-    // DEBUG: TEST: node index
-    // m_node_index[num of elements][num nodes per element]
-    // m_node_index.resize(m_numElements, vector<size_t>(pow(2, m_dim)));
-    // m_node_index.resize(m_numElements, vector<size_t>(4));
-    // size_t m_node_index[m_numElements][pow(2, m_dim)];
+    // // DEBUG: TEST: node index
+    // // m_node_index[num of elements][num nodes per element]
+    // // m_node_index.resize(m_numElements, vector<size_t>(pow(2, m_dim)));
+    // // m_node_index.resize(m_numElements, vector<size_t>(4));
+    // // size_t m_node_index[m_numElements][pow(2, m_dim)];
 
 
-    m_node_index.resize(m_numElements[m_topLev]);
-    d_node_index.resize(m_numElements[m_topLev]);
-    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    {
-        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
-            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
-    }
+    // m_node_index.resize(m_numElements[m_topLev]);
+    // d_node_index.resize(m_numElements[m_topLev]);
+    // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    // {
+    //     for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+    //         m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+    // }
 
-    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    {
-        CUDA_CALL( cudaMalloc((void**)&d_node_index[elem], sizeof(size_t) * pow(2, m_dim) ) );
-        CUDA_CALL( cudaMemcpy(d_node_index[elem], &m_node_index[elem][0], sizeof(size_t) * pow(2, m_dim), cudaMemcpyHostToDevice) );
-    }
+    // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    // {
+    //     CUDA_CALL( cudaMalloc((void**)&d_node_index[elem], sizeof(size_t) * pow(2, m_dim) ) );
+    //     CUDA_CALL( cudaMemcpy(d_node_index[elem], &m_node_index[elem][0], sizeof(size_t) * pow(2, m_dim), cudaMemcpyHostToDevice) );
+    // }
 
     return true;
 
@@ -346,11 +383,64 @@ bool Assembler::assembleLocal()
     return true;
 }
 
-
 double Assembler::valueAt(size_t x, size_t y)
 {
     return m_A_local[y + x*m_num_rows_l];
 }
+
+
+bool Assembler::assembleProlMatrix(size_t lev)
+{
+    
+    for ( int k = lev ; k != 0 ; k-- )
+    {
+        for ( int i = 0 ; i < m_numNodes[0]*m_dim ; i += 2)
+        {
+            for ( int j = 0 ; j < m_dim ; j++ )
+            {
+        
+            // same node
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j][i+j] = 1;
+
+            // east node
+            if ( (i / 2 + 1) % (m_N[k-1][0]+1) != 0 )
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2][i+j] += 0.5;
+
+            // north node
+            if ( i / 2 + (m_N[k-1][0] + 1) < (m_N[k-1][0] + 1)*(m_N[k-1][1] + 1))
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2*(m_N[k][0] + 1) ][i+j] += 0.5;
+
+            // west node
+            if ( (i / 2) % (m_N[k-1][0]+1) != 0 )
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2][i+j] += 0.5;
+
+            // south node
+            if ( i / 2 >= m_N[k-1][0] + 1)
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2*(m_N[k][0] + 1)][i+j] += 0.5;
+
+            // north-east node
+            if ( (i / 2 + 1) % (m_N[k-1][0]+1) != 0 && i / 2 + (m_N[k-1][0] + 1) < (m_N[k-1][0] + 1)*(m_N[k-1][1] + 1))
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2*(m_N[k][0] + 1) + 2 ][i+j] = 0.25;
+
+            // north-west node
+            if ( i / 2 + (m_N[k-1][0] + 1) < (m_N[k-1][0] + 1)*(m_N[k-1][1] + 1) && (i / 2) % (m_N[k-1][0]+1) != 0 )
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2*(m_N[k][0] + 1) - 2 ][i+j] = 0.25;
+
+            // south-east node
+            if ( i / 2 >= m_N[k-1][0] + 1 && (i / 2 + 1) % (m_N[k-1][0]+1) != 0 )
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2*(m_N[k][0] + 1) + 2 ][i+j] = 0.25;
+
+            // south-west node
+            if ( i / 2 >= m_N[k-1][0] + 1 && (i / 2) % (m_N[k-1][0]+1) != 0 )
+                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2*(m_N[k][0] + 1) - 2 ][i+j] = 0.25;
+
+            }
+        }
+    }
+    
+    return true;
+}
+
 
 // to produce an ELLmatrix of the global stiffness in the device
 // will return d_value, d_index, d_max_row_size
@@ -418,23 +508,24 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     for ( int i = 0 ; i < m_bc_index.size() ; ++i )
         applyMatrixBC(m_A_g[m_topLev], m_bc_index[i], num_rows[m_topLev]);
 
-    // resizing the prolongation matrices according to the number of grid-levels
-    m_P.resize( m_numLevels - 1 );
+    // // resizing the prolongation matrices according to the number of grid-levels
+    // m_P.resize( m_numLevels - 1 );
     
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
-    {
-        // number of columns in each level
-        m_P[lev].resize(num_rows[lev]);
+    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
+    // {
+    //     // number of columns in each level
+    //     m_P[lev].resize(num_rows[lev]);
         
-        // number of rows in each level
-        for ( int j = 0 ; j < num_rows[lev] ; j++ )
-                m_P[lev][j].resize(num_rows[lev + 1]);
-    }
+    //     // number of rows in each level
+    //     for ( int j = 0 ; j < num_rows[lev] ; j++ )
+    //             m_P[lev][j].resize(num_rows[lev + 1]);
+    // }
 
 
     // TODO: create a function to assemble the prolongation matrices in each level
     // assembleProlMatrices( m_P, m_numLevels )
 
+    
 
     // DEBUG: temporary prolong
     m_P[0] =   {
