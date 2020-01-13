@@ -15,7 +15,7 @@ public:
 
     bool init();
 
-    bool solve(double* d_u, double* d_r);
+    bool solve(double* d_u, double* d_r, vector<double*> d_value);
     
 
     bool base_solve(double* d_bs_u, double* d_bs_b);
@@ -30,6 +30,9 @@ public:
     void set_bs_convergence_params(size_t maxIter, double minRes, double minRed);
 
     bool smoother(double* d_c, double* d_r, int lev);
+
+    // reinitialize the relevant device variables to zero, in order to solve with the updated stiffness matrix
+    bool reinit();
 
     void set_cycle(const char type);
 

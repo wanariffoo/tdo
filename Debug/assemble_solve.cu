@@ -16,19 +16,19 @@
 using namespace std;
 
 
+// TODO: store local k matrix in constant memory
+
 int main()
 {
+    
+
     // Material properties
     double youngMod = 210e6;
     double poisson = 0.3;
 
     // domain dimensions
     size_t dim = 2;
-    double h = 0.5;     // local element size
-
-    // number of elements per dimension
-    // size_t Nx = 1;
-    // size_t Ny = 1;
+    double h = 0.5;     // local element mesh size
 
     vector<size_t> N = {1,1};
 
@@ -93,71 +93,87 @@ int main()
     
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
+    // Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
 
-    /*
-    NOTE: after assembling you should have these :
-    global stiffness matrix ELLPACK
-        - vector<double*> d_value(numLevels)
-        - vector<size_t> d_index(numLevels)
-        - vector<size_t> max_row_size(numLevels)
-        - vector<double*> d_p_value(numLevels - 1)
-        - vector<size_t*> d_p_index(numLevels - 1)
-        - vector<size_t> p_max_row_size(numLevels -1 )
-    */
+//     /*
+//     NOTE: after assembling you should have these :
+//     global stiffness matrix ELLPACK
+//         - vector<double*> d_value(numLevels)
+//         - vector<size_t> d_index(numLevels)
+//         - vector<size_t> max_row_size(numLevels)
+//         - vector<double*> d_p_value(numLevels - 1)
+//         - vector<size_t*> d_p_index(numLevels - 1)
+//         - vector<size_t> p_max_row_size(numLevels -1 )
+//     */
    
-    /*
-    ##################################################################
-    #                           SOLVER                               #
-    ##################################################################
-    */
+//     /*
+//     ##################################################################
+//     #                           SOLVER                               #
+//     ##################################################################
+//     */
 
 
-//    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+// //    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
 
 
-    // TODO: remove num_cols
-    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+        // TODO: remove num_cols
+        Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
-    GMG.init();
-    GMG.set_num_prepostsmooth(1,1);
-    GMG.set_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_cycle('V');
-    GMG.set_steps(150, 50);
-    // cudaDeviceSynchronize();
-    GMG.solve(d_u, d_b);
+        GMG.init();
+        // GMG.set_num_prepostsmooth(1,1);
+        // GMG.set_convergence_params(1, 1e-99, 1e-10);
+        // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+        // GMG.set_cycle('V');
+        // GMG.set_steps(150, 50);
+        // // cudaDeviceSynchronize();
+        // GMG.solve(d_u, d_b, d_value);
     
-    // cudaDeviceSynchronize();
+//     // cudaDeviceSynchronize();
+
+//     printVector_GPU<<<1,18>>>( d_u, 18);
     
     
-    /*
-    ##################################################################
-    #                           TDO                                  #
-    ##################################################################
-    */
+//     /*
+//     ##################################################################
+//     #                           TDO                                  #
+//     ##################################################################
+//     */
 
     
-    // TDO algorithm, tdo.cu
-    // produces updated d_kai
+//     // TDO algorithm, tdo.cu
+//     // produces updated d_kai
 
-    // converge?
-    double eta = 12.0;
-    double beta = 1.0;
+//     // converge?
+//     double eta = 12.0;
+//     double beta = 1.0;
 
-    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
-    tdo.init();
-    tdo.innerloop();    // get updated d_kai
+//     TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
+//     tdo.init();
+//     tdo.innerloop();    // get updated d_kai
 
 
-    // // update stiffness matrix with new d_kai
-    // // TODO: get d_value, d_index and d_A_local from the class, 
-    // // in the end, it's only Update..(d_kai)
-    Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
+//     // // update stiffness matrix with new d_kai
+//     // // TODO: get d_value, d_index and d_A_local from the class, 
+//     // // in the end, it's only Update..(d_kai)
+//     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
 
-    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+//     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
+
+//     GMG.reinit(); // TODO: update global matrix here, update the coarser ones here too 
+//     cudaDeviceSynchronize();
+
+    
+//     // TODO: remove d_value here
+//     GMG.solve(d_u, d_b, d_value);
+
+
+    
+    
+    
+    // PTAP_GPU consider using 2d blocks? :
+    // https://www.quantstart.com/articles/Matrix-Matrix-Multiplication-on-the-GPU-with-Nvidia-CUDA/
 
 
 

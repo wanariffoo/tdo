@@ -311,7 +311,7 @@ void printVector_GPU(int* x)
 	printf("[GPU] x[%d] = %d\n", id, x[id]);
 }
 
-// CHECK: might delete this
+
 __global__
 void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
@@ -539,46 +539,6 @@ void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows)
 }
 
 
-// // __global__ void getMax(double *array, double *max, int *mutex, unsigned int n)
-// // {
-// // 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
-// // 	unsigned int stride = gridDim.x*blockDim.x;
-// // 	unsigned int offset = 0;
-
-// // 	__shared__ double cache[blockDim.x];
-
-
-// // 	double temp = -1.0;
-// // 	while(index + offset < n){
-// // 		temp = fmaxf(temp, array[index + offset]);
-
-// // 		offset += stride;
-// // 	}
-
-// // 	cache[threadIdx.x] = temp;
-
-// // 	__syncthreads();
-
-
-// // 	// reduction
-// // 	unsigned int i = blockDim.x/2;
-// // 	while(i != 0){
-// // 		if(threadIdx.x < i){
-// // 			cache[threadIdx.x] = fmaxf(cache[threadIdx.x], cache[threadIdx.x + i]);
-// // 		}
-
-// // 		__syncthreads();
-// // 		i /= 2;
-// // 	}
-
-// // 	if(threadIdx.x == 0){
-// // 		while(atomicCAS(mutex,0,1) != 0);  //lock
-// // 		*max = fmaxf(*max, cache[0]);
-// // 		atomicExch(mutex, 0);  //unlock
-// // 	}
-// // }
-
-
 // a = b
 __global__ 
 void vectorEquals_GPU(double* a, double* b, size_t num_rows)
@@ -615,7 +575,6 @@ void assembleGrid2D_GPU(
 
 	if ( idx < num_rows && idy < num_rows )
     	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
-
 
 }
 

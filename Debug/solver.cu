@@ -96,118 +96,153 @@ bool Solver::init()
         m_gridDim.resize(m_numLevels);
         m_blockDim.resize(m_numLevels);
 
-        for ( int i = 0 ; i < m_numLevels ; i++ )
-            calculateDimensions(m_num_rows[i], m_gridDim[i], m_blockDim[i]);
+        // TODO:
+        cout << m_num_rows[0] << endl;
+
+        // for ( int i = 0 ; i < m_numLevels ; i++ )
+        //     calculateDimensions(m_num_rows[i], m_gridDim[i], m_blockDim[i]);
 		    
-		m_gridDim_cols.resize(m_numLevels - 1);
-        m_blockDim_cols.resize(m_numLevels - 1);
+		// m_gridDim_cols.resize(m_numLevels - 1);
+        // m_blockDim_cols.resize(m_numLevels - 1);
 
-        for ( int i = 0 ; i < m_numLevels - 1; i++ )
-		    calculateDimensions(m_num_rows[i], m_gridDim_cols[i], m_blockDim_cols[i]);
+        // for ( int i = 0 ; i < m_numLevels - 1; i++ )
+		//     calculateDimensions(m_num_rows[i], m_gridDim_cols[i], m_blockDim_cols[i]);
 
         
 
-        CUDA_CALL( cudaMalloc((void**)&m_d_r, sizeof(double) * m_num_rows[m_topLev]) );
-        CUDA_CALL( cudaMemset(m_d_r, 0, sizeof(double) * m_num_rows[m_topLev]) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_c, sizeof(double) * m_num_rows[m_topLev]) );
-        CUDA_CALL( cudaMemset(m_d_c, 0, sizeof(double) * m_num_rows[m_topLev]) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_r, sizeof(double) * m_num_rows[m_topLev]) );
+        // CUDA_CALL( cudaMemset(m_d_r, 0, sizeof(double) * m_num_rows[m_topLev]) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_c, sizeof(double) * m_num_rows[m_topLev]) );
+        // CUDA_CALL( cudaMemset(m_d_c, 0, sizeof(double) * m_num_rows[m_topLev]) );
 
-        // TODO: perhaps you could use a temp variable here, no need to malloc?
-        // temp residuum
-        CUDA_CALL( cudaMalloc((void**)&m_d_res0, sizeof(double)) );
-        CUDA_CALL( cudaMemset(m_d_res0, 0, sizeof(double)) );
+        // // TODO: perhaps you could use a temp variable here, no need to malloc?
+        // // temp residuum
+        // CUDA_CALL( cudaMalloc((void**)&m_d_res0, sizeof(double)) );
+        // CUDA_CALL( cudaMemset(m_d_res0, 0, sizeof(double)) );
 
-        // last residuum
-        CUDA_CALL( cudaMalloc((void**)&m_d_lastRes, sizeof(double)) );
-        CUDA_CALL( cudaMemset(m_d_lastRes, 0, sizeof(double)) );
+        // // last residuum
+        // CUDA_CALL( cudaMalloc((void**)&m_d_lastRes, sizeof(double)) );
+        // CUDA_CALL( cudaMemset(m_d_lastRes, 0, sizeof(double)) );
         
-        // current residuum
-        CUDA_CALL( cudaMalloc((void**)&m_d_res, sizeof(double)) );
-        CUDA_CALL( cudaMemset(m_d_res, 0, sizeof(double)) );
+        // // current residuum
+        // CUDA_CALL( cudaMalloc((void**)&m_d_res, sizeof(double)) );
+        // CUDA_CALL( cudaMemset(m_d_res, 0, sizeof(double)) );
     
-        // minimum required residuum for convergence
-        // d_m_minRes;
-        CUDA_CALL( cudaMalloc((void**)&m_d_m_minRes, sizeof(double)) );
-        CUDA_CALL( cudaMemset(m_d_m_minRes, m_minRes, sizeof(double)) );
+        // // minimum required residuum for convergence
+        // // d_m_minRes;
+        // CUDA_CALL( cudaMalloc((void**)&m_d_m_minRes, sizeof(double)) );
+        // CUDA_CALL( cudaMemset(m_d_m_minRes, m_minRes, sizeof(double)) );
         
-        // minimum required reduction for convergence
-        // d_m_minRed;
-        CUDA_CALL( cudaMalloc((void**)&m_d_m_minRed, sizeof(double)) );
-        CUDA_CALL( cudaMemset(m_d_m_minRed, m_minRed, sizeof(double)) );
+        // // minimum required reduction for convergence
+        // // d_m_minRed;
+        // CUDA_CALL( cudaMalloc((void**)&m_d_m_minRed, sizeof(double)) );
+        // CUDA_CALL( cudaMemset(m_d_m_minRed, m_minRed, sizeof(double)) );
         
-        // steps
-        CUDA_CALL( cudaMalloc((void**)&m_d_step, sizeof(size_t)) );
-        CUDA_CALL( cudaMemset(m_d_step, 0, sizeof(size_t)) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_step, sizeof(size_t)) );
-        CUDA_CALL( cudaMemset(m_d_bs_step, 0, sizeof(size_t)) );
+        // // steps
+        // CUDA_CALL( cudaMalloc((void**)&m_d_step, sizeof(size_t)) );
+        // CUDA_CALL( cudaMemset(m_d_step, 0, sizeof(size_t)) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_step, sizeof(size_t)) );
+        // CUDA_CALL( cudaMemset(m_d_bs_step, 0, sizeof(size_t)) );
 
-        /// GMG precond
-        // residuum and correction vectors on each level
-        m_d_gmg_r.resize(m_numLevels);
-        m_d_gmg_c.resize(m_numLevels);
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[1], sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[1], sizeof(double) * m_num_rows[1] ) );
+        // /// GMG precond
+        // // residuum and correction vectors on each level
+        // m_d_gmg_r.resize(m_numLevels);
+        // m_d_gmg_c.resize(m_numLevels);
+        // CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[0], sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[1], sizeof(double) * m_num_rows[1] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[0], sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[1], sizeof(double) * m_num_rows[1] ) );
 
-        CUDA_CALL( cudaMemset(m_d_gmg_r[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_gmg_r[1], 0, sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMemset(m_d_gmg_c[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_gmg_c[1], 0, sizeof(double) * m_num_rows[1] ) );
+        // CUDA_CALL( cudaMemset(m_d_gmg_r[0], 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_gmg_r[1], 0, sizeof(double) * m_num_rows[1] ) );
+        // CUDA_CALL( cudaMemset(m_d_gmg_c[0], 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_gmg_c[1], 0, sizeof(double) * m_num_rows[1] ) );
 
 
-        // temporary residuum vectors for GMG
-        m_d_rtmp.resize(m_numLevels);
-        CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[1], sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMemset(m_d_rtmp[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_rtmp[1], 0, sizeof(double) * m_num_rows[1] ) );
+        // // temporary residuum vectors for GMG
+        // m_d_rtmp.resize(m_numLevels);
+        // CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[0], sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[1], sizeof(double) * m_num_rows[1] ) );
+        // CUDA_CALL( cudaMemset(m_d_rtmp[0], 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_rtmp[1], 0, sizeof(double) * m_num_rows[1] ) );
     
-        // temporary correction vectors for GMG
-        m_d_ctmp.resize(m_numLevels);
-        CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[1], sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMemset(m_d_ctmp[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_ctmp[1], 0, sizeof(double) * m_num_rows[1] ) );
+        // // temporary correction vectors for GMG
+        // m_d_ctmp.resize(m_numLevels);
+        // CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[0], sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[1], sizeof(double) * m_num_rows[1] ) );
+        // CUDA_CALL( cudaMemset(m_d_ctmp[0], 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_ctmp[1], 0, sizeof(double) * m_num_rows[1] ) );
 
 
 
-        // base-solver
+        // // base-solver
 
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_r, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_bs_r, 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_z, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_bs_z, 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_p, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_bs_p, 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_r, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_r, 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_z, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_z, 0, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_p, sizeof(double) * m_num_rows[0] ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_p, 0, sizeof(double) * m_num_rows[0] ) );
 
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_res, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_res, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_res0, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_res0, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_lastRes, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_lastRes, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRes, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_m_minRes, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRed, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_m_minRed, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_rho, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_rho, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_rho_old, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_rho_old, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_alpha, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_alpha, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_alpha_temp, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_alpha_temp, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_alpha_temp, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_alpha_temp, 0, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRed, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_m_minRed, 1e-10, sizeof(double) ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRes, sizeof(double) ) );
-        CUDA_CALL( cudaMemset(m_d_bs_m_minRes, 1e-99, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_res, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_res, 0, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_res0, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_res0, 0, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_lastRes, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_lastRes, 0, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_rho, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_rho, 0, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_rho_old, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_rho_old, 0, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_alpha, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_alpha, 0, sizeof(double) ) );
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_alpha_temp, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_alpha_temp, 0, sizeof(double) ) );
+        
+        // // TODO: CHECK:
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRed, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_m_minRed, 1e-10, sizeof(double) ) );   
+        // CUDA_CALL( cudaMalloc((void**)&m_d_bs_m_minRes, sizeof(double) ) );
+        // CUDA_CALL( cudaMemset(m_d_bs_m_minRes, 1e-99, sizeof(double) ) );
        
 
     return true;
+}
+
+bool Solver::reinit()
+{
+        setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_d_r, m_num_rows[m_topLev] );
+        setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_d_c, m_num_rows[m_topLev] );
+
+        for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+        {
+            setToZero<<<m_gridDim[lev], m_blockDim[lev]>>>( m_d_gmg_r[lev], m_num_rows[lev] );
+            setToZero<<<m_gridDim[lev], m_blockDim[lev]>>>( m_d_gmg_c[lev], m_num_rows[lev] );
+            setToZero<<<m_gridDim[lev], m_blockDim[lev]>>>( m_d_rtmp[lev], m_num_rows[lev] );
+            setToZero<<<m_gridDim[lev], m_blockDim[lev]>>>( m_d_ctmp[lev], m_num_rows[lev] );
+        }
+
+        // scalars
+        setToZero<<<1, 1>>>( m_d_res0, 1 );
+        setToZero<<<1, 1>>>( m_d_lastRes, 1 );
+        setToZero<<<1, 1>>>( m_d_res, 1 );
+        setToZero<<<1, 1>>>( m_d_step, 1 );
+        setToZero<<<1, 1>>>( m_d_bs_step, 1 );
+
+
+        // base-solver
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_r, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_z, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_p, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_res, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_res0, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_lastRes, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_rho, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_rho_old, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_alpha, m_num_rows[0] );
+        setToZero<<<m_gridDim[0], m_blockDim[0]>>>( m_d_bs_alpha_temp, m_num_rows[0] );
+
+        return true;
 }
 
 bool Solver::precond(double* m_d_c, double* m_d_r)
@@ -468,9 +503,14 @@ bool Solver::smoother(double* d_c, double* d_r, int lev)
     return true;
 }
 
-bool Solver::solve(double* d_u, double* d_b)
+
+
+
+bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 {
     // cout << "solve" << endl;
+
+    m_d_value = d_value;
 
     // r = b - A*u
     ComputeResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], d_u, m_d_r, d_b);
@@ -484,8 +524,8 @@ bool Solver::solve(double* d_u, double* d_b)
     equals_GPU<<<1,1>>>(m_d_res, m_d_res0);	
 
 
-    // printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
-    // cudaDeviceSynchronize();
+    printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
+    cudaDeviceSynchronize();
     
     
 
