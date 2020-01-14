@@ -569,7 +569,17 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
     }
-
+    
+    // DEBUG:
+        // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+        // {
+        //     cout << "Element " << elem << endl;
+        //     for ( int i = 0 ; i < 4 ; ++i )
+        //     {
+        //         cout << m_element[elem].nodeIndex(i) << endl;
+        //     }
+        //     cout << "\n";
+        // }
                
 
     // resizing the global stiffness matrices on each grid-level
@@ -587,7 +597,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 
     // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
-    for ( int elmn_index = 0 ; elmn_index < 4 ; elmn_index++ )
+    for ( int elmn_index = 0 ; elmn_index < m_numElements[m_topLev] ; elmn_index++ )
     {
         for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
         {

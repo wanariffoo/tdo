@@ -358,9 +358,9 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // rho_old = rho;
     vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_rho_old, m_d_bs_rho, m_num_rows[0]);
 
-    // cudaDeviceSynchronize();
-    // printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_bs_m_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_bs_m_minRed);
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
+    printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_bs_m_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_bs_m_minRed);
+    cudaDeviceSynchronize();
     
     addStep<<<1,1>>>(m_d_bs_step);
     }
