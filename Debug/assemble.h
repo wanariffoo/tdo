@@ -59,6 +59,8 @@ public:
 
 
 private:
+
+
     // grid dimensions
     vector<vector<size_t>> m_N;
 

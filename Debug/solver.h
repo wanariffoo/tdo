@@ -42,6 +42,7 @@ public:
 
 private:
 
+
     vector<double*> m_d_value;
     vector<size_t*> m_d_index;
     vector<size_t> m_max_row_size;

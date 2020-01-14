@@ -17,6 +17,7 @@ using namespace std;
 
 
 // TODO: store local k matrix in constant memory
+// TODO: fix prolongation assembly - has something to do with bc initialization
 
 int main()
 {
@@ -45,8 +46,14 @@ int main()
     // TODO: assembleBC( size_t case );
 
     vector<vector<size_t>> bc_index(numLevels);
-    bc_index[0] = {0, 2};
-    bc_index[1] = {0, 3, 6};
+    bc_index[0] = {0,2};    // NOTE: temporary
+    bc_index[1] = {0,1,6,7,12,13};
+
+    // TODO: figure out your BC set up
+    // bc_index[0] = {0, 2};
+    // bc_index[1] = {0, 3, 6};
+
+
 
     // TDO
     double rho = 0.4;
@@ -83,86 +90,92 @@ int main()
     // d_node_index.resize(4);
 
 
-    // TODO: get num_rows
-    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * 18 ) );
-    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * 18 ) );
-
-    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * 18) );
-
-    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * 18, cudaMemcpyHostToDevice) );
     
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    // Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
+    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
 
-//     /*
-//     NOTE: after assembling you should have these :
-//     global stiffness matrix ELLPACK
-//         - vector<double*> d_value(numLevels)
-//         - vector<size_t> d_index(numLevels)
-//         - vector<size_t> max_row_size(numLevels)
-//         - vector<double*> d_p_value(numLevels - 1)
-//         - vector<size_t*> d_p_index(numLevels - 1)
-//         - vector<size_t> p_max_row_size(numLevels -1 )
-//     */
+    /*
+    NOTE: after assembling you should have these :
+    global stiffness matrix ELLPACK
+        - vector<double*> d_value(numLevels)
+        - vector<size_t> d_index(numLevels)
+        - vector<size_t> max_row_size(numLevels)
+        - vector<double*> d_p_value(numLevels - 1)
+        - vector<size_t*> d_p_index(numLevels - 1)
+        - vector<size_t> p_max_row_size(numLevels -1 )
+    */
    
-//     /*
-//     ##################################################################
-//     #                           SOLVER                               #
-//     ##################################################################
-//     */
 
+    // TODO: get num_rows
+    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
+    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
-// //    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
 
-
-
-        // TODO: remove num_cols
-        Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
     
-        GMG.init();
-        // GMG.set_num_prepostsmooth(1,1);
-        // GMG.set_convergence_params(1, 1e-99, 1e-10);
-        // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-        // GMG.set_cycle('V');
-        // GMG.set_steps(150, 50);
-        // // cudaDeviceSynchronize();
-        // GMG.solve(d_u, d_b, d_value);
+    /*
+    ##################################################################
+    #                           SOLVER                               #
+    ##################################################################
+    */
+
+        
+
+    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+
+
+
+    // TODO: remove num_cols
+    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+
+    GMG.init();
+    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_cycle('V');
+    GMG.set_steps(20, 10);
+    // // cudaDeviceSynchronize();
+    GMG.solve(d_u, d_b, d_value);
+
+    cudaDeviceSynchronize();
+
+    // printVector_GPU<<<1,18>>>( d_u, 18);
     
-//     // cudaDeviceSynchronize();
-
-//     printVector_GPU<<<1,18>>>( d_u, 18);
     
-    
-//     /*
-//     ##################################################################
-//     #                           TDO                                  #
-//     ##################################################################
-//     */
+    /*
+    ##################################################################
+    #                           TDO                                  #
+    ##################################################################
+    */
 
     
-//     // TDO algorithm, tdo.cu
-//     // produces updated d_kai
+    // TDO algorithm, tdo.cu
+    // produces updated d_kai
 
-//     // converge?
-//     double eta = 12.0;
-//     double beta = 1.0;
+    // TODO: incorporate this in the beginning
+    double eta = 12.0;
+    double beta = 1.0;
 
-//     TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
-//     tdo.init();
-//     tdo.innerloop();    // get updated d_kai
+    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
+    tdo.init();
+    tdo.innerloop();    // get updated d_kai
+
+    // // DEBUG:
+    //     printVector_GPU<<<1,4>>>( d_kai, 4);
+
+    // // update stiffness matrix with new d_kai
+    // // TODO: get d_value, d_index and d_A_local from the class, 
+    // // in the end, it's only Update..(d_kai)
+    // Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
+
+    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
 
-//     // // update stiffness matrix with new d_kai
-//     // // TODO: get d_value, d_index and d_A_local from the class, 
-//     // // in the end, it's only Update..(d_kai)
-//     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
-
-//     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-
-
-//     GMG.reinit(); // TODO: update global matrix here, update the coarser ones here too 
-//     cudaDeviceSynchronize();
+    // GMG.reinit(); // TODO: update global matrix here, update the coarser ones here too 
+    cudaDeviceSynchronize();
 
     
 //     // TODO: remove d_value here

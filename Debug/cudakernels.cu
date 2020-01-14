@@ -604,6 +604,7 @@ __global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size
 	// B = damp / diag(A);
 	if ( id < num_rows )
 		c[id] = r[id] * damp / valueAt(id, id, value, index, max_row_size);
+
 }
 
 

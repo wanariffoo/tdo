@@ -122,7 +122,7 @@ bool Assembler::init(
 
 
     m_topLev = m_numLevels - 1;
-
+    
 
     // TODO: perhaps combine these for loops into one? would it work?    
     // number of elements in each grid-level
@@ -130,12 +130,12 @@ bool Assembler::init(
     
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
     {
-        for ( int i = 0 ; i < m_dim - 1; i++)
+        for ( int i = 0 ; i < m_dim ; i++)
         {
             m_numElements[lev] *= m_N[lev][i];
         }
     }
-
+    
     // m_numNodesPerDim[lev][dim]
     m_numNodesPerDim.resize(m_numLevels, vector<size_t>(m_dim));
 
@@ -169,42 +169,39 @@ bool Assembler::init(
     // TODO: CHECK: assemblelocal is messed up a bit, recheck especially when it comes to the det(J)
     assembleLocal();
 
-    cout << num_rows[0] << endl;
-    cout << num_rows[1] << endl;
-
-
     // resizing the prolongation matrices according to the number of grid-levels
     m_P.resize( m_numLevels - 1 );
 
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
     {
         // number of columns in each level
-        m_P[lev].resize(num_rows[lev]);
+        m_P[lev].resize(num_rows[lev+1]);
         
         // number of rows in each level
-        for ( int j = 0 ; j < num_rows[lev] ; j++ )
-                m_P[lev][j].resize(num_rows[lev + 1]);
+        for ( int j = 0 ; j < num_rows[lev+1] ; j++ )
+                m_P[lev][j].resize(num_rows[lev]);
     }
 
-    // assembleProlMatrix(m_topLev);
+    
+    assembleProlMatrix(m_topLev);
+
+
+
+    // DEBUG:
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
+    //         cout << m_P[0][i][j] << " ";
+
+    //     cout << "\n";
+    // }
 
 
 
 
-    // // for ( int i = 0 ; i < num_rows[1] ; i++ )
-    // // {
-    // //     for ( int j = 0 ; j < num_rows[0] ; j++ )
-    // //         cout << m_P[0][i][j] << " ";
-
-    // //     cout << "\n";
-    // // }
 
 
-
-
-
-
-    // TODO: CHECK: check the numbers here as well
+    // // TODO: CHECK: check the numbers here as well
     assembleGlobal(num_rows, max_row_size, p_max_row_size);
 
     
@@ -442,7 +439,13 @@ bool Assembler::assembleProlMatrix(size_t lev)
         {
             for ( int j = 0 ; j < m_dim ; j++ )
             {
-        
+                //DEBUG:
+                // cout << ( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j << endl;
+                // cout << m_P[0][17][7] << endl;
+
+                //DEBUG:
+
+
             // same node
                 m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j][i+j] = 1;
 
@@ -482,7 +485,7 @@ bool Assembler::assembleProlMatrix(size_t lev)
         }
     }
     
-    
+
 
     // CHECK: have to loop through the fine DOFs?
     // applying BC to relevant DOFs
@@ -493,6 +496,7 @@ bool Assembler::assembleProlMatrix(size_t lev)
         {
             for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
             {
+                // cout << "bc " << m_bc_index[k-1][m] << endl;
                 if ( j == m_bc_index[k-1][m] )
                 {
                     for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
@@ -534,7 +538,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
         m_element.push_back(Element(i));
 
-
+    
     // assign the nodes to each element
     for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
     {
@@ -543,6 +547,8 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
     }
+
+
 
     // resizing the global stiffness matrices on each grid-level
     m_A_g.resize(m_numLevels);
@@ -556,6 +562,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         for ( int j = 0 ; j < num_rows[lev] ; j++ )
                 m_A_g[lev][j].resize(num_rows[lev]);
     }
+
 
     // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
     for ( int elmn_index = 0 ; elmn_index < 4 ; elmn_index++ )
@@ -582,62 +589,37 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         }
     }
     
+    
+  
+
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; ++i )
         applyMatrixBC(m_A_g[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev]);
 
-    // // resizing the prolongation matrices according to the number of grid-levels
-    // m_P.resize( m_numLevels - 1 );
-    
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
-    // {
-    //     // number of columns in each level
-    //     m_P[lev].resize(num_rows[lev]);
-        
-    //     // number of rows in each level
-    //     for ( int j = 0 ; j < num_rows[lev] ; j++ )
-    //             m_P[lev][j].resize(num_rows[lev + 1]);
-    // }
 
 
-    // TODO: create a function to assemble the prolongation matrices in each level
-    // assembleProlMatrices( m_P, m_numLevels )
-
-
-
-
-    // for ( int i = 0 ; i < num_rows[1] ; i++ )
-    // {
-    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
-    //         cout << m_P[0][i][j] << " ";
-
-    //     cout << "\n";
-    // }
-
-    // for ( int i = 0 ; i < m_num_rows[1] ; i++ )
-    // {
-    //     for ( int j = 0 ; j < m_num_rows[1] ; j++ )
-    //         cout << m_A_g[1][i][j] << " ";
-
-    //     cout << "\n";
-    // }
-
-    // // for ( int i = 0 ; i < 4 ; i++ )
-    // // {
-    // //     for ( int j = 0 ; j < 4 ; j++ )
-    // //         cout << A_coarse[i][j] << " ";
-
-    // //     cout << "\n";
-    // // }
-
-    // resizing the coarse stiffness matrices on each grid-level
-
+    // filling in the coarse matrices of each level
     for ( int lev = 0 ; lev < m_numLevels - 1; lev++ )
         PTAP(m_A_g[lev], m_A_g[lev+1], m_P[lev], num_rows[lev+1], num_rows[lev] );
 
+    // // DEBUG:
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
+    //         {
+    //             cout << m_P[0][i][j] << " ";
+    //         }
+
+    //         cout << "\n";
+    // }
+
+    //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
+
+    // resizing the vectors required for ELLPACK for each level
     max_row_size.resize(m_numLevels);
     p_max_row_size.resize(m_numLevels - 1);
+
     // calculate global max_num_rows, which will also be needed when allocating memory in device
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
         max_row_size[lev] = getMaxRowSize(m_A_g[lev], num_rows[lev], num_rows[lev]);
@@ -646,8 +628,6 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         p_max_row_size[lev] = getMaxRowSize(m_P[lev], num_rows[lev+1], num_rows[lev]);
     
 
-    //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
-    
     // resizing the vectors
     m_p_value_g.resize( m_numLevels - 1 );
     m_p_index_g.resize( m_numLevels - 1 );
@@ -661,19 +641,21 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     // stiffness matrices
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
         transformToELL(m_A_g[lev], m_value_g[lev], m_index_g[lev], max_row_size[lev], num_rows[lev], num_rows[lev] );
-        
+
+
 
     // int a = 0;
-    // for ( int j = 0 ; j < m_num_rows[1] ; j++ )
+    // for ( int j = 0 ; j < num_rows[0] ; j++ )
     // {
-    //     for ( int i = 0 ; i < m_max_row_size[1] ; i++ )
+    //     for ( int i = 0 ; i < max_row_size[0] ; i++ )
     //         {
-    //             cout << m_value_g[1][a] << " ";
+    //             cout << m_value_g[0][a] << " ";
     //             a++;
     //         }
 
     //         cout << "\n";
     // }
+
 
 
     // NOTE: can somehow do init for solving now while allocating memory in device?
