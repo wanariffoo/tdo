@@ -17,6 +17,7 @@ public:
     ~Assembler();
 
     bool assembleLocal();
+    bool test_assembleLocal();
     bool assembleProlMatrix(size_t lev);
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
     void setBC(vector<vector<size_t>> bc_index);

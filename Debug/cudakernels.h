@@ -118,7 +118,7 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
 // void transformToELL(std::vector<double> &array, std::vector<double> &value, std::vector<std::size_t> &index, size_t max_row_size, size_t num_rows);
 
 // sets identity rows and columns of the DOF in which a BC is applied
-void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows);
+void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows, size_t dim);
 
 __host__ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows, size_t num_rows_ );
 

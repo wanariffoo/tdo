@@ -523,19 +523,21 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
 }
 
 // sets identity rows and columns of the DOF in which a BC is applied
-void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows)
+void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows, size_t dim)
 {
-    for ( int i = 0 ; i < num_rows ; i++ )
-    {
-        for ( int j = 0 ; j < num_rows ; j++ )
-        {
-            if ( i == index && j == index )
-                array[i][j] = 1.0;
-                
-            else if ( i == index || j == index )
-                array[i][j] = 0.0;
-        }
-    }
+	index *= dim;
+
+    for ( int j = 0 ; j < dim ; j++ )
+	{
+		for ( int i = 0 ; i < num_rows ; i++ )
+		{
+			array[i][index+j] = 0.0;
+			array[index+j][i] = 0.0;
+		}
+
+		array[index+j][index+j] = 1.0;
+	}
+	
 }
 
 

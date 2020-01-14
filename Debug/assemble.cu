@@ -118,9 +118,6 @@ bool Assembler::init(
         cout << "error" << endl; //TODO: add error/assert
 
 
-
-
-
     m_topLev = m_numLevels - 1;
     
 
@@ -168,6 +165,23 @@ bool Assembler::init(
 
     // TODO: CHECK: assemblelocal is messed up a bit, recheck especially when it comes to the det(J)
     assembleLocal();
+    // test_assembleLocal();
+
+
+  
+    // DEBUG:
+    
+    // for ( int j = 0 ; j < num_rows[0] ; j++ )
+    // {
+    //     for ( int i = 0 ; i < num_rows[0] ; i++ )
+    //         {
+    //             cout << m_A_local[j] << " ";
+                
+    //         }
+
+    //         cout << "\n";
+    // }
+
 
     // resizing the prolongation matrices according to the number of grid-levels
     m_P.resize( m_numLevels - 1 );
@@ -181,7 +195,6 @@ bool Assembler::init(
         for ( int j = 0 ; j < num_rows[lev+1] ; j++ )
                 m_P[lev][j].resize(num_rows[lev]);
     }
-
     
     assembleProlMatrix(m_topLev);
 
@@ -283,6 +296,21 @@ bool Assembler::init(
 
 }
 
+// TODO:
+bool Assembler::test_assembleLocal()
+{
+    // DEBUG:
+    double foo = m_h / pow(2,m_dim);
+
+    // jacobi = foo * Identity matrix
+    double det_jacobi = pow(m_h/2, m_dim);
+
+    // gauss points
+    vector<double> gp(pow(2, m_dim));
+
+
+    return true;
+}
 
 // TODO: check this is not right!
 // assembles the local stiffness matrix
@@ -514,10 +542,6 @@ bool Assembler::assembleProlMatrix(size_t lev)
         }
     }
 
-
-
-
-
     return true;
 }
 
@@ -526,8 +550,6 @@ bool Assembler::assembleProlMatrix(size_t lev)
 // will return d_value, d_index, d_max_row_size
 bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size)
 {
-
-    
 
     // TODO: if no BC is set, return false with error
     // cout << "assembleGlobal" << endl;
@@ -548,7 +570,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
     }
 
-
+               
 
     // resizing the global stiffness matrices on each grid-level
     m_A_g.resize(m_numLevels);
@@ -588,31 +610,18 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
                 m_A_g[m_topLev][x][y] = 0.0;
         }
     }
-    
-    
   
 
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; ++i )
-        applyMatrixBC(m_A_g[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev]);
-
-
+        applyMatrixBC(m_A_g[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], m_dim);
 
     // filling in the coarse matrices of each level
     for ( int lev = 0 ; lev < m_numLevels - 1; lev++ )
         PTAP(m_A_g[lev], m_A_g[lev+1], m_P[lev], num_rows[lev+1], num_rows[lev] );
 
-    // // DEBUG:
-    // for ( int i = 0 ; i < num_rows[1] ; i++ )
-    // {
-    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
-    //         {
-    //             cout << m_P[0][i][j] << " ";
-    //         }
 
-    //         cout << "\n";
-    // }
 
     //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
 

@@ -209,6 +209,9 @@ compared to matlab, does this make sense?
  31 : res = 0.000000
 
 
+- bc cases
+
+
 - getting matrix free A_coarse
     - need prol matrix stored in gpu?
     - performance loss because of divergence?
