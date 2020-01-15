@@ -15,7 +15,7 @@
 
 using namespace std;
 
-
+// TODO: matrix assembly 2D 3D
 // TODO: store local k matrix in constant memory
 // TODO: fix prolongation assembly - has something to do with bc initialization
 // TODO: 3d elements' node distribution
@@ -30,8 +30,8 @@ int main()
     double youngMod = 210e6;
     double poisson = 0.3;
 
-    // domain dimensions
-    vector<size_t> N = {1,1};
+    // domain dimensions (x,y,z)
+    vector<size_t> N = {3,2,2};
     // vector<size_t> N = {1,1,1};
     size_t dim = N.size();
     double h = 0.5;     // local element mesh size
@@ -92,7 +92,7 @@ int main()
     
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
+    // Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
 
     /*
     NOTE: after assembling you should have these :
@@ -105,19 +105,19 @@ int main()
         - vector<size_t> p_max_row_size(numLevels -1 )
     */
    
-    // vector u, b
-    vector<double> b(num_rows[numLevels - 1], 0);
-    b[10] = -10000;
-    double* d_u;
-    double* d_b;
+    // // vector u, b
+    // vector<double> b(num_rows[numLevels - 1], 0);
+    // b[10] = -10000;
+    // double* d_u;
+    // double* d_b;
 
-    // TODO: get num_rows
-    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
-    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
+    // // TODO: get num_rows
+    // CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
+    // CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
-    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
+    // CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
 
-    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
+    // CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
     /*
     ##################################################################
@@ -130,20 +130,21 @@ int main()
 
     // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
 
 
-    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
 
-    GMG.init();
-    GMG.set_num_prepostsmooth(3,3);
-    GMG.set_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_cycle('V');
-    GMG.set_steps(20, 10); 
-    cudaDeviceSynchronize();
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+    // GMG.init();
+    // GMG.set_num_prepostsmooth(3,3);
+    // GMG.set_convergence_params(1, 1e-99, 1e-10);
+    // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    // GMG.set_cycle('V');
+    // GMG.set_steps(20, 10); 
+    // cudaDeviceSynchronize();
+    // GMG.solve(d_u, d_b, d_value);
+    // cudaDeviceSynchronize();
 
     // cudaDeviceSynchronize();
 

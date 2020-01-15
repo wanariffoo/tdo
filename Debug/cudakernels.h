@@ -134,6 +134,8 @@ __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_kai, double*
 
 __global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
 
+__host__ size_t getFineNode(size_t coarse_index, vector<size_t> N, size_t dim);
+
 ////////////////////////////////////////////
 // SMOOTHERS
 ////////////////////////////////////////////

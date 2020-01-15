@@ -69,6 +69,8 @@ Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, do
         }
     }
 
+
+
 }
 
 Assembler::~Assembler()
@@ -200,7 +202,7 @@ bool Assembler::init(
 
 
 
-    // DEBUG:
+    // // DEBUG:
     // for ( int i = 0 ; i < num_rows[1] ; i++ )
     // {
     //     for ( int j = 0 ; j < num_rows[0] ; j++ )
@@ -467,13 +469,7 @@ bool Assembler::assembleProlMatrix(size_t lev)
         {
             for ( int j = 0 ; j < m_dim ; j++ )
             {
-                //DEBUG:
-                // cout << ( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j << endl;
-                // cout << m_P[0][17][7] << endl;
-
-                //DEBUG:
-
-
+ 
             // same node
                 m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j][i+j] = 1;
 
@@ -514,19 +510,29 @@ bool Assembler::assembleProlMatrix(size_t lev)
     }
     
 
+    cout << m_bc_index[0].size() << endl;
+    cout << m_bc_index[1].size() << endl;
+    cout << m_bc_index[2].size() << endl;
 
     // CHECK: have to loop through the fine DOFs?
     // applying BC to relevant DOFs
     for ( int k = lev ; k != 0 ; k-- )
     {
         // loop through each coarse DOF
-        for ( int j = 0 ; j < m_numNodes[k-1] ; j += m_dim )
+        for ( int j = 0 ; j < m_bc_index[k-1].size() ; j++ )
         {
+                
+                cout << "lev = " << k << ", " << endl;
+
             for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
             {
-                // cout << "bc " << m_bc_index[k-1][m] << endl;
+                    // if ( k == 2 )
+                    // cout << "bc " << m_bc_index[k-1][m] << endl;
+
                 if ( j == m_bc_index[k-1][m] )
                 {
+                    
+
                     for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
                     {
                         // loop through each dimension

@@ -209,8 +209,11 @@ compared to matlab, does this make sense?
  31 : res = 0.000000
 
 
+- prolong 3d
+- otf coarse grid
+    - prol matrix in gpu?
 - bc cases
-
+- vtk
 
 - getting matrix free A_coarse
     - need prol matrix stored in gpu?

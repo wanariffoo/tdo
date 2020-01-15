@@ -595,6 +595,33 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 }
 
 
+__host__
+size_t getFineNode(size_t index, vector<size_t> N, size_t dim)
+{
+	// check for error
+	size_t num_nodes = N[0] + 1;
+	for ( int i = 1 ; i < dim ; i++ )
+		num_nodes *= (N[i] + 1);
+	
+	if ( index > num_nodes - 1 )
+        throw(runtime_error("Error : Index does not exist on this level"));
+
+
+	if ( dim == 3 )
+	{	
+		size_t twoDimSize = (N[0]+1)*(N[1]+1);
+		size_t baseindex = index % twoDimSize;
+		size_t fine2Dsize = (2*N[0]+1)*(2*N[1]+1)+1;
+		size_t multiplier = index/twoDimSize;
+
+		return 2*multiplier*fine2Dsize + (2 * (ceil)(baseindex / (N[0] + 1)) * (2*N[0] + 1) + 2*( baseindex % (N[0]+1)) );
+	}
+
+	else
+		return (2 * (ceil)(index / (N[0] + 1)) * (2*N[0] + 1) + 2*( index % (N[0]+1)) );
+}
+
+
 // ////////////////////////////////////////////
 // // SMOOTHERS
 // ////////////////////////////////////////////
