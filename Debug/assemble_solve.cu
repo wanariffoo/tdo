@@ -31,7 +31,7 @@ int main()
     double poisson = 0.3;
 
     // domain dimensions (x,y,z)
-    vector<size_t> N = {3,2,2};
+    vector<size_t> N = {4,1};
     // vector<size_t> N = {1,1,1};
     size_t dim = N.size();
     double h = 0.5;     // local element mesh size
@@ -50,9 +50,9 @@ int main()
     // TODO: assembleBC( size_t case );
 
     vector<vector<size_t>> bc_index(numLevels);
-    bc_index[0] = {0,2};
-    bc_index[1] = {0,3,6};
-    bc_index[2] = {0,5,10,15,20};
+    bc_index[0] = {0,5};
+    bc_index[1] = {0,9,18};
+    bc_index[2] = {0,17,34,51,68};
    
     // TDO
     double rho = 0.4;
@@ -92,7 +92,7 @@ int main()
     
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    // Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
+    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_kai, num_rows, max_row_size, p_max_row_size, d_node_index);
 
     /*
     NOTE: after assembling you should have these :
@@ -105,19 +105,20 @@ int main()
         - vector<size_t> p_max_row_size(numLevels -1 )
     */
    
-    // // vector u, b
-    // vector<double> b(num_rows[numLevels - 1], 0);
-    // b[10] = -10000;
-    // double* d_u;
-    // double* d_b;
+    // vector u, b
+    vector<double> b(num_rows[numLevels - 1], 0);
+    b[33] = -10000;
+    // b[49] = -10000;
+    double* d_u;
+    double* d_b;
 
-    // // TODO: get num_rows
-    // CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
-    // CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
+    // TODO: get num_rows
+    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
+    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
-    // CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
+    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
 
-    // CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
+    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
     /*
     ##################################################################
@@ -134,17 +135,18 @@ int main()
 
 
 
-    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
 
-    // GMG.init();
-    // GMG.set_num_prepostsmooth(3,3);
-    // GMG.set_convergence_params(1, 1e-99, 1e-10);
-    // GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
-    // GMG.set_cycle('V');
-    // GMG.set_steps(20, 10); 
-    // cudaDeviceSynchronize();
-    // GMG.solve(d_u, d_b, d_value);
-    // cudaDeviceSynchronize();
+    GMG.init();
+    GMG.set_verbose(true, false);
+    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_cycle('V');
+    GMG.set_steps(15, 5); 
+    cudaDeviceSynchronize();
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
 
     // cudaDeviceSynchronize();
 
@@ -156,21 +158,22 @@ int main()
     #                           TDO                                  #
     ##################################################################
     */
-
     
     // TDO algorithm, tdo.cu
     // produces updated d_kai
+    cout << "\n";
+    cout << "TDO" << endl;
 
-    // // TODO: incorporate this in the beginning
-    // double eta = 12.0;
-    // double beta = 1.0;
+    // TODO: incorporate this in the beginning
+    double eta = 12.0;
+    double beta = 1.0;
 
-    // TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
-    // tdo.init();
-    // tdo.innerloop();    // get updated d_kai
+    TDO tdo(d_u, d_kai, h, dim, beta, eta, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, del_t);
+    tdo.init();
+    tdo.innerloop();    // get updated d_kai
 
     // // DEBUG:
-    //     printVector_GPU<<<1,4>>>( d_kai, 4);
+        printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
 
     // // update stiffness matrix with new d_kai
     // // TODO: get d_value, d_index and d_A_local from the class, 

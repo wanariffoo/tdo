@@ -509,47 +509,49 @@ bool Assembler::assembleProlMatrix(size_t lev)
         }
     }
     
-
-    cout << m_bc_index[0].size() << endl;
-    cout << m_bc_index[1].size() << endl;
-    cout << m_bc_index[2].size() << endl;
+    //DEBUG:
+        // cout << m_bc_index[0].size() << endl;
+        // cout << m_bc_index[1].size() << endl;
+        // cout << m_bc_index[2].size() << endl;
 
     // CHECK: have to loop through the fine DOFs?
     // applying BC to relevant DOFs
     for ( int k = lev ; k != 0 ; k-- )
     {
-        // loop through each coarse DOF
-        for ( int j = 0 ; j < m_bc_index[k-1].size() ; j++ )
+        // loop through each element in bc_index vector
+        for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
         {
-                
-                cout << "lev = " << k << ", " << endl;
+            size_t j = 2 * m_bc_index[k-1][bc];
+                // cout << "lev = " << k << ", " << j << endl;
+            
+            // for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
+            // {
+            //         // if ( k == 2 )
+            //         // cout << "bc " << m_bc_index[k-1][m] << endl;
 
-            for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
-            {
-                    // if ( k == 2 )
-                    // cout << "bc " << m_bc_index[k-1][m] << endl;
+                // if ( j == m_bc_index[k-1][m] )
+                // {
 
-                if ( j == m_bc_index[k-1][m] )
-                {
-                    
-
+                    // clear columns of the bc indices 
                     for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
                     {
                         // loop through each dimension
                         for ( int n = 0 ; n < m_dim ; n++ )
-                            m_P[k-1][i][j*m_dim +n] = 0;
+                            m_P[k-1][i][j+n] = 0;
                     }
 
-                    // loop through each dimension
+                    // set "1" to the respective fine grid node index
                     for ( int n = 0 ; n < m_dim ; n++ )
-                        m_P[k-1][ ( 2*(j*m_dim % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( j*m_dim / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + n ][ j*m_dim + n] = 1;
-                }
-            }
+                        m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
+                // }
+            // }
         }
     }
 
     return true;
 }
+
+
 
 
 // to produce an ELLmatrix of the global stiffness in the device
@@ -634,8 +636,8 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         applyMatrixBC(m_A_g[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], m_dim);
 
     // filling in the coarse matrices of each level
-    for ( int lev = 0 ; lev < m_numLevels - 1; lev++ )
-        PTAP(m_A_g[lev], m_A_g[lev+1], m_P[lev], num_rows[lev+1], num_rows[lev] );
+    for ( int lev = m_topLev ; lev != 0 ; lev-- )
+        PTAP(m_A_g[lev-1], m_A_g[lev], m_P[lev-1], num_rows[lev], num_rows[lev-1] );
 
 
 

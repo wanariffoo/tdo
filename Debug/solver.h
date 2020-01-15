@@ -35,6 +35,7 @@ public:
     bool reinit();
 
     void set_cycle(const char type);
+    void set_verbose(bool verbose, bool bs_verbose);
 
     // DEBUG:
     void set_steps(size_t step, size_t bs_step);
@@ -42,6 +43,8 @@ public:
 
 private:
 
+    bool m_verbose;
+    bool m_bs_verbose;
 
     vector<double*> m_d_value;
     vector<size_t*> m_d_index;

@@ -11,13 +11,13 @@ Solver::Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*>
 
 }
 
-
+void Solver::set_verbose(bool verbose, bool bs_verbose) { m_verbose = verbose; m_bs_verbose = bs_verbose; }
 
 // DEBUG:
 void Solver::set_steps(size_t step, size_t bs_step)
 {
     m_step = step;
-    m_bs_step = m_bs_step;
+    m_bs_step = bs_step;
 }
 
 
@@ -148,31 +148,28 @@ bool Solver::init()
         // residuum and correction vectors on each level
         m_d_gmg_r.resize(m_numLevels);
         m_d_gmg_c.resize(m_numLevels);
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[1], sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[1], sizeof(double) * m_num_rows[1] ) );
-
-        CUDA_CALL( cudaMemset(m_d_gmg_r[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_gmg_r[1], 0, sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMemset(m_d_gmg_c[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_gmg_c[1], 0, sizeof(double) * m_num_rows[1] ) );
-
-
+        
         // temporary residuum vectors for GMG
         m_d_rtmp.resize(m_numLevels);
-        CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[1], sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMemset(m_d_rtmp[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_rtmp[1], 0, sizeof(double) * m_num_rows[1] ) );
-    
+
         // temporary correction vectors for GMG
         m_d_ctmp.resize(m_numLevels);
-        CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[0], sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[1], sizeof(double) * m_num_rows[1] ) );
-        CUDA_CALL( cudaMemset(m_d_ctmp[0], 0, sizeof(double) * m_num_rows[0] ) );
-        CUDA_CALL( cudaMemset(m_d_ctmp[1], 0, sizeof(double) * m_num_rows[1] ) );
 
+        for ( int i = 0 ; i < m_numLevels ; i++ )
+        {
+            CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[i], sizeof(double) * m_num_rows[i] ) );
+            CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[i], sizeof(double) * m_num_rows[i] ) );
+            CUDA_CALL( cudaMemset(m_d_gmg_r[i], 0, sizeof(double) * m_num_rows[i] ) );
+            CUDA_CALL( cudaMemset(m_d_gmg_c[i], 0, sizeof(double) * m_num_rows[i] ) );
+
+            CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[i], sizeof(double) * m_num_rows[i] ) );
+            CUDA_CALL( cudaMemset(m_d_rtmp[i], 0, sizeof(double) * m_num_rows[i] ) );
+
+            CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[i], sizeof(double) * m_num_rows[i] ) );
+            CUDA_CALL( cudaMemset(m_d_ctmp[i], 0, sizeof(double) * m_num_rows[i] ) );
+
+
+        }
 
 
         // base-solver
@@ -281,7 +278,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
 bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 {
     // cout << "CG" << endl;
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     // resetting base solver variables to zero
     setToZero<<<1,1>>>(m_d_bs_r, 1);
     setToZero<<<1,1>>>(m_d_bs_p, 1);
@@ -303,15 +300,18 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     equals_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_res);
     
-    // cudaDeviceSynchronize();
-    // cout << "## CG  ##################################################################" << endl;
-    // cout << "  Iter     Residuum       Required       Rate        Reduction     Required" << endl;
-    // cudaDeviceSynchronize();
+    if ( m_bs_verbose )
+    {
+        cudaDeviceSynchronize();
+        cout << "\n";
+        cout << "## CG  ##################################################################" << endl;
+        cout << "  Iter     Residuum       Required       Rate        Reduction     Required" << endl;
+        printInitialResult_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_m_minRes, m_d_bs_m_minRed);
+        cudaDeviceSynchronize();
+    }
 	
 
 	
-    // printInitialResult_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_m_minRes, m_d_bs_m_minRed);
-    // cudaDeviceSynchronize();
     
     addStep<<<1,1>>>(m_d_bs_step);
 
@@ -358,13 +358,18 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // rho_old = rho;
     vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_rho_old, m_d_bs_rho, m_num_rows[0]);
 
+    if ( m_bs_verbose )
+    {
     cudaDeviceSynchronize();
     printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_bs_m_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_bs_m_minRed);
     cudaDeviceSynchronize();
+    }
     
     addStep<<<1,1>>>(m_d_bs_step);
     }
-
+    
+    if ( m_bs_verbose )
+    cout << "\n";
 
     return true;
 }
@@ -565,9 +570,11 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     // res = res0;
     equals_GPU<<<1,1>>>(m_d_res, m_d_res0);	
 
-
-    // printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
-    // cudaDeviceSynchronize();
+    if ( m_verbose )
+    {
+        printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
+        cudaDeviceSynchronize();
+    }
     
     
 
@@ -583,9 +590,9 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     addVector_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( d_u, m_d_c, m_num_rows[m_topLev] );
 
 
-    // DEBUG:
-    // printVector_GPU<<<1,18>>>( m_d_c, 18 );
-    // cudaDeviceSynchronize();
+    // // DEBUG:
+    // // printVector_GPU<<<1,18>>>( m_d_c, 18 );
+    // // cudaDeviceSynchronize();
 
 
     // update residuum r = r - A*c
@@ -603,8 +610,13 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     // TODO:
     norm_GPU(m_d_res, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
 
-    // printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
-    // cudaDeviceSynchronize();
+
+    if ( m_verbose )
+    {
+    cudaDeviceSynchronize();
+    printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_m_minRes, m_d_lastRes, m_d_res0, m_d_m_minRed);
+    cudaDeviceSynchronize();
+    }
 
     }
 
