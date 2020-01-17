@@ -107,6 +107,7 @@ __global__ void divide_GPU(double *x, double *y, double *z);
 __global__ void addVector_GPU(double *x, double *c, size_t num_rows);
 
 
+
 __global__ void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows);
 
 
@@ -193,12 +194,23 @@ __global__ void sumOfVector_GPU(double* sum, double* x, size_t n);
 
 __device__ double laplacian_GPU( double *array, size_t ind, size_t N );
 
-__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements);
+__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *kai, double* eta, unsigned int N, unsigned int numElements);
 
-__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements);
+__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *kai, double* eta, unsigned int N, unsigned int numElements);
 
-__global__ void calcKaiTrial( double *kai, double *df, double *lambda_trial, double del_t, double eta, double beta, double* kai_trial, size_t N, size_t numElements);
+__global__ void calcKaiTrial( double *kai, double *df, double *lambda_trial, double del_t, double* eta, double* beta, double* kai_trial, size_t N, size_t numElements);
 
 __global__ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *lambda_u, double *lambda_trial);
+
+__global__ void int_g_p(double* d_temp, double* d_df, double local_volume, size_t numElements);
+
+__global__ void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double local_volume, size_t numElements);
+
+__global__ void calcEtaBeta( double* eta, double* beta, double etastar, double betastar, double* p_w );
+
+
+// DEBUG:
+
+__global__ void temp(double* d_kai);
 
 #endif // CUDAKERNELS_H

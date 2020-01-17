@@ -54,7 +54,6 @@ Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, do
         throw(runtime_error("Error : N is not defined for each dimension"));
     
 
-
     // m_N [lev][dim]
     // e.g., m_N[lev=1][dim=0] = number of elements in x-dimension on grid-level 1
     m_N.resize(m_numLevels, vector<size_t>(m_dim));
@@ -97,10 +96,13 @@ bool Assembler::init(
     vector<size_t*> &d_index, 
     vector<double*> &d_p_value, 
     vector<size_t*> &d_p_index, 
+    vector<double*> &d_r_value, 
+    vector<size_t*> &d_r_index, 
     double* &d_kai, 
     vector<size_t> &num_rows, 
     vector<size_t> &max_row_size, 
     vector<size_t> &p_max_row_size,
+    vector<size_t> &r_max_row_size,
     vector<size_t*> &d_node_index)
 {
 
@@ -165,8 +167,14 @@ bool Assembler::init(
     // initial value is rho in all elements
     m_kai.resize(m_numElements[m_topLev], m_rho);
 
+
+    // DEBUG:
+
+    // NOTE: TODO: comment : this produces the local stiffness without rho implementation
+    test_assembleLocal();
+
     // TODO: CHECK: assemblelocal is messed up a bit, recheck especially when it comes to the det(J)
-    assembleLocal();
+    // assembleLocal();
     // test_assembleLocal();
 
 
@@ -200,13 +208,36 @@ bool Assembler::init(
     
     assembleProlMatrix(m_topLev);
 
-
-
     // // DEBUG:
-    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // for ( int i = 0 ; i < num_rows[2] ; i++ )
     // {
-    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
-    //         cout << m_P[0][i][j] << " ";
+    //     for ( int j = 0 ; j < num_rows[1] ; j++ )
+    //         cout << m_P[1][i][j] << " ";
+
+    //     cout << "\n";
+    // }
+
+    // resizing the restriction matrices according to the number of grid-levels
+    m_R.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
+    {
+        // number of columns in each level
+        m_R[lev].resize(num_rows[lev]);
+        
+        // number of rows in each level
+        for ( int j = 0 ; j < num_rows[lev] ; j++ )
+                m_R[lev][j].resize(num_rows[lev+1]);
+    }
+
+    assembleRestMatrix(m_topLev);
+
+    // // cout << "\n";
+    // // DEBUG:
+    // for ( int i = 0 ; i < num_rows[0] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[1] ; j++ )
+    //         cout << m_R[0][i][j] << " ";
 
     //     cout << "\n";
     // }
@@ -217,7 +248,8 @@ bool Assembler::init(
 
 
     // // TODO: CHECK: check the numbers here as well
-    assembleGlobal(num_rows, max_row_size, p_max_row_size);
+    // NOTE: have to implement the rho because the local wasn't multiplied with rho
+    assembleGlobal(num_rows, max_row_size, p_max_row_size, r_max_row_size);
 
     
     //// CUDA
@@ -243,6 +275,18 @@ bool Assembler::init(
         CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
         CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
     }
+
+    // restriction matrices on each grid-level
+    d_r_value.resize( m_numLevels - 1 );
+    d_r_index.resize( m_numLevels - 1 );
+
+
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_r_value[lev], sizeof(double) * r_max_row_size[lev] * num_rows[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_r_index[lev], sizeof(size_t) * r_max_row_size[lev] * num_rows[lev] ) );
+    }
     
     // global matrices on each grid-level
     d_value.resize( m_numLevels );
@@ -265,6 +309,12 @@ bool Assembler::init(
     {
         CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
         CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+    }
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_r_value[lev], &m_r_value_g[lev][0], sizeof(double) * r_max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_r_index[lev], &m_r_index_g[lev][0], sizeof(size_t) * r_max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
     }
 
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
@@ -302,13 +352,151 @@ bool Assembler::init(
 bool Assembler::test_assembleLocal()
 {
     // DEBUG:
-    double foo = m_h / pow(2,m_dim);
+    
+    double foo; // jacobi = foo * identity matrix // TODO: delete cmnt
+    double det_jacobi;
+    double inv_jacobi;
+    vector<vector<double>> N;
+
+    if ( m_dim == 2 )
+    {
+        vector<vector<double>> E (3, vector <double> (3, 0.0));
+        vector<vector<double>> A_ (3, vector <double> (8, 0.0));
+
+        E[0][0] = E[1][1] = m_youngMod/(1 - m_poisson * m_poisson );
+        E[0][1] = E[1][0] = m_poisson * E[0][0];
+        E[2][2] = (1 - m_poisson) / 2 * E[0][0];
+        E[2][0] = E[2][1] = E[1][2] = E[0][2] = 0.0;
+
+        // 4 gauss points
+        vector<vector<double>> GP = {   {-0.57735,	-0.57735} ,
+                                        { 0.57735,	-0.57735} ,
+                                        {-0.57735,	 0.57735} ,
+                                        { 0.57735,	 0.57735}
+                                    };
+
+        foo = m_h / 2 ;
+        det_jacobi = pow(m_h/2, m_dim);
+        inv_jacobi = 1 / det_jacobi;
+        
+        
+        // loop through each set of gauss points
+        for ( int i = 0 ; i < 4 ; ++i )
+        {
+            // resetting of vectors for each loop calculation
+            N.resize(2, vector<double>(4));
+            A_.clear();
+            A_.resize(3, vector<double>(8));
+
+            // bilinear element
+            N = {   { -(1-GP[i][1]),  (1-GP[i][1]), (1+GP[i][1]), -(1+GP[i][1]) } , 
+                    { -(1-GP[i][0]), -(1+GP[i][0]), (1+GP[i][0]),  (1-GP[i][0]) } };
+            
+
+            // for ( int i = 0 ; i < 2 ; i++ )
+            // {
+            //     for ( int j = 0 ; j < 4 ; j++ )
+            //         cout << N[i][j] << " ";
+
+            //         cout << "\n";
+            // }
+
+            // cout << "\n";
+            // cout << "\n";
+
+            vector<vector<double>> B(3, vector <double> (8, 0));
+
+            // inv_J * foo * N
+            for ( int j = 0 ; j < 2 ; ++j )
+            {
+                for( int k = 0 ; k < 4 ; ++k )
+                {
+                    N[j][k] *= inv_jacobi * foo;
+
+                    B[0][2*k] = N[0][k];
+                    B[1][2*k+1] = N[1][k];
+                    B[2][2*k] = N[1][k];
+                    B[2][2*k+1] = N[0][k];
+                }
+            }
+
+            // for ( int i = 0 ; i < 3 ; i++ )
+            // {
+            //     for ( int j = 0 ; j < 8 ; j++ )
+            //         cout << B[i][j] << " ";
+
+            //         cout << "\n";
+            // }
+
+            // cout << "\n";
+            // cout << "\n";
+
+            //// A_local = B^T * E * B * det(J)
+            
+            // A_ = E * B
+            for ( int i = 0 ; i < 3 ; i++ )
+            {
+                for( int j = 0 ; j < 8 ; j++ )
+                {
+                    for ( int k = 0 ; k < 3 ; k++)
+                        A_[i][j] += E[i][k] * B[k][j];
+                }
+            }
+
+            // for ( int i = 0 ; i < 3 ; i++ )
+            // {
+            //     for ( int j = 0 ; j < 8 ; j++ )
+            //         cout << A_[i][j] << " ";
+
+            //         cout << "\n";
+            // }
+            
+            // A_local = B^T * A_ * det(J)
+            for ( int i = 0 ; i < 8 ; i++ )
+            {
+                for( int j = 0 ; j < 8 ; j++ )
+                {
+                    for ( int k = 0 ; k < 3 ; k++){
+                        m_A_local[j + i*m_num_rows_l] += B[k][i] * A_[k][j] * det_jacobi;  
+                    }
+                }
+            }
+
+        }
+        
+
+
+    }
+
+    //  int a = 0;
+    //         for ( int i = 0 ; i < 8 ; ++i )
+    //         {
+    //             for( int k = 0 ; k < 8 ; ++k )
+    //             {
+    //                 cout << m_A_local[a] << " ";
+    //                 a++;
+    //             }
+
+    //             cout << "\n";
+    //         }
+
+
+
+    // double foo = m_h / pow(2,m_dim);
+
 
     // jacobi = foo * Identity matrix
-    double det_jacobi = pow(m_h/2, m_dim);
+    // double det_jacobi = pow(m_h/2, m_dim);
+
 
     // gauss points
-    vector<double> gp(pow(2, m_dim));
+    // vector<double> gp(pow(2, m_dim));
+
+    if ( m_dim == 3 )
+    {
+        // TODO:
+        throw(runtime_error("assemble 3D not done yet"));
+    }
 
 
     return true;
@@ -551,12 +739,24 @@ bool Assembler::assembleProlMatrix(size_t lev)
     return true;
 }
 
+bool Assembler::assembleRestMatrix(size_t lev)
+{
+
+    for ( int k = lev ; k != 0 ; k-- )
+        for ( int i = 0 ; i < m_numNodes[k-1]*m_dim ; ++i )
+        {
+            for ( int j = 0 ; j < m_numNodes[k]*m_dim ; ++j )
+                m_R[k-1][i][j] = m_P[k-1][j][i];
+        }
+
+    return true;
+}
 
 
 
 // to produce an ELLmatrix of the global stiffness in the device
 // will return d_value, d_index, d_max_row_size
-bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size)
+bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size)
 {
 
     // TODO: if no BC is set, return false with error
@@ -605,6 +805,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 
     // filling in the global stiffness matrix from the local stiffness matrices of the 4 Gauss-Points
+    // A_global = sum (A_local(GP[]) * initial_kai^p )
     for ( int elmn_index = 0 ; elmn_index < m_numElements[m_topLev] ; elmn_index++ )
     {
         for ( int x = 0 ; x < 4 ; x++ ) // TODO: dim  
@@ -646,6 +847,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     // resizing the vectors required for ELLPACK for each level
     max_row_size.resize(m_numLevels);
     p_max_row_size.resize(m_numLevels - 1);
+    r_max_row_size.resize(m_numLevels - 1);
 
     // calculate global max_num_rows, which will also be needed when allocating memory in device
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
@@ -654,16 +856,25 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
         p_max_row_size[lev] = getMaxRowSize(m_P[lev], num_rows[lev+1], num_rows[lev]);
     
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        r_max_row_size[lev] = getMaxRowSize(m_R[lev], num_rows[lev], num_rows[lev+1]);
+    
 
     // resizing the vectors
     m_p_value_g.resize( m_numLevels - 1 );
     m_p_index_g.resize( m_numLevels - 1 );
+    m_r_value_g.resize( m_numLevels - 1 );
+    m_r_index_g.resize( m_numLevels - 1 );
     m_value_g.resize( m_numLevels );
     m_index_g.resize( m_numLevels );
 
     // prolongation matrices
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
         transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], p_max_row_size[lev], num_rows[lev+1], num_rows[lev] );    
+
+    // restriction matrices
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        transformToELL(m_R[lev], m_r_value_g[lev], m_r_index_g[lev], r_max_row_size[lev], num_rows[lev], num_rows[lev+1] );    
 
     // stiffness matrices
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
@@ -692,7 +903,12 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 }
 
-void Assembler::UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, double* &d_A_local)
+void Assembler::UpdateGlobalStiffness(
+    double* &d_kai, 
+    vector<double*> &d_value, vector<size_t*> &d_index,         // global stiffness
+    vector<double*> &d_p_value, vector<size_t*> &d_p_index,     // prolongation matrices
+    vector<double*> &d_r_value, vector<size_t*> &d_r_index,     // restriction matrices
+    double* &d_A_local)                                         // local stiffness matrix
 {
     // TODO: cleanup this function
     // TODO: add kai

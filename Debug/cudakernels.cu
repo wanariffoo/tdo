@@ -425,6 +425,7 @@ void addVector_GPU(double *x, double *c, size_t num_rows)
 		x[id] += c[id];
 }
 
+
 __global__
 void transformToELL_GPU(double *array, double *value, size_t *index, size_t max_row_size, size_t num_rows)
 {
@@ -895,7 +896,7 @@ void UpdateDrivingForce(double *df, double* uTau, double p, double *kai, double 
     int id = blockDim.x * blockIdx.x + threadIdx.x;
 
     if ( id < N )
-        df[id] = uTau[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
+        df[id] = uTau[id] * ( local_volume / (2*local_volume) ) * p * pow(kai[id], p - 1);
         // df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
 }
 
@@ -1013,7 +1014,7 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
 }
 
 __global__ 
-void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements)
+void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *kai, double* eta, unsigned int N, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1026,7 +1027,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, dou
     
 	while(index + offset < numElements){
         // temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian[index] ) + eta ) );
-        temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) + eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( kai, index, N ) ) + *eta ) );
          
 		offset += stride;
 	}
@@ -1054,7 +1055,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double beta, dou
 
 
 __global__ 
-void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, double *kai, double eta, unsigned int N, unsigned int numElements)
+void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *kai, double* eta, unsigned int N, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1067,7 +1068,7 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double beta, dou
     
 
 	while(index + offset < numElements){
-        temp = fminf(temp, ( df_array[index + offset] + ( beta * laplacian_GPU( kai, index, N ) ) - eta ) );
+        temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( kai, index, N ) ) - *eta ) );
 		offset += stride;
 	}
     
@@ -1100,8 +1101,8 @@ void calcKaiTrial(
     double *df, 
     double *lambda_trial, 
     double del_t,
-    double eta,
-    double beta,
+    double* eta,
+    double* beta,
     double* kai_trial,
     size_t N,
     size_t numElements
@@ -1114,7 +1115,7 @@ void calcKaiTrial(
 
     if ( id < numElements )
     {
-        del_kai[id] = ( del_t / eta ) * ( df[id] - *lambda_trial + beta*( laplacian_GPU( kai, id, N ) ) );
+        del_kai[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( kai, id, N ) ) );
         
 		// printf("%d : %e \n", id, del_kai[id]);
 
@@ -1142,4 +1143,83 @@ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *la
         *lambda_u = *lambda_trial;
 
     *lambda_trial = 0.5 * ( *lambda_l + *lambda_u );
+}
+
+
+__global__ void temp(double* d_kai)
+{
+
+	// d_kai[0] = 
+}
+
+
+
+// NOTE: shelved for now
+__global__ 
+void int_g_p(double* d_temp, double* d_df, double local_volume, size_t numElements)
+{
+	// unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	// if( id < numElements)
+	// {
+	// 	// calculate g of element
+	// 	d_temp[id] = (d_kai[id] - 1e-9)*(1-d_kai[id]) * d_df[id] * local_volume; 
+
+	// }
+
+}
+
+__global__ 
+void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double local_volume, size_t numElements)
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	__shared__ double int_g_p[1024];
+	__shared__ double int_g[1024];
+
+	if( id < numElements)
+	{
+		df[id] = uTAu[id] * ( local_volume / (2*local_volume) ) * p * pow(kai[id], p - 1);
+
+		int_g_p[id] = (kai[id] - 1e-9)*(1-kai[id]) * df[id] * local_volume;
+		int_g[id] = (kai[id] - 1e-9)*(1-kai[id]) * local_volume;
+
+
+	__syncthreads();
+
+	// atomicAdd_double(&d_temp[0], int_g_p[id]);
+	// atomicAdd_double(&d_temp[1], int_g[id]);
+
+	if ( id == 0 )
+	{
+		for ( int i = 1 ; i < numElements ; ++i )
+			int_g_p[0] += int_g_p[i];
+	}
+
+	if ( id == 1 )
+	{
+		for ( int i = 1 ; i < numElements ; ++i )
+			int_g[0] += int_g[i];
+	}
+
+	__syncthreads();
+
+	if ( id == 0 )
+		*p_w = int_g_p[0] / int_g[0];
+
+
+	}
+
+}
+
+__global__ void calcEtaBeta( double* eta, double* beta, double etastar, double betastar, double* p_w )
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id == 0 )	
+		*eta = etastar * (*p_w);
+
+	if ( id == 1 )
+		*beta = betastar * (*p_w);
+
 }

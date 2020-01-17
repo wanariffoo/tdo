@@ -12,16 +12,17 @@ class Assembler{
 public:
     Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels);
 
-    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_kai, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t*> &d_node_index);
+    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_kai, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
 
     ~Assembler();
 
     bool assembleLocal();
     bool test_assembleLocal();
     bool assembleProlMatrix(size_t lev);
-    bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size);
+    bool assembleRestMatrix(size_t lev);
+    bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size);
     void setBC(vector<vector<size_t>> bc_index);
-    void UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, double* &d_A_local);
+    void UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
  
     size_t getNumElements();
 
@@ -83,6 +84,11 @@ private:
     size_t m_p_num_rows;
     size_t m_p_num_cols;
 
+    // restriction matrices of each level
+    vector<vector<vector<double>>> m_R;
+    size_t m_r_num_rows;
+    size_t m_r_num_cols;
+
     // multi-grid
     size_t m_numLevels;
     size_t m_topLev;
@@ -94,6 +100,9 @@ private:
     size_t m_p;
     vector<double> m_kai;
     double del_t;
+    
+    //weighted average driving force
+    double m_p_w; 
 
     // local stiffness matrix (dense)
     vector<double> m_A_local;
@@ -102,6 +111,11 @@ private:
     vector<vector<double>> m_p_value_g;
     vector<vector<size_t>> m_p_index_g;    
     vector<size_t> m_p_max_row_size;
+
+    // restriction matrices on each level
+    vector<vector<double>> m_r_value_g;
+    vector<vector<size_t>> m_r_index_g;    
+    vector<size_t> m_r_max_row_size;
 
 
     // global stiffness matrix's ELLPACK vectors on each grid-level

@@ -172,7 +172,7 @@ when initializing grid dimensions, Nx, Ny, Nz,
 
 
 
-convergence is bad
+convergence is bad?
 
 compared to matlab, does this make sense?
  0 : res = 10000.000000
@@ -210,11 +210,20 @@ compared to matlab, does this make sense?
 
 
 - prolong 3d
+- mbb set up
+    - bc cases
+- result check
+- mgm convergence rate
+- hiwi
+
+- vtk (later)
+- gpu assembly max_row_size
+
+
+
+// later
 - otf coarse grid
     - prol matrix in gpu?
-- bc cases
-- vtk
-
 - getting matrix free A_coarse
     - need prol matrix stored in gpu?
     - performance loss because of divergence?
