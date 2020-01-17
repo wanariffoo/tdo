@@ -22,7 +22,7 @@ public:
     bool assembleRestMatrix(size_t lev);
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size);
     void setBC(vector<vector<size_t>> bc_index);
-    void UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
+    bool UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
  
     size_t getNumElements();
 
@@ -136,20 +136,16 @@ private:
 
     //// CUDA
 
+    // cuda block dimension for ellpack matrices
+    vector<dim3> ell_gridDim;
+    vector<dim3> ell_blockDim;
+
+    // local stiffness matrix
     double* m_d_A_local;
 
-    // // local stiffness matrix
-    // // ELLPACK format is not used as it is a dense matrix
-    // double* d_A_local;
+    vector<size_t*> m_d_node_index;
+    size_t* d_bc_index;
 
-    // // global stiffness matrix on each grid-level
-    // vector<double*> d_value;
-    // vector<size_t*> d_index;
-
-    // // prolongation matrices
-    // vector<double*> d_p_value;
-    // vector<size_t*> d_p_index;
-    
     
 };
 

@@ -26,29 +26,29 @@ void Solver::set_steps(size_t step, size_t bs_step)
 // void Solver::deallocate()
 Solver::~Solver()
 {
-    // cout << "solver : deallocate" << endl;
-    CUDA_CALL( cudaFree(m_d_res0) );
-    CUDA_CALL( cudaFree(m_d_res) );
-    CUDA_CALL( cudaFree(m_d_lastRes) );
-    CUDA_CALL( cudaFree(m_d_m_minRes) );
-    CUDA_CALL( cudaFree(m_d_m_minRed) );
-    CUDA_CALL( cudaFree(m_d_r) );
-    CUDA_CALL( cudaFree(m_d_c) );
-    CUDA_CALL( cudaFree(m_d_step) );
-    CUDA_CALL( cudaFree(m_d_bs_step) );
+    // // cout << "solver : deallocate" << endl;
+    // CUDA_CALL( cudaFree(m_d_res0) );
+    // CUDA_CALL( cudaFree(m_d_res) );
+    // CUDA_CALL( cudaFree(m_d_lastRes) );
+    // CUDA_CALL( cudaFree(m_d_m_minRes) );
+    // CUDA_CALL( cudaFree(m_d_m_minRed) );
+    // CUDA_CALL( cudaFree(m_d_r) );
+    // CUDA_CALL( cudaFree(m_d_c) );
+    // CUDA_CALL( cudaFree(m_d_step) );
+    // CUDA_CALL( cudaFree(m_d_bs_step) );
     
-    // base solver
-    CUDA_CALL( cudaFree(m_d_bs_r) );
-    CUDA_CALL( cudaFree(m_d_bs_z) );
-    CUDA_CALL( cudaFree(m_d_bs_res) );
-    CUDA_CALL( cudaFree(m_d_bs_lastRes) );
-    CUDA_CALL( cudaFree(m_d_bs_res0) );
-    CUDA_CALL( cudaFree(m_d_bs_m_minRes) );
-    CUDA_CALL( cudaFree(m_d_bs_m_minRed) );
-    CUDA_CALL( cudaFree(m_d_bs_rho_old) );
-    CUDA_CALL( cudaFree(m_d_bs_p) );
-    CUDA_CALL( cudaFree(m_d_bs_alpha) );
-    CUDA_CALL( cudaFree(m_d_bs_alpha_temp) );
+    // // base solver
+    // CUDA_CALL( cudaFree(m_d_bs_r) );
+    // CUDA_CALL( cudaFree(m_d_bs_z) );
+    // CUDA_CALL( cudaFree(m_d_bs_res) );
+    // CUDA_CALL( cudaFree(m_d_bs_lastRes) );
+    // CUDA_CALL( cudaFree(m_d_bs_res0) );
+    // CUDA_CALL( cudaFree(m_d_bs_m_minRes) );
+    // CUDA_CALL( cudaFree(m_d_bs_m_minRed) );
+    // CUDA_CALL( cudaFree(m_d_bs_rho_old) );
+    // CUDA_CALL( cudaFree(m_d_bs_p) );
+    // CUDA_CALL( cudaFree(m_d_bs_alpha) );
+    // CUDA_CALL( cudaFree(m_d_bs_alpha_temp) );
     
 }
 

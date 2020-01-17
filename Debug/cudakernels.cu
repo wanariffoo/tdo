@@ -570,14 +570,19 @@ void assembleGrid2D_GPU(
     size_t* index,        // global element's ELLPACK index vector
     size_t max_row_size,  			// global element's ELLPACK maximum row size
     size_t num_rows,      			// global element's ELLPACK number of rows
-    size_t* node_index      // vector that contains the corresponding global indices of the node's local indices
+    size_t* node_index,      // vector that contains the corresponding global indices of the node's local indices
+	size_t p					
 )        
 {
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
     int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
 	if ( idx < num_rows && idy < num_rows )
-    	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
+    	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*kai,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
+    	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
+
+	// if ( idx == 0 && idy == 0 )
+	// 	printf("%e\n", *kai);
 
 }
 
@@ -914,11 +919,14 @@ void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_
             int global_col = ( node_index [ n / 2 ] * 2 ) + ( n % 2 ); // converts local node to global node
             x[id] += u[global_col] * d_A_local[ id + n*num_rows ];
 
+			// if ( id == 3 )
+			// 	printf("%e\n", x[0]);
         }
 
         x[id] *= u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ];
 
     }
+
 
 }
 
@@ -967,7 +975,7 @@ void calcDrivingForce(
     double *df,             // driving force
     double *kai,            // design variable
     double p,               // penalization parameter
-    double *temp,           // dummy/temp vector
+    double *uTAu,           // dummy/temp vector
     double *u,              // elemental displacement vector
     size_t* node_index,
 	double* d_A_local,
@@ -977,10 +985,12 @@ void calcDrivingForce(
 {
 
     // temp[] = u[]^T * A * u[]
-    uTAu_GPU<<<gridDim, blockDim>>>(temp, u, node_index, d_A_local, num_rows);
+    uTAu_GPU<<<gridDim, blockDim>>>(uTAu, u, node_index, d_A_local, num_rows);
     cudaDeviceSynchronize();
+
+
 	// calculates the driving force in each element
-    sumOfVector_GPU<<<gridDim, blockDim>>>(df, temp, num_rows);
+    sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
     cudaDeviceSynchronize();
     
 	//TODO: det_J not implemented yet
@@ -1115,9 +1125,12 @@ void calcKaiTrial(
 
     if ( id < numElements )
     {
+		// printf("%d : %e \n", id, del_kai[id]);
+		// printf("%e \n", *eta);
+
+
         del_kai[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( kai, id, N ) ) );
         
-		// printf("%d : %e \n", id, del_kai[id]);
 
         if ( del_kai[id] + kai[id] > 1 )
         kai_trial[id] = 1;
@@ -1194,6 +1207,7 @@ void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double l
 	{
 		for ( int i = 1 ; i < numElements ; ++i )
 			int_g_p[0] += int_g_p[i];
+
 	}
 
 	if ( id == 1 )

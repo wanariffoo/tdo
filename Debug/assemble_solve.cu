@@ -46,8 +46,6 @@ int main()
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
 
-    cout << h << endl;
-
     // smoother (jacobi damping parameter)
     double damp = 2.0/3.0;
     
@@ -187,25 +185,33 @@ int main()
     // // cout << "\n";
     // // cout << "TDO" << endl;
 
+    // printVector_GPU<<<1,1>>>( d_A_local, 1);
+
     // TODO: incorporate this in the beginning
     double etastar = 12.0;
     double betastar = 2.0 * pow(h,2);
 
-
+    // TODO: p=3 is not incorporated
     TDO tdo(d_u, d_kai, h, dim, betastar, etastar, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, rho);
     tdo.init();
     tdo.innerloop();    // get updated d_kai
 
+    cudaDeviceSynchronize();
 //     // // DEBUG:
-        printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+        // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
 
-//     // // update stiffness matrix with new d_kai
-//     // // TODO: get d_value, d_index and d_A_local from the class, 
-//     // // in the end, it's only Update..(d_kai)
-//     // Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_A_local);
+    // // update stiffness matrix with new d_kai
+    // // TODO: get d_value, d_index and d_A_local from the class, 
+    // // in the end, it's only Update..(d_kai)
 
-//     // printELL_GPU<<<1,1>>> ( d_value[numLevels - 1], d_index[numLevels - 1], max_row_size[numLevels - 1], num_rows[numLevels - 1], num_rows[numLevels - 1]);
-    
+
+    Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+    // cudaDeviceSynchronize();    
+
+    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printVector_GPU<<<1,1>>>( d_value[1], 1 );
+    cudaDeviceSynchronize();
 //     // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
 //     // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
 
