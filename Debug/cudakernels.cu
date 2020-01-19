@@ -57,6 +57,24 @@ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
     }
 }
 
+// Determines 2-dimensional CUDA block and grid sizes based on the number of rows N
+__host__ void calculateDimensions2D(size_t N, dim3 &gridDim, dim3 &blockDim)
+{
+    if ( N <= 1024 )
+    {
+        blockDim.x = 32; blockDim.y = 32; blockDim.z = 1;
+        gridDim.x  = 1; gridDim.y = 1; gridDim.z = 1;
+    }
+        
+    else
+    {
+        blockDim.x = 32; blockDim.y = 32; blockDim.z = 1;
+        gridDim.x  = (int)ceil((N/2)/blockDim.x)+1; gridDim.y = (int)ceil((N/2)/blockDim.y)+1; gridDim.z = 1;
+    }
+
+
+}
+
 // TODO: this is for 2D only, need 3D later
 // calculates the DOF of a grid with dimensions
 __host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim)
@@ -595,9 +613,6 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 
 	if ( idx == bc_index && idy == bc_index )
 		setAt( idx, idy, value, index, max_row_size, 1.0 );
-               
-	else if ( idx == bc_index || idy == bc_index )
-		setAt( idx, idy, value, index, max_row_size, 0.0 );
 }
 
 
@@ -1182,6 +1197,7 @@ void int_g_p(double* d_temp, double* d_df, double local_volume, size_t numElemen
 
 }
 
+// calculate the average weighted driving force, p_w
 __global__ 
 void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double local_volume, size_t numElements)
 {
@@ -1235,5 +1251,118 @@ __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double b
 
 	if ( id == 1 )
 		*beta = betastar * (*p_w);
+
+}
+
+__global__ void RA(	double* p_value, size_t* p_index, size_t p_max_row_size, 
+					double* value, size_t* index, size_t max_row_size,
+					double* temp_matrix, size_t num_rows, size_t num_cols)
+{
+	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	if ( idx < num_cols && idy < num_rows )
+	{	
+		
+		for ( int j = 0 ; j < num_cols ; ++j )
+		{
+			temp_matrix[idx + idy*num_cols] += valueAt(j, idy, p_value, p_index, p_max_row_size) * valueAt(idx, j, value, index, max_row_size);
+			// temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
+
+			
+			// if ( idx == 8 && idy == 2)
+				// printf("%f\n", temp_matrix[44]);
+		}
+			// temp_matrix[idx + idy*num_cols] += valueAt(j, idy, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
+
+		// if ( idx == 8 && idy == 2)
+		// 		printf("%f\n", valueAt(2, 2, r_value, r_index, r_max_row_size));
+
+	}
+
+}
+
+
+__global__ void AP(	double* value, size_t* index, size_t max_row_size, 
+					double* p_value, size_t* p_index, size_t p_max_row_size, 
+					double* temp_matrix, size_t num_rows, size_t num_cols)
+{
+	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	if ( idx < num_cols && idy < num_rows )
+	{	
+		
+		for ( int j = 0 ; j < num_cols ; ++j )
+		{
+			// temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
+
+			// if ( idx == 3 && idy == 2 )
+			// {
+			// 	printf("%f\n", valueAt(j, idx, p_value, p_index, p_max_row_size));
+			// }
+				
+				addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
+			
+
+		}
+			// temp_matrix[idx + idy*num_cols] += valueAt(j, idy, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
+
+		// if ( idx == 0 && idy == 0)
+		// 		printf("%f\n", valueAt(0, 0, value, index, max_row_size));
+
+	}
+
+}
+
+
+// A_coarse = R * A_fine * P
+// TODO: not optimized yet
+__host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> max_row_size, 
+					vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, 
+					vector<double*> p_value, vector<size_t*> p_index, vector<size_t> p_max_row_size, 
+					double* temp_matrix,
+					vector<size_t> num_rows, 
+					size_t lev)
+{
+	// unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	dim3 gridDim;
+    dim3 blockDim;
+	calculateDimensions2D( num_rows[0] * num_rows[1], gridDim, blockDim);
+	
+	// temp_matrix = R * A_fine
+	RA<<<gridDim,blockDim>>>(p_value[0], p_index[0], p_max_row_size[0], value[1], index[1], max_row_size[1], temp_matrix, num_rows[0], num_rows[1]);
+	cudaDeviceSynchronize();
+
+	// calculateDimensions2D( num_rows[0] * num_rows[0], gridDim, blockDim);
+	AP<<<gridDim,blockDim>>>( value[0], index[0], max_row_size[0], p_value[0], p_index[0], p_max_row_size[0], temp_matrix, num_rows[0], num_rows[1]);
+	cudaDeviceSynchronize();
+
+	// A_coarse = temp_matrix * P
+
+
+	// printELL_GPU<<<1, 1>>> (r_value[0], r_index[0], r_max_row_size[0], 8, 18);
+
+
+
+	// for ( int i = 0 ; i < num_rows ; i++ )
+	// {
+	// 	for( int j = 0 ; j < num_rows_ ; j++ )
+	// 	{
+	// 		for ( int k = 0 ; k < num_rows ; k++)
+	// 			foo[i][j] += A[i][k] * P[k][j];
+	// 	}
+	// }
+
+	// // A_ = P^T * foo
+	// for ( int i = 0 ; i < num_rows_ ; i++ )
+    //     {
+    //         for( int j = 0 ; j < num_rows_ ; j++ )
+    //         {
+    //             for ( int k = 0 ; k < num_rows ; k++)
+    //                 A_[i][j] += P[k][i] * foo[k][j];
+    //         }
+    //     }
 
 }

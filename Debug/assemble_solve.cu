@@ -16,12 +16,14 @@
 using namespace std;
 
 // TODO: matrix assembly 2D 3D
+    // NOTE: 2D assembly not symmetric
 // TODO: store local k matrix in constant memory
-// TODO: fix prolongation assembly - has something to do with bc initialization
 // TODO: 3d elements' node distribution
 // TODO: bc cases
-// TODO: work on 2D with 3 levels
-// TODO: create R matrix = transpose P
+
+
+// TODO: fix prolongation assembly - has something to do with bc initialization
+// TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
 
 
 
@@ -154,7 +156,7 @@ int main()
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
-
+    // cout << "solver" << endl;
 
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
 
@@ -182,8 +184,8 @@ int main()
     
     // // // TDO algorithm, tdo.cu
     // // // produces updated d_kai
-    // // cout << "\n";
-    // // cout << "TDO" << endl;
+    // cout << "\n";
+    // cout << "TDO" << endl;
 
     // printVector_GPU<<<1,1>>>( d_A_local, 1);
 
@@ -204,20 +206,22 @@ int main()
     // // TODO: get d_value, d_index and d_A_local from the class, 
     // // in the end, it's only Update..(d_kai)
 
-
+    // TODO: no need for R-matrix
     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
     // cudaDeviceSynchronize();    
 
+
+
     // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printVector_GPU<<<1,1>>>( d_value[1], 1 );
     cudaDeviceSynchronize();
 //     // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
-//     // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
 
 
-//     // GMG.reinit(); // TODO: update global matrix here, update the coarser ones here too 
-//     cudaDeviceSynchronize();
+    // GMG.reinit(); 
+    cudaDeviceSynchronize();
 
     
 // //     // TODO: remove d_value here

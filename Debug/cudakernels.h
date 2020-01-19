@@ -28,6 +28,9 @@ __device__ double atomicAdd_double(double* address, double val);
 // Determines 1-dimensional CUDA block and grid sizes based on the number of rows N
 __host__ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim);
 
+// Determines 2-dimensional CUDA block and grid sizes based on the number of rows N
+__host__ void calculateDimensions2D(size_t N, dim3 &gridDim, dim3 &blockDim);
+
 __host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim);
 
 // returns value of an ELLPack matrix A at (x,y)
@@ -213,4 +216,16 @@ __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double b
 
 __global__ void temp(double* d_kai);
 
+__global__ void RA(vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, size_t num_rows, size_t num_cols);
+
+__global__ void AP(	double* value, size_t* index, size_t max_row_size, double* p_value, size_t* p_index, size_t p_max_row_size, double* temp_matrix, size_t num_rows, size_t num_cols);
+
+__host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> max_row_size, 
+					vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, 
+					vector<double*> p_value, vector<size_t*> p_index, vector<size_t> p_max_row_size, 
+					double* temp_matrix,
+					vector<size_t> num_rows, 
+					size_t lev);
+
 #endif // CUDAKERNELS_H
+

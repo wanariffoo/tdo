@@ -185,18 +185,17 @@ bool Assembler::init(
 
 
   
-    // DEBUG:
-    
-    for ( int j = 0 ; j < num_rows[0] ; j++ )
-    {
-        for ( int i = 0 ; i < num_rows[0] ; i++ )
-            {
-                cout << m_A_local[j] << " ";
+    // // DEBUG:
+    // for ( int j = 0 ; j < num_rows[0] ; j++ )
+    // {
+    //     for ( int i = 0 ; i < num_rows[0] ; i++ )
+    //         {
+    //             cout << m_A_local[j] << " ";
                 
-            }
+    //         }
 
-            cout << "\n";
-    }
+    //         cout << "\n";
+    // }
 
 
     // resizing the prolongation matrices according to the number of grid-levels
@@ -955,36 +954,58 @@ bool Assembler::UpdateGlobalStiffness(
     double* &d_A_local)                                         // local stiffness matrix
 {
     
-    // reinitialize relevant variables
+    //// reinitialize relevant variables
+    // stiffness matrices, A
     for ( int lev = 0 ; lev < m_numLevels ; ++lev )
     setToZero<<<ell_gridDim[lev], ell_blockDim[lev]>>>( d_value[lev], m_num_rows[lev]*m_max_row_size[lev]);
 
-    
-    // TODO: calculateDimensions2D
-
-    // cout << m_p << endl;
-
-    dim3 blockDim(18,18,1);
-
-    // printVector_GPU<<<1,4>>>(d_kai, 4);
-
     // TODO: assembleGrid2D : add p
-    assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[0], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[0], m_p);
-    assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[1], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[1], m_p);
-    assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[2], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[2], m_p);
-    assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[3], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[3], m_p);
-
-    // cudaDeviceSynchronize();
-    // blockDim.x = 18;
-    // blockDim.y = 18;
-    // blockDim.z = 1;
-
-    // TODO: BC
-    // for ( int i = 0 ; i < m_bc_index.size() ; i++ )
-    // applyMatrixBC_GPU<<<1,blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], 12, m_bc_index[m_topLev][i], 18);
+    dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
     
-    // TODO: and then the coarse grids
-   
+    
+    // assemble the global stiffness matrix on the finest grid with the updated kai of each element
+    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_num_rows_l, m_d_node_index[i], m_p);
+
+    // assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[1], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[1], m_p);
+    // assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[2], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[2], m_p);
+    // assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[3], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[3], m_p);
+
+    // DEBUG: temp :
+    vector<vector<size_t>> temp_bc_index(2);
+
+    temp_bc_index[0] = {0,1 ,4,5};
+    temp_bc_index[1] = {0,1 ,6,7, 12,13};
+    
+    // DEBUG: temp: not optimized
+    // d_temp_matrix[8][18] to store R*A
+    double* d_temp_matrix;
+    CUDA_CALL( cudaMalloc((void**)&d_temp_matrix, sizeof(double) * m_num_rows[m_topLev] * m_num_rows[m_topLev-1] ) );
+    CUDA_CALL( cudaMemset( d_temp_matrix, 0, sizeof(double) * m_num_rows[m_topLev] * m_num_rows[m_topLev-1] ) );
+    
+    // calculating the needed cuda 2D grid size for the global assembly
+    dim3 g_gridDim;
+    dim3 g_blockDim;
+    calculateDimensions2D( m_num_rows[m_topLev], g_gridDim, g_blockDim);
+
+    
+    // applying the boundary conditions on the global stiffness matrix   
+    for ( int i = 0 ; i < temp_bc_index[m_topLev].size() ; i++ )
+        applyMatrixBC_GPU<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], temp_bc_index[m_topLev][i], m_num_rows[m_topLev] );
+
+
+    // TODO: 
+
+
+    // TODO: use optimized matrix multiplication
+
+    setToZero<<<1,144>>>( d_temp_matrix, 144);
+    RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev);
+
+    // 	printVector_GPU<<<1,144>>>( d_temp_matrix, 144 );
+	cudaDeviceSynchronize();
+
+
 
     return true;
 }
