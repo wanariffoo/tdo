@@ -26,29 +26,29 @@ void Solver::set_steps(size_t step, size_t bs_step)
 // void Solver::deallocate()
 Solver::~Solver()
 {
-    // // cout << "solver : deallocate" << endl;
-    // CUDA_CALL( cudaFree(m_d_res0) );
-    // CUDA_CALL( cudaFree(m_d_res) );
-    // CUDA_CALL( cudaFree(m_d_lastRes) );
-    // CUDA_CALL( cudaFree(m_d_m_minRes) );
-    // CUDA_CALL( cudaFree(m_d_m_minRed) );
-    // CUDA_CALL( cudaFree(m_d_r) );
-    // CUDA_CALL( cudaFree(m_d_c) );
-    // CUDA_CALL( cudaFree(m_d_step) );
-    // CUDA_CALL( cudaFree(m_d_bs_step) );
+    // cout << "solver : deallocate" << endl;
+    CUDA_CALL( cudaFree(m_d_res0) );
+    CUDA_CALL( cudaFree(m_d_res) );
+    CUDA_CALL( cudaFree(m_d_lastRes) );
+    CUDA_CALL( cudaFree(m_d_m_minRes) );
+    CUDA_CALL( cudaFree(m_d_m_minRed) );
+    CUDA_CALL( cudaFree(m_d_r) );
+    CUDA_CALL( cudaFree(m_d_c) );
+    CUDA_CALL( cudaFree(m_d_step) );
+    CUDA_CALL( cudaFree(m_d_bs_step) );
     
-    // // base solver
-    // CUDA_CALL( cudaFree(m_d_bs_r) );
-    // CUDA_CALL( cudaFree(m_d_bs_z) );
-    // CUDA_CALL( cudaFree(m_d_bs_res) );
-    // CUDA_CALL( cudaFree(m_d_bs_lastRes) );
-    // CUDA_CALL( cudaFree(m_d_bs_res0) );
-    // CUDA_CALL( cudaFree(m_d_bs_m_minRes) );
-    // CUDA_CALL( cudaFree(m_d_bs_m_minRed) );
-    // CUDA_CALL( cudaFree(m_d_bs_rho_old) );
-    // CUDA_CALL( cudaFree(m_d_bs_p) );
-    // CUDA_CALL( cudaFree(m_d_bs_alpha) );
-    // CUDA_CALL( cudaFree(m_d_bs_alpha_temp) );
+    // base solver
+    CUDA_CALL( cudaFree(m_d_bs_r) );
+    CUDA_CALL( cudaFree(m_d_bs_z) );
+    CUDA_CALL( cudaFree(m_d_bs_res) );
+    CUDA_CALL( cudaFree(m_d_bs_lastRes) );
+    CUDA_CALL( cudaFree(m_d_bs_res0) );
+    CUDA_CALL( cudaFree(m_d_bs_m_minRes) );
+    CUDA_CALL( cudaFree(m_d_bs_m_minRed) );
+    CUDA_CALL( cudaFree(m_d_bs_rho_old) );
+    CUDA_CALL( cudaFree(m_d_bs_p) );
+    CUDA_CALL( cudaFree(m_d_bs_alpha) );
+    CUDA_CALL( cudaFree(m_d_bs_alpha_temp) );
     
 }
 
@@ -208,6 +208,7 @@ bool Solver::init()
 
 bool Solver::reinit()
 {
+        
         setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_d_r, m_num_rows[m_topLev] );
         setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_d_c, m_num_rows[m_topLev] );
 
@@ -368,8 +369,8 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     addStep<<<1,1>>>(m_d_bs_step);
     }
     
-    if ( m_bs_verbose )
-    cout << "\n";
+    // if ( m_bs_verbose )
+    //     cout << "\n";
 
     return true;
 }
@@ -555,9 +556,11 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 {
     // cout << "solve" << endl;
 
-    m_d_value = d_value;
+    //TODO: cantikkan
+    setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( d_u, m_num_rows[m_topLev] );
 
-    
+
+    m_d_value = d_value;
     
     // r = b - A*u
     ComputeResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], d_u, m_d_r, d_b);
@@ -575,8 +578,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
         printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_m_minRes, m_d_m_minRed);
         cudaDeviceSynchronize();
     }
-    
-    
+
 
     // foo loop
     for (int i = 0 ; i < m_step ; i++ )

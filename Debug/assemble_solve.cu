@@ -163,8 +163,8 @@ int main()
     GMG.init();
     GMG.set_verbose(false, false);
     GMG.set_num_prepostsmooth(3,3);
-    GMG.set_convergence_params(1, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(1, 1e-99, 1e-10);
+    GMG.set_convergence_params(10, 1e-99, 1e-10);
+    GMG.set_bs_convergence_params(10, 1e-99, 1e-10);
     GMG.set_cycle('V');
     GMG.set_steps(15, 5); 
     cudaDeviceSynchronize();
@@ -220,24 +220,73 @@ int main()
     // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
 
 
-    // GMG.reinit(); 
-    cudaDeviceSynchronize();
 
     
-// //     // TODO: remove d_value here
-// //     GMG.solve(d_u, d_b, d_value);
+    GMG.reinit();
+    GMG.set_steps(100, 5); 
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
 
 
 //     temp<<<1,4>>>(d_kai);
 
+    tdo.innerloop();
     
+    cudaDeviceSynchronize();
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    cudaDeviceSynchronize();
+//     // // DEBUG:
+    cout << "\n";
+    GMG.reinit();
+    GMG.set_steps(100, 5); 
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
+
+    tdo.innerloop();
     
-    // PTAP_GPU consider using 2d blocks? :
-    // https://www.quantstart.com/articles/Matrix-Matrix-Multiplication-on-the-GPU-with-Nvidia-CUDA/
+    cudaDeviceSynchronize();
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    cudaDeviceSynchronize();
+
+     cout << "\n";
+    GMG.reinit();
+    GMG.set_steps(100, 5); 
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
+
+    tdo.innerloop();
+    
+    cudaDeviceSynchronize();
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    cudaDeviceSynchronize();
+
+cout << "\n";
+    GMG.reinit();
+    GMG.set_steps(100, 5); 
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
+
+    tdo.innerloop();
+    
+    cudaDeviceSynchronize();
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    cudaDeviceSynchronize();
 
 
+cout << "\n";
+    GMG.reinit();
+    GMG.set_steps(100, 5); 
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
 
+    tdo.innerloop();
+    
+    cudaDeviceSynchronize();
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    cudaDeviceSynchronize();
 }
 
+    // PTAP_GPU consider using 2d blocks? :
+    // https://www.quantstart.com/articles/Matrix-Matrix-Multiplication-on-the-GPU-with-Nvidia-CUDA/
 
 // print_GPU<<<1,1>>> ( d_res0 );
