@@ -12,6 +12,7 @@
 #include "assemble.h"
 #include "solver.h"
 #include "tdo.h"
+#include "vtk.h"
 
 using namespace std;
 
@@ -24,7 +25,7 @@ using namespace std;
 
 // TODO: fix prolongation assembly - has something to do with bc initialization
 // TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
-
+// TODO: solve - ApplyTransposed() --> use restrictMatrix
 
 
 int main()
@@ -60,13 +61,17 @@ int main()
     vector<vector<size_t>> bc_index(numLevels);
 
     // 1x1 base
-        bc_index[0] = {0, 2};
-        bc_index[1] = {0, 3, 6};
+        // bc_index[0] = {0, 2};
+        // bc_index[1] = {0, 3, 6};
         // bc_index[2] = {0, 5, 10, 15, 20};
 
     // bc_index[0] = {0,5};
     // bc_index[1] = {0,9,18};
     // bc_index[2] = {0,17,34,51,68};
+
+    // DEBUG: DOF-based bc
+    bc_index[0] = { 0,1, 4,5 };
+    bc_index[1] = { 0,1, 6,7, 12,13 };
    
     // TDO
     double rho = 0.4;
@@ -115,27 +120,27 @@ int main()
     Assembly.setBC(bc_index);
     Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_kai, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
 
-    /*
-    NOTE: after assembling you should have these :
-    global stiffness matrix ELLPACK
-        - vector<double*> d_value(numLevels)
-        - vector<size_t> d_index(numLevels)
-        - vector<size_t> max_row_size(numLevels)
-        - vector<double*> d_p_value(numLevels - 1)
-        - vector<size_t*> d_p_index(numLevels - 1)
-        - vector<size_t> p_max_row_size(numLevels -1 )
-    */
+//     /*
+//     NOTE: after assembling you should have these :
+//     global stiffness matrix ELLPACK
+//         - vector<double*> d_value(numLevels)
+//         - vector<size_t> d_index(numLevels)
+//         - vector<size_t> max_row_size(numLevels)
+//         - vector<double*> d_p_value(numLevels - 1)
+//         - vector<size_t*> d_p_index(numLevels - 1)
+//         - vector<size_t> p_max_row_size(numLevels -1 )
+//     */
    
     // vector u, b
     vector<double> b(num_rows[numLevels - 1], 0);
     b[5] = -10000;  // 1x1 base, 2 levels
-    // b[9] = -10000;  // 1x1 base, 3 levels
-    // b[105] = -10000;
-    // b[49] = -10000;
+//     // b[9] = -10000;  // 1x1 base, 3 levels
+//     // b[105] = -10000;
+//     // b[49] = -10000;
     double* d_u;
     double* d_b;
 
-    // TODO: get num_rows
+
     CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
     CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
@@ -143,20 +148,20 @@ int main()
 
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
-    /*
-    ##################################################################
-    #                           SOLVER                               #
-    ##################################################################
-    */
+//     /*
+//     ##################################################################
+//     #                           SOLVER                               #
+//     ##################################################################
+//     */
 
-    // TODO: remove num_cols
+//     // TODO: remove num_cols
         
 
-    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    //   printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+// //     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
-    // cout << "solver" << endl;
+// //     // cout << "solver" << endl;
 
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
 
@@ -167,27 +172,36 @@ int main()
     GMG.set_bs_convergence_params(10, 1e-99, 1e-10);
     GMG.set_cycle('V');
     GMG.set_steps(15, 5); 
-    cudaDeviceSynchronize();
+    
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
 
-    // cudaDeviceSynchronize();
+//     // TODO: vtk stuff
+//     vector<double> u(sizeof(double) * num_rows[numLevels - 1]);
 
-    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-    
-    
-    // /*
-    // ##################################################################
-    // #                           TDO                                  #
-    // ##################################################################
-    // */
-    
-    // // // TDO algorithm, tdo.cu
-    // // // produces updated d_kai
-    // cout << "\n";
-    // cout << "TDO" << endl;
+//     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * num_rows[numLevels - 1], cudaMemcpyDeviceToHost) );
 
-    // printVector_GPU<<<1,1>>>( d_A_local, 1);
+//     stringstream ss; 
+//     ss << "test.vtk";
+//     WriteVectorToVTK(u, "u", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+
+//     cudaDeviceSynchronize();
+
+// //     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+    
+    
+//     // /*
+//     // ##################################################################
+//     // #                           TDO                                  #
+//     // ##################################################################
+//     // */
+    
+//     // // // TDO algorithm, tdo.cu
+//     // // // produces updated d_kai
+//     // cout << "\n";
+//     // cout << "TDO" << endl;
+
+//     // printVector_GPU<<<1,1>>>( d_A_local, 1);
 
     // TODO: incorporate this in the beginning
     double etastar = 12.0;
@@ -199,90 +213,92 @@ int main()
     tdo.innerloop();    // get updated d_kai
 
     cudaDeviceSynchronize();
-//     // // DEBUG:
-        // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    // // DEBUG:
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
 
-    // // update stiffness matrix with new d_kai
-    // // TODO: get d_value, d_index and d_A_local from the class, 
-    // // in the end, it's only Update..(d_kai)
+//     // // update stiffness matrix with new d_kai
+//     // // TODO: get d_value, d_index and d_A_local from the class, 
+//     // // in the end, it's only Update..(d_kai)
 
     // TODO: no need for R-matrix
     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
-    // cudaDeviceSynchronize();    
+    cudaDeviceSynchronize();    
 
 
 
     // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // printVector_GPU<<<1,1>>>( d_value[1], 1 );
-    cudaDeviceSynchronize();
-//     // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
-    // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
+//     // printVector_GPU<<<1,1>>>( d_value[1], 1 );
+//     cudaDeviceSynchronize();
+// //     // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
+//     // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
 
 
 
-    
+    // cudaDeviceSynchronize();
+    // cout << "\n" << endl;
     GMG.reinit();
-    GMG.set_steps(100, 5); 
+    GMG.set_verbose(false, false);
+    GMG.set_steps(50, 5); 
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
 
 
-//     temp<<<1,4>>>(d_kai);
+// //     temp<<<1,4>>>(d_kai);
 
-    tdo.innerloop();
+//     tdo.innerloop();
     
-    cudaDeviceSynchronize();
-    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
-    cudaDeviceSynchronize();
-//     // // DEBUG:
-    cout << "\n";
-    GMG.reinit();
-    GMG.set_steps(100, 5); 
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+//     cudaDeviceSynchronize();
+//     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     cudaDeviceSynchronize();
+// //     // // DEBUG:
+//     cout << "\n";
+//     GMG.reinit();
+//     GMG.set_steps(100, 5); 
+//     GMG.solve(d_u, d_b, d_value);
+//     cudaDeviceSynchronize();
 
-    tdo.innerloop();
+//     tdo.innerloop();
     
-    cudaDeviceSynchronize();
-    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
-    cudaDeviceSynchronize();
+//     cudaDeviceSynchronize();
+//     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     cudaDeviceSynchronize();
 
-     cout << "\n";
-    GMG.reinit();
-    GMG.set_steps(100, 5); 
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+//      cout << "\n";
+//     GMG.reinit();
+//     GMG.set_steps(100, 5); 
+//     GMG.solve(d_u, d_b, d_value);
+//     cudaDeviceSynchronize();
 
-    tdo.innerloop();
+//     tdo.innerloop();
     
-    cudaDeviceSynchronize();
-    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
-    cudaDeviceSynchronize();
+//     cudaDeviceSynchronize();
+//     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     cudaDeviceSynchronize();
 
-cout << "\n";
-    GMG.reinit();
-    GMG.set_steps(100, 5); 
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+// cout << "\n";
+//     GMG.reinit();
+//     GMG.set_steps(100, 5); 
+//     GMG.solve(d_u, d_b, d_value);
+//     cudaDeviceSynchronize();
 
-    tdo.innerloop();
+//     tdo.innerloop();
     
-    cudaDeviceSynchronize();
-    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
-    cudaDeviceSynchronize();
+//     cudaDeviceSynchronize();
+//     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     cudaDeviceSynchronize();
 
 
-cout << "\n";
-    GMG.reinit();
-    GMG.set_steps(100, 5); 
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+// cout << "\n";
+//     GMG.reinit();
+//     GMG.set_steps(100, 5); 
+//     GMG.solve(d_u, d_b, d_value);
+//     cudaDeviceSynchronize();
 
-    tdo.innerloop();
+//     tdo.innerloop();
     
-    cudaDeviceSynchronize();
-    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     cudaDeviceSynchronize();
+//     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
     cudaDeviceSynchronize();
 }
 

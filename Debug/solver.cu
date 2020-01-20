@@ -276,6 +276,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
     return true;
 }
 
+// A*c = r ==> A_coarse*d_bs_u = d_bs_b
 bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 {
     // cout << "CG" << endl;
@@ -294,10 +295,15 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     setToZero<<<1,1>>>(m_d_bs_step, 1);
     cudaDeviceSynchronize();
 
+    // cudaDeviceSynchronize();
+    // cout << "d_bs_b\n";
+    // printVector_GPU<<<1,8>>>( d_bs_b, 8 );
+    // cudaDeviceSynchronize();
+
+    // m_d_bs_r = d_bs_b - A*d_bs_u
     ComputeResiduum_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], d_bs_u, m_d_bs_r, d_bs_b);
 
     norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
-
 
     equals_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_res);
     
@@ -311,7 +317,9 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
         cudaDeviceSynchronize();
     }
 	
-
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,8>>>( m_d_bs_r, 8 );
+    // cudaDeviceSynchronize();
 	
     
     addStep<<<1,1>>>(m_d_bs_step);
@@ -331,14 +339,30 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     // rho = < z, r >
     dotProduct(m_d_bs_rho, m_d_bs_r, m_d_bs_z, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
+    
+    // cudaDeviceSynchronize();
+    // print_GPU<<<1,1>>>( m_d_bs_rho );
+    // cudaDeviceSynchronize();
+
 
     calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
+    
+    // cudaDeviceSynchronize();
+    // print_GPU<<<1,1>>>( m_d_bs_p );
+    // cudaDeviceSynchronize();
 
     /// z = A*p
     Apply_GPU<<<m_gridDim[0],m_blockDim[0]>>>( m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], m_d_bs_p, m_d_bs_z );
 
+    // cudaDeviceSynchronize();
+    // // printVector_GPU<<<1,8>>>( m_d_bs_p, 8 );
+    // printELL_GPU<<<1,1>>>( m_d_value[0], m_d_index[0], m_max_row_size[0], m_num_rows[0], m_num_rows[0]);
+    // cudaDeviceSynchronize();
+
     // alpha = rho / (p * z)
     calculateAlpha(m_d_bs_alpha, m_d_bs_rho, m_d_bs_p, m_d_bs_z, m_d_bs_alpha_temp, m_num_rows[0], m_gridDim[0], m_blockDim[0] );
+
+
 
     // add correction to solution
     // x = x + alpha * p

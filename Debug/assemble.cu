@@ -90,6 +90,16 @@ size_t Assembler::getNumElements()
     return m_numElements[m_topLev];
 }
 
+vector<size_t> Assembler::getNumNodesPerDim()
+{
+    return m_numNodesPerDim[m_topLev];
+}
+
+size_t Assembler::getNumNodes()
+{
+    return m_numNodes[m_topLev];
+}
+
 
 bool Assembler::init(
     double* &d_A_local, 
@@ -179,23 +189,17 @@ bool Assembler::init(
     // NOTE: TODO: comment : this produces the local stiffness without rho implementation
     test_assembleLocal();
 
-    // TODO: CHECK: assemblelocal is messed up a bit, recheck especially when it comes to the det(J)
-    // assembleLocal();
-    // test_assembleLocal();
-
-
-  
-    // // DEBUG:
-    // for ( int j = 0 ; j < num_rows[0] ; j++ )
-    // {
-    //     for ( int i = 0 ; i < num_rows[0] ; i++ )
+    //  int a = 0;
+    //         for ( int i = 0 ; i < 8 ; ++i )
     //         {
-    //             cout << m_A_local[j] << " ";
-                
-    //         }
+    //             for( int k = 0 ; k < 8 ; ++k )
+    //             {
+    //                 cout << m_A_local[a] << " ";
+    //                 a++;
+    //             }
 
-    //         cout << "\n";
-    // }
+    //             cout << "\n";
+    //         }
 
 
     // resizing the prolongation matrices according to the number of grid-levels
@@ -214,10 +218,10 @@ bool Assembler::init(
     assembleProlMatrix(m_topLev);
 
     // // DEBUG:
-    // for ( int i = 0 ; i < num_rows[2] ; i++ )
+    // for ( int i = 0 ; i < 18 ; i++ )
     // {
-    //     for ( int j = 0 ; j < num_rows[1] ; j++ )
-    //         cout << m_P[1][i][j] << " ";
+    //     for ( int j = 0 ; j < 8 ; j++ )
+    //         cout << m_P[0][i][j] << " ";
 
     //     cout << "\n";
     // }
@@ -237,7 +241,7 @@ bool Assembler::init(
 
     assembleRestMatrix(m_topLev);
 
-    // // cout << "\n";
+    // cout << "\n";
     // // DEBUG:
     // for ( int i = 0 ; i < num_rows[0] ; i++ )
     // {
@@ -255,6 +259,7 @@ bool Assembler::init(
     // // TODO: CHECK: check the numbers here as well
     // NOTE: have to implement the rho because the local wasn't multiplied with rho
     assembleGlobal(num_rows, max_row_size, p_max_row_size, r_max_row_size);
+
 
     
     //// CUDA
@@ -493,6 +498,7 @@ bool Assembler::test_assembleLocal()
 
             //         cout << "\n";
             // }
+            //         cout << "\n";
             
             // A_local = B^T * A_ * det(J)
             for ( int i = 0 ; i < 8 ; i++ )
@@ -500,11 +506,12 @@ bool Assembler::test_assembleLocal()
                 for( int j = 0 ; j < 8 ; j++ )
                 {
                     for ( int k = 0 ; k < 3 ; k++){
+                        // cout << A_[k][j] << endl;
                         m_A_local[j + i*m_num_rows_l] += B[k][i] * A_[k][j] * det_jacobi;  
                     }
                 }
             }
-
+                // cout << m_A_local[1] << endl;
         }
         
 
@@ -745,14 +752,51 @@ bool Assembler::assembleProlMatrix(size_t lev)
         // cout << m_bc_index[1].size() << endl;
         // cout << m_bc_index[2].size() << endl;
 
-    // CHECK: have to loop through the fine DOFs?
+
+
+    // // CHECK: have to loop through the fine DOFs?
+    // // applying BC to relevant DOFs
+    // for ( int k = lev ; k != 0 ; k-- )
+    // {
+    //     // loop through each element in bc_index vector
+    //     for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
+    //     {
+    //         // size_t j = 2 * m_bc_index[k-1][bc];
+    //             // cout << "lev = " << k << ", " << j << endl;
+            
+    //         // for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
+    //         // {
+    //         //         // if ( k == 2 )
+    //         //         // cout << "bc " << m_bc_index[k-1][m] << endl;
+
+    //             // if ( j == m_bc_index[k-1][m] )
+    //             // {
+
+    //                 // clear columns of the bc indices 
+    //                 for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
+    //                 {
+    //                     // loop through each dimension
+    //                     for ( int n = 0 ; n < m_dim ; n++ )
+    //                         m_P[k-1][i][j+n] = 0;
+    //                 }
+
+    //                 // // set "1" to the respective fine grid node index
+    //                 // for ( int n = 0 ; n < m_dim ; n++ )
+    //                 //     m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
+    //             // }
+    //         // }
+    //     }
+    // }
+
+
+     // DEBUG:CHECK: have to loop through the fine DOFs?
     // applying BC to relevant DOFs
     for ( int k = lev ; k != 0 ; k-- )
     {
         // loop through each element in bc_index vector
         for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
         {
-            size_t j = 2 * m_bc_index[k-1][bc];
+            size_t j = m_bc_index[k-1][bc];
                 // cout << "lev = " << k << ", " << j << endl;
             
             // for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
@@ -766,14 +810,15 @@ bool Assembler::assembleProlMatrix(size_t lev)
                     // clear columns of the bc indices 
                     for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
                     {
-                        // loop through each dimension
-                        for ( int n = 0 ; n < m_dim ; n++ )
-                            m_P[k-1][i][j+n] = 0;
+                            m_P[k-1][i][j] = 0;
                     }
 
-                    // set "1" to the respective fine grid node index
-                    for ( int n = 0 ; n < m_dim ; n++ )
-                        m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
+
+                m_P[k-1][ getFineNode(j, m_N[k], m_dim) - (j%m_dim) ][j] = 1;
+
+                    // // set "1" to the respective fine grid node index
+                    // for ( int n = 0 ; n < m_dim ; n++ )
+                    //     m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
                 // }
             // }
         }
@@ -872,16 +917,40 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
                 m_A_g[m_topLev][x][y] = 0.0;
         }
     }
-  
 
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; ++i )
         applyMatrixBC(m_A_g[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], m_dim);
 
+
+
+    // // DEBUG:
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[1] ; j++ )
+    //         cout << m_A_g[1][i][j] << " ";
+
+    //     cout << "\n";
+    // }
+
+
+
     // filling in the coarse matrices of each level
     for ( int lev = m_topLev ; lev != 0 ; lev-- )
         PTAP(m_A_g[lev-1], m_A_g[lev], m_P[lev-1], num_rows[lev], num_rows[lev-1] );
+
+
+    // // DEBUG:
+    // for ( int i = 0 ; i < num_rows[0] ; i++ )
+    // {
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
+    //         cout << m_A_g[0][i][j] << " ";
+
+    //     cout << "\n";
+    // }
+
+
 
 
 
@@ -953,6 +1022,19 @@ bool Assembler::UpdateGlobalStiffness(
     vector<double*> &d_r_value, vector<size_t*> &d_r_index,     // restriction matrices
     double* &d_A_local)                                         // local stiffness matrix
 {
+
+        //  int a = 0;
+        //     for ( int i = 0 ; i < 8 ; ++i )
+        //     {
+        //         for( int k = 0 ; k < 8 ; ++k )
+        //         {
+        //             cout << m_A_local[a] << " ";
+        //             a++;
+        //         }
+
+        //         cout << "\n";
+        //     }
+
     
     //// reinitialize relevant variables
     // stiffness matrices, A
@@ -964,21 +1046,26 @@ bool Assembler::UpdateGlobalStiffness(
     
     
     // assemble the global stiffness matrix on the finest grid with the updated kai of each element
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+    // for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+    for ( int i = 0 ; i < 4 ; ++i )
         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_num_rows_l, m_d_node_index[i], m_p);
 
     // assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[1], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[1], m_p);
     // assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[2], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[2], m_p);
     // assembleGrid2D_GPU<<<1,blockDim>>>( m_N[m_topLev][0], m_dim, &d_kai[3], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], 8, m_d_node_index[3], m_p);
 
-    // DEBUG: temp :
-    vector<vector<size_t>> temp_bc_index(2);
 
-    temp_bc_index[0] = {0,1 ,4,5};
-    temp_bc_index[1] = {0,1 ,6,7, 12,13};
+
+
+
+    // // DEBUG: temp :
+    // vector<vector<size_t>> temp_bc_index(2);
+
+    // temp_bc_index[0] = {0,1 ,4,5};
+    // temp_bc_index[1] = {0,1 ,6,7, 12,13};
     
-    // DEBUG: temp: not optimized
-    // d_temp_matrix[8][18] to store R*A
+    // // DEBUG: temp: not optimized
+    // // d_temp_matrix[8][18] to store R*A
     double* d_temp_matrix;
     CUDA_CALL( cudaMalloc((void**)&d_temp_matrix, sizeof(double) * m_num_rows[m_topLev] * m_num_rows[m_topLev-1] ) );
     CUDA_CALL( cudaMemset( d_temp_matrix, 0, sizeof(double) * m_num_rows[m_topLev] * m_num_rows[m_topLev-1] ) );
@@ -990,8 +1077,8 @@ bool Assembler::UpdateGlobalStiffness(
 
     
     // applying the boundary conditions on the global stiffness matrix   
-    for ( int i = 0 ; i < temp_bc_index[m_topLev].size() ; i++ )
-        applyMatrixBC_GPU<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], temp_bc_index[m_topLev][i], m_num_rows[m_topLev] );
+    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+        applyMatrixBC_GPU<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev] );
 
 
     // TODO: 
