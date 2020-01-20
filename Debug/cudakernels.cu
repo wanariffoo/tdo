@@ -1223,7 +1223,6 @@ void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double l
 	{
 		for ( int i = 1 ; i < numElements ; ++i )
 			int_g_p[0] += int_g_p[i];
-
 	}
 
 	if ( id == 1 )

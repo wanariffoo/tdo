@@ -36,7 +36,7 @@ int main()
     double poisson = 0.3;
 
     // domain dimensions (x,y,z) on coarsest grid
-    vector<size_t> N = {1,1};
+    vector<size_t> N = {3,1};
     // vector<size_t> N = {1,1,1};
     size_t dim = N.size();
 
@@ -44,7 +44,7 @@ int main()
     size_t numLevels = 2;
     
     // local element mesh size on coarsest grid
-    double h_coarse = 0.5;
+    double h_coarse = 1;
     
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
@@ -70,8 +70,12 @@ int main()
     // bc_index[2] = {0,17,34,51,68};
 
     // DEBUG: DOF-based bc
-    bc_index[0] = { 0,1, 4,5 };
-    bc_index[1] = { 0,1, 6,7, 12,13 };
+    // bc_index[0] = { 0,1, 4,5 };
+    // bc_index[1] = { 0,1, 6,7, 12,13 };
+
+    // MBB
+    bc_index[0] = {0,1, 8,9};
+    bc_index[1] = {0,1, 14,15, 28,29};
    
     // TDO
     double rho = 0.4;
@@ -133,10 +137,11 @@ int main()
    
     // vector u, b
     vector<double> b(num_rows[numLevels - 1], 0);
-    b[5] = -10000;  // 1x1 base, 2 levels
-//     // b[9] = -10000;  // 1x1 base, 3 levels
-//     // b[105] = -10000;
-//     // b[49] = -10000;
+    // b[5] = -10000;  // 1x1 base, 2 levels
+// //     // b[9] = -10000;  // 1x1 base, 3 levels
+// //     // b[105] = -10000;
+// //     // b[49] = -10000;
+    b[13] = -10000; // 3x1 base, 2 levels
     double* d_u;
     double* d_b;
 
@@ -148,20 +153,20 @@ int main()
 
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
-//     /*
-//     ##################################################################
-//     #                           SOLVER                               #
-//     ##################################################################
-//     */
+    /*
+    ##################################################################
+    #                           SOLVER                               #
+    ##################################################################
+    */
 
-//     // TODO: remove num_cols
+    // TODO: remove num_cols
         
 
     //   printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-// //     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+//     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
-// //     // cout << "solver" << endl;
+//     // cout << "solver" << endl;
 
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
 
@@ -176,44 +181,47 @@ int main()
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
 
-//     // TODO: vtk stuff
-//     vector<double> u(sizeof(double) * num_rows[numLevels - 1]);
+    // // TODO: vtk stuff
+    // vector<double> u(sizeof(double) * num_rows[numLevels - 1]);
 
-//     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * num_rows[numLevels - 1], cudaMemcpyDeviceToHost) );
+    // CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * num_rows[numLevels - 1], cudaMemcpyDeviceToHost) );
 
-//     stringstream ss; 
-//     ss << "test.vtk";
-//     WriteVectorToVTK(u, "u", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+    // // stringstream ss; 
+    // // ss << "test.vtk";
+    // // WriteVectorToVTK(u, "u", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
 
-//     cudaDeviceSynchronize();
+    // // cudaDeviceSynchronize();
 
-// //     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
     
     
-//     // /*
-//     // ##################################################################
-//     // #                           TDO                                  #
-//     // ##################################################################
-//     // */
+    // /*
+    // ##################################################################
+    // #                           TDO                                  #
+    // ##################################################################
+    // */
     
-//     // // // TDO algorithm, tdo.cu
-//     // // // produces updated d_kai
-//     // cout << "\n";
-//     // cout << "TDO" << endl;
+    // // // TDO algorithm, tdo.cu
+    // // // produces updated d_kai
+    // cout << "\n";
+    // cout << "TDO" << endl;
 
-//     // printVector_GPU<<<1,1>>>( d_A_local, 1);
+
+    size_t local_num_rows = 4 * dim;
+    
+    
 
     // TODO: incorporate this in the beginning
     double etastar = 12.0;
     double betastar = 2.0 * pow(h,2);
 
     // TODO: p=3 is not incorporated
-    TDO tdo(d_u, d_kai, h, dim, betastar, etastar, Assembly.getNumElements(), num_rows[0], d_A_local, d_node_index, N, rho);
+    TDO tdo(d_u, d_kai, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, N, rho, numLevels, p);
     tdo.init();
     tdo.innerloop();    // get updated d_kai
 
     cudaDeviceSynchronize();
-    // // DEBUG:
+    // DEBUG:
     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
 
 //     // // update stiffness matrix with new d_kai
@@ -222,7 +230,7 @@ int main()
 
     // TODO: no need for R-matrix
     Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
-    cudaDeviceSynchronize();    
+    // cudaDeviceSynchronize();    
 
 
 
@@ -235,18 +243,21 @@ int main()
 
 
 
-    // cudaDeviceSynchronize();
-    // cout << "\n" << endl;
+    cudaDeviceSynchronize();
+    cout << "\n" << endl;
     GMG.reinit();
     GMG.set_verbose(false, false);
     GMG.set_steps(50, 5); 
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
 
+    // TODO: something's wrong with the solver for N = {3,1}
+    printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
 
 // //     temp<<<1,4>>>(d_kai);
 
-//     tdo.innerloop();
+    // TODO: kai is not updated in innerloop!!!!
+    // tdo.innerloop();
     
 //     cudaDeviceSynchronize();
 //     printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());

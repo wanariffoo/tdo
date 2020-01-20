@@ -6,7 +6,7 @@
 class TDO{
 
 public:
-    TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho);
+    TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
     bool init();
     bool innerloop();
 
@@ -21,6 +21,7 @@ private:
     size_t m_numElements;
     size_t m_num_rows;
     vector<size_t> m_N;
+    size_t m_numLevels;
 
     // inner loop
     size_t m_n;
@@ -29,6 +30,7 @@ private:
     // TDO
     double m_del_t;
     double m_rho;
+    size_t m_p;
 
 
     double m_betastar;

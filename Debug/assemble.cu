@@ -148,6 +148,7 @@ bool Assembler::init(
             m_numElements[lev] *= m_N[lev][i];
         }
     }
+
     
     // m_numNodesPerDim[lev][dim]
     m_numNodesPerDim.resize(m_numLevels, vector<size_t>(m_dim));
@@ -218,9 +219,9 @@ bool Assembler::init(
     assembleProlMatrix(m_topLev);
 
     // // DEBUG:
-    // for ( int i = 0 ; i < 18 ; i++ )
+    // for ( int i = 0 ; i < num_rows[1] ; i++ )
     // {
-    //     for ( int j = 0 ; j < 8 ; j++ )
+    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
     //         cout << m_P[0][i][j] << " ";
 
     //     cout << "\n";
@@ -866,16 +867,16 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
     }
     
-    // DEBUG:
-        // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-        // {
-        //     cout << "Element " << elem << endl;
-        //     for ( int i = 0 ; i < 4 ; ++i )
-        //     {
-        //         cout << m_element[elem].nodeIndex(i) << endl;
-        //     }
-        //     cout << "\n";
-        // }
+    // // DEBUG:
+    //     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    //     {
+    //         cout << "Element " << elem << endl;
+    //         for ( int i = 0 ; i < 4 ; ++i )
+    //         {
+    //             cout << m_element[elem].nodeIndex(i) << endl;
+    //         }
+    //         cout << "\n";
+    //     }
                
 
     // resizing the global stiffness matrices on each grid-level
@@ -1086,7 +1087,7 @@ bool Assembler::UpdateGlobalStiffness(
 
     // TODO: use optimized matrix multiplication
 
-    setToZero<<<1,144>>>( d_temp_matrix, 144);
+    setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
     RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev);
 
     // 	printVector_GPU<<<1,144>>>( d_temp_matrix, 144 );
