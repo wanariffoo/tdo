@@ -8,7 +8,7 @@ class TDO{
 public:
     TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
     bool init();
-    bool innerloop();
+    bool innerloop(double* &d_u, double* &d_kai);
 
 
 

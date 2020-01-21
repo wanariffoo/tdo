@@ -36,18 +36,18 @@ int main()
     double poisson = 0.3;
 
 
-    size_t numLevels = 3;
+    size_t numLevels = 2;
 
     // domain dimensions (x,y,z) on coarsest grid
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    
+    //// 2D
     // base : {1,1}
-    N = {1,1};
-    bc_index[0] = { 0,1, 4,5 };
-    bc_index[1] = { 0,1, 6,7, 12,13 };
-    bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
+    // N = {1,1};
+    // bc_index[0] = { 0,1, 4,5 };
+    // bc_index[1] = { 0,1, 6,7, 12,13 };
+    // bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
 
     // MBB : {2,1}
     // N = {2,1};
@@ -59,6 +59,13 @@ int main()
     // N = {3,1};
     // bc_index[0] = {0,1, 8,9};
     // bc_index[1] = {0,1, 14,15, 28,29};
+
+    //// 3D
+    // base : {1,1,1}
+    N = {1,1,1};
+    bc_index[0] = { 0,1,2, 6,7,8, 12,13,14, 18,19,20 };
+    bc_index[1] = { 0,1,2, 9,10,11, 18,19,20, 27,28,29, 36,37,38, 45,46,47, 54,55,56, 63,64,65, 72,73,74 };
+    
 
 
     size_t dim = N.size();
@@ -131,110 +138,99 @@ int main()
     Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_kai, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
 
     
+//     // vector u, b
+//     vector<double> b(num_rows[numLevels - 1], 0);
+//     // b[5] = -10000;  // 1x1 base, 2 levels
+//     b[9] = -10000;  // 1x1 base, 3 levels
+
+//     // b[9] = -10000; // 2x1 base, 2 levels
+//     // b[13] = -10000; // 3x1 base, 2 levels
+//     double* d_u;
+//     double* d_b;
+
+
+//     CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
+//     CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
+
+//     CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
+
+//     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
+
 //     /*
-//     NOTE: after assembling you should have these :
-//     global stiffness matrix ELLPACK
-//         - vector<double*> d_value(numLevels)
-//         - vector<size_t> d_index(numLevels)
-//         - vector<size_t> max_row_size(numLevels)
-//         - vector<double*> d_p_value(numLevels - 1)
-//         - vector<size_t*> d_p_index(numLevels - 1)
-//         - vector<size_t> p_max_row_size(numLevels -1 )
+//     ##################################################################
+//     #                           SOLVER                               #
+//     ##################################################################
 //     */
-    
-    // vector u, b
-    vector<double> b(num_rows[numLevels - 1], 0);
-    // b[5] = -10000;  // 1x1 base, 2 levels
-    b[9] = -10000;  // 1x1 base, 3 levels
 
-    // b[9] = -10000; // 2x1 base, 2 levels
-    // b[13] = -10000; // 3x1 base, 2 levels
-    double* d_u;
-    double* d_b;
-
-
-    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
-    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
-
-    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
-
-    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
-
-    /*
-    ##################################################################
-    #                           SOLVER                               #
-    ##################################################################
-    */
-
-    // TODO: remove num_cols
+//     // TODO: remove num_cols
         
 
-    //   printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-//     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+//     //   printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+//     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+// //     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
-//     // cout << "solver" << endl;
+// //     // cout << "solver" << endl;
 
-    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+//     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
 
-    GMG.init();
-    GMG.set_verbose(false, false);
-    GMG.set_num_prepostsmooth(3,3);
-    GMG.set_convergence_params(10, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(10, 1e-99, 1e-10);
-    GMG.set_cycle('V');
-    GMG.set_steps(15, 5); 
+//     GMG.init();
+//     GMG.set_verbose(false, false);
+//     GMG.set_num_prepostsmooth(3,3);
+//     GMG.set_convergence_params(10, 1e-99, 1e-10);
+//     GMG.set_bs_convergence_params(10, 1e-99, 1e-10);
+//     GMG.set_cycle('V');
+//     GMG.set_steps(15, 5); 
     
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+//     GMG.solve(d_u, d_b, d_value);
+//     cudaDeviceSynchronize();
 
   
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
-    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+//     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
     
     
-    // /*
-    // ##################################################################
-    // #                           TDO                                  #
-    // ##################################################################
-    // */
+//     // /*
+//     // ##################################################################
+//     // #                           TDO                                  #
+//     // ##################################################################
+//     // */
     
-    // // // TDO algorithm, tdo.cu
-    // // // produces updated d_kai
-    // cout << "\n";
-    // cout << "TDO" << endl;
+//     // // // TDO algorithm, tdo.cu
+//     // // // produces updated d_kai
+//     // cout << "\n";
+//     // cout << "TDO" << endl;
 
 
-    size_t local_num_rows = 4 * dim;
+//     size_t local_num_rows = 4 * dim;
     
     
 
-    // TODO: incorporate this in the beginning
-    double etastar = 12.0;
-    double betastar = 2.0 * pow(h,2);
+//     // TODO: incorporate this in the beginning
+//     double etastar = 12.0;
+//     double betastar = 2.0 * pow(h,2);
 
     
-    TDO tdo(d_u, d_kai, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
-    tdo.init();
-    tdo.innerloop(d_u, d_kai);    // get updated d_kai
+//     TDO tdo(d_u, d_kai, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
+//     tdo.init();
+//     tdo.innerloop(d_u, d_kai);    // get updated d_kai
 
 
-    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-    // // TODO: vtk stuff
-    // vector<double> kai(Assembly.getNumElements());
+//     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+//     // // TODO: vtk stuff
+//     // vector<double> kai(Assembly.getNumElements());
 
-    // cout << kai.size() << endl;
-    // CUDA_CALL( cudaMemcpy(&kai[0], d_kai, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+//     // cout << kai.size() << endl;
+//     // CUDA_CALL( cudaMemcpy(&kai[0], d_kai, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
 
-    // stringstream ss; 
-    // ss << "test.vtk";
-    // WriteVectorToVTK(kai, "kai", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+//     // stringstream ss; 
+//     // ss << "test.vtk";
+//     // WriteVectorToVTK(kai, "kai", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
 
-    // cudaDeviceSynchronize();
-    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+//     // cudaDeviceSynchronize();
+//     // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+//     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
-    cudaDeviceSynchronize();
+//     cudaDeviceSynchronize();
     // DEBUG:
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
 

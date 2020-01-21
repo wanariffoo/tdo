@@ -25,6 +25,7 @@ public:
     bool UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
  
     vector<size_t> getNumNodesPerDim();
+    vector<size_t> getGridSize();
     size_t getNumElements();
     size_t getNumNodes();
 

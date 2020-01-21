@@ -597,6 +597,7 @@ void assembleGrid2D_GPU(
 
 	if ( idx < num_rows && idy < num_rows )
     	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*kai,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
+
     	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
 
 	// if ( idx == 0 && idy == 0 )
@@ -616,6 +617,7 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 }
 
 
+// obtain a node's corresponding fine node index
 __host__
 size_t getFineNode(size_t index, vector<size_t> N, size_t dim)
 {
@@ -632,10 +634,11 @@ size_t getFineNode(size_t index, vector<size_t> N, size_t dim)
 	{	
 		size_t twoDimSize = (N[0]+1)*(N[1]+1);
 		size_t baseindex = index % twoDimSize;
-		size_t fine2Dsize = (2*N[0]+1)*(2*N[1]+1)+1;
+		size_t fine2Dsize = (2*N[0]+1)*(2*N[1]+1);
 		size_t multiplier = index/twoDimSize;
-
-		return 2*multiplier*fine2Dsize + (2 * (ceil)(baseindex / (N[0] + 1)) * (2*N[0] + 1) + 2*( baseindex % (N[0]+1)) );
+		
+		return 2*multiplier*fine2Dsize + (2*( baseindex % twoDimSize ) + (ceil)(baseindex/2)*2) ;
+		
 	}
 
 	else
@@ -1003,6 +1006,8 @@ void calcDrivingForce(
     uTAu_GPU<<<gridDim, blockDim>>>(uTAu, u, node_index, d_A_local, num_rows);
     cudaDeviceSynchronize();
 
+	// printVector_GPU<<<1,4>>>( u, 4);
+
 
 	// calculates the driving force in each element
     sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
@@ -1019,6 +1024,12 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
 {
     double value = 4.0 * array[ind];
 
+	// if ( ind == 0 )
+	// {
+	// 	printf("%f\n", *array);
+	// 	printf("%lu\n", N);
+	// }
+	
     // east element
     if ( (ind + 1) % N != 0 )
         value += -1.0 * array[ind + 1];

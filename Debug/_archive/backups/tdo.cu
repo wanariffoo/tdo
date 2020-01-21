@@ -165,6 +165,7 @@ bool TDO::innerloop(double* &d_u, double* &d_kai)
 
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_kai_tr, m_numElements);
+
                     
 
             // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_kai_tr, m_numElements);
