@@ -58,9 +58,11 @@ void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std
 	for (std::size_t i = dim; i < 3; ++i)
 			ofs << " " << 0.0;
 	ofs << std::endl;
-
+	// TODO:
+	// ofs << CELL_DATA
 	ofs << "POINT_DATA " << numNodes << std::endl;
 	ofs << "SCALARS " << fctName << " double 1" << std::endl;
+
 
     cout << "numNodes = " << numNodes << endl;
 

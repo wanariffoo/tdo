@@ -135,7 +135,7 @@ TODO:       repair some reduction functions, add this in the beginning:
                     temp += x[id];
 
 
-TODO:       repair PSFEM's calculateDimensions
+DONE:       repair PSFEM's calculateDimensions
 
             __host__ 
             void calculateDimensions(size_t N, dim3 &blockDim, dim3 &gridDim)   // TODO: have it gridDim first --> N, gridDim, blockDim
@@ -153,16 +153,52 @@ TODO:       repair PSFEM's calculateDimensions
 DONE:       use full u to calculate local driving forces
                 - have a kernel to get only the local displacements
 
-        
+
+
+
 
 Questions:
 - bisection algo
+
+vtk function
+    - value should be the design variable, chi?
 
 - convergence on the second iteration should be about the same as the first, right?
     - first: 15 steps
     - second: 150+ steps
 
     - run on matlab with updated stiffness, get same 150 steps
+
+presentation thurs 12.15h
+    - slurm, benchmark
+    - Herr Prager - key, next to secretary
+
+hiwi:
+latex : best practices masters thesis 
+    - reference
+    - latex sources
+- document:
+    - where to find latex templates
+    - links to latex resources
+    - information on statement / declaration
+        - check prof's email
+    - info on how the structure should be (supervisors)
+    - typical chapter overview
+        - overviews, lit review, methods, ...
+        - what to be covered in each chapter
+    - a few general remarks on style
+        - figures need to be captioned
+        - format to references
+    - typical size of a thesis
+    - submitting to compeeng
+    - printing a thesis
+
+
+
+
+
+
+
 
 
 

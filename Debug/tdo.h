@@ -6,9 +6,9 @@
 class TDO{
 
 public:
-    TDO(double* d_u, double* d_kai, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
+    TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
     bool init();
-    bool innerloop(double* &d_u, double* &d_kai);
+    bool innerloop(double* &d_u, double* &d_chi);
 
 
 
@@ -36,7 +36,7 @@ private:
     double m_betastar;
     double m_etastar;
 
-    double* m_d_kai;
+    double* m_d_chi;
 
     dim3 m_gridDim;
     dim3 m_blockDim;
@@ -70,7 +70,7 @@ private:
     double* m_d_lambda_u;
     double* m_d_lambda_tr;
     
-    double* m_d_kai_tr;
+    double* m_d_chi_tr;
 
     //NOTE: reuse this from somewhere? temp variable?
     double* m_d_rho_tr;   

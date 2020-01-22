@@ -12,7 +12,7 @@ class Assembler{
 public:
     Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels);
 
-    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_kai, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
+    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
 
     ~Assembler();
 
@@ -22,7 +22,7 @@ public:
     bool assembleRestMatrix(size_t lev);
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size);
     void setBC(vector<vector<size_t>> bc_index);
-    bool UpdateGlobalStiffness(double* &d_kai, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
+    bool UpdateGlobalStiffness(double* &d_chi, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
  
     vector<size_t> getNumNodesPerDim();
     vector<size_t> getGridSize();
@@ -101,7 +101,7 @@ private:
     //// TDO
     double m_rho;
     size_t m_p;
-    vector<double> m_kai;
+    vector<double> m_chi;
     double del_t;
     
     //weighted average driving force

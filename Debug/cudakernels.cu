@@ -582,7 +582,7 @@ __global__
 void assembleGrid2D_GPU(
     size_t N,               		// number of elements per row
     size_t dim,             		// dimension
-	double* kai,					// the updated design variable value of each element
+	double* chi,					// the updated design variable value of each element
     double* A_local,      		// local stiffness matrix
     double* value,        // global element's ELLPACK value vector
     size_t* index,        // global element's ELLPACK index vector
@@ -596,12 +596,12 @@ void assembleGrid2D_GPU(
     int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
 	if ( idx < num_rows && idy < num_rows )
-    	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*kai,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
+    	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*chi,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
 
     	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
 
 	// if ( idx == 0 && idy == 0 )
-	// 	printf("%e\n", *kai);
+	// 	printf("%e\n", *chi);
 
 }
 
@@ -912,15 +912,15 @@ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t num_rows)
 //// TDO
 
 
-// df = ( 1/2*omega ) * p * kai^(p-1) * sum(local stiffness matrices)
+// df = ( 1/2*omega ) * p * chi^(p-1) * sum(local stiffness matrices)
 __global__
-void UpdateDrivingForce(double *df, double* uTau, double p, double *kai, double local_volume, size_t N)
+void UpdateDrivingForce(double *df, double* uTau, double p, double *chi, double local_volume, size_t N)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
 
     if ( id < N )
-        df[id] = uTau[id] * ( local_volume / (2*local_volume) ) * p * pow(kai[id], p - 1);
-        // df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(kai[id], p - 1);
+        df[id] = uTau[id] * ( local_volume / (2*local_volume) ) * p * pow(chi[id], p - 1);
+        // df[id] = uTKu[id] * ( 1 / (2*local_volume) ) * p * pow(chi[id], p - 1);
 }
 
 // x[] = u[]^T * A * u[]
@@ -991,7 +991,7 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 __host__
 void calcDrivingForce(
     double *df,             // driving force
-    double *kai,            // design variable
+    double *chi,            // design variable
     double p,               // penalization parameter
     double *uTAu,           // dummy/temp vector
     double *u,              // elemental displacement vector
@@ -1014,8 +1014,8 @@ void calcDrivingForce(
     cudaDeviceSynchronize();
     
 	//TODO: det_J not implemented yet
-	// df[] *= ( 1 / 2*omega ) * ( p * pow(kai[], p - 1 ) * det(J)
-    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, p, kai, local_volume, num_rows);
+	// df[] *= ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) * det(J)
+    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, p, chi, local_volume, num_rows);
 	
 }
 
@@ -1050,7 +1050,7 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
 }
 
 __global__ 
-void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *kai, double* eta, unsigned int N, unsigned int numElements)
+void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, unsigned int N, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1063,7 +1063,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
     
 	while(index + offset < numElements){
         // temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian[index] ) + eta ) );
-        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( kai, index, N ) ) + *eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) + *eta ) );
          
 		offset += stride;
 	}
@@ -1091,7 +1091,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 
 
 __global__ 
-void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *kai, double* eta, unsigned int N, unsigned int numElements)
+void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, unsigned int N, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1104,7 +1104,7 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
     
 
 	while(index + offset < numElements){
-        temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( kai, index, N ) ) - *eta ) );
+        temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) - *eta ) );
 		offset += stride;
 	}
     
@@ -1132,42 +1132,42 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
 }
 
 __global__
-void calcKaiTrial(   
-    double *kai, 
+void calcChiTrial(   
+    double *chi, 
     double *df, 
     double *lambda_trial, 
     double del_t,
     double* eta,
     double* beta,
-    double* kai_trial,
+    double* chi_trial,
     size_t N,
     size_t numElements
 )
 {
     unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
     
-    __shared__ double del_kai[1024];
+    __shared__ double del_chi[1024];
 
 
     if ( id < numElements )
     {
-		// printf("%d : %e \n", id, del_kai[id]);
+		// printf("%d : %e \n", id, del_chi[id]);
 		// printf("%e \n", *eta);
 
 
-        del_kai[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( kai, id, N ) ) );
+        del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, N ) ) );
         
 
-        if ( del_kai[id] + kai[id] > 1 )
-        kai_trial[id] = 1;
+        if ( del_chi[id] + chi[id] > 1 )
+        chi_trial[id] = 1;
         
-        else if ( del_kai[id] + kai[id] < 1e-9 )
-        kai_trial[id] = 1e-9;
+        else if ( del_chi[id] + chi[id] < 1e-9 )
+        chi_trial[id] = 1e-9;
         
         else
-        kai_trial[id] = del_kai[id] + kai[id];
+        chi_trial[id] = del_chi[id] + chi[id];
         
-        // printf("%d %f \n", id, kai_trial[id]);
+        // printf("%d %f \n", id, chi_trial[id]);
     }
 }
 
@@ -1185,10 +1185,10 @@ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *la
 }
 
 
-__global__ void temp(double* d_kai)
+__global__ void temp(double* d_chi)
 {
 
-	// d_kai[0] = 
+	// d_chi[0] = 
 }
 
 
@@ -1202,7 +1202,7 @@ void int_g_p(double* d_temp, double* d_df, double local_volume, size_t numElemen
 	// if( id < numElements)
 	// {
 	// 	// calculate g of element
-	// 	d_temp[id] = (d_kai[id] - 1e-9)*(1-d_kai[id]) * d_df[id] * local_volume; 
+	// 	d_temp[id] = (d_chi[id] - 1e-9)*(1-d_chi[id]) * d_df[id] * local_volume; 
 
 	// }
 
@@ -1210,7 +1210,7 @@ void int_g_p(double* d_temp, double* d_df, double local_volume, size_t numElemen
 
 // calculate the average weighted driving force, p_w
 __global__ 
-void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double local_volume, size_t numElements)
+void calcP_w(double* p_w, double* df, double* uTAu, double* chi, int p, double local_volume, size_t numElements)
 {
 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -1219,10 +1219,10 @@ void calcP_w(double* p_w, double* df, double* uTAu, double* kai, int p, double l
 
 	if( id < numElements)
 	{
-		df[id] = uTAu[id] * ( local_volume / (2*local_volume) ) * p * pow(kai[id], p - 1);
+		df[id] = uTAu[id] * ( local_volume / (2*local_volume) ) * p * pow(chi[id], p - 1);
 
-		int_g_p[id] = (kai[id] - 1e-9)*(1-kai[id]) * df[id] * local_volume;
-		int_g[id] = (kai[id] - 1e-9)*(1-kai[id]) * local_volume;
+		int_g_p[id] = (chi[id] - 1e-9)*(1-chi[id]) * df[id] * local_volume;
+		int_g[id] = (chi[id] - 1e-9)*(1-chi[id]) * local_volume;
 
 
 	__syncthreads();

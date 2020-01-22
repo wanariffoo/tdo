@@ -117,7 +117,7 @@ int main()
     vector<size_t*> d_r_index;
 
     // design variable
-    double* d_kai;           // NOTE: can alloc this immediately
+    double* d_chi;           // NOTE: can alloc this immediately
 
 
 
@@ -135,7 +135,7 @@ int main()
 
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_kai, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
+    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
 
     
 //     // vector u, b
@@ -185,7 +185,7 @@ int main()
 //     cudaDeviceSynchronize();
 
   
-//     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+//     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 //     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
     
     
@@ -196,7 +196,7 @@ int main()
 //     // */
     
 //     // // // TDO algorithm, tdo.cu
-//     // // // produces updated d_kai
+//     // // // produces updated d_chi
 //     // cout << "\n";
 //     // cout << "TDO" << endl;
 
@@ -210,21 +210,28 @@ int main()
 //     double betastar = 2.0 * pow(h,2);
 
     
-//     TDO tdo(d_u, d_kai, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
+//     TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
 //     tdo.init();
-//     tdo.innerloop(d_u, d_kai);    // get updated d_kai
+//     tdo.innerloop(d_u, d_chi);    // get updated d_chi
 
 
 //     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-//     // // TODO: vtk stuff
-//     // vector<double> kai(Assembly.getNumElements());
 
-//     // cout << kai.size() << endl;
-//     // CUDA_CALL( cudaMemcpy(&kai[0], d_kai, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
 
-//     // stringstream ss; 
-//     // ss << "test.vtk";
-//     // WriteVectorToVTK(kai, "kai", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+    // TODO: vtk stuff
+    // vector<double> chi(Assembly.getNumElements());
+
+    // cout << chi.size() << endl;
+    // CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+
+    
+    // stringstream ss; 
+    // ss << "test.vtk";
+    // WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+    // WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+
+
+
 
 //     // cudaDeviceSynchronize();
 //     // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
@@ -232,14 +239,14 @@ int main()
 
 //     cudaDeviceSynchronize();
     // DEBUG:
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 
-//     // // update stiffness matrix with new d_kai
+//     // // update stiffness matrix with new d_chi
 //     // // TODO: get d_value, d_index and d_A_local from the class, 
-//     // // in the end, it's only Update..(d_kai)
+//     // // in the end, it's only Update..(d_chi)
 
     // TODO: no need for R-matrix
-    // Assembly.UpdateGlobalStiffness(d_kai, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+    // Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
     // cudaDeviceSynchronize();    
 
 
@@ -270,10 +277,10 @@ int main()
 
     // // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
 
-    // tdo.innerloop(d_u, d_kai);
+    // tdo.innerloop(d_u, d_chi);
     
     // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_kai, Assembly.getNumElements());
+    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
     // cudaDeviceSynchronize();
     // cout << "\n";
     // }
