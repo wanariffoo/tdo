@@ -88,10 +88,10 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         calcDrivingForce ( &m_d_df[i], &m_d_chi[i], m_p, m_d_uTAu, m_d_u, m_d_node_index[i], m_d_A_local, m_num_rows, m_gridDim, m_blockDim );
 
     // DEBUG:
-        cout << "m_d_df" << endl;
-        cudaDeviceSynchronize();
-        printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
-        cudaDeviceSynchronize();
+        // cout << "m_d_df" << endl;
+        // cudaDeviceSynchronize();
+        // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
+        // cudaDeviceSynchronize();
         
 
 
@@ -112,9 +112,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // cout << m_etastar << endl;
     // cout << m_betastar << endl;
 
-    // print_GPU<<<1,1>>>( m_d_eta );
-    // cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_beta );
+    // cudaDeviceSynchronize();
+    // print_GPU<<<1,1>>>( m_d_eta );
     // cudaDeviceSynchronize();
 
 
@@ -127,8 +127,8 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         // temp[] = u[]^T * A * u[]
         UpdateDrivingForce<<<m_gridDim,m_blockDim>>>( m_d_df, m_d_uTAu, m_p, m_d_chi, m_local_volume, m_numElements );
 
-        printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
-        cudaDeviceSynchronize();
+        // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
+        // cudaDeviceSynchronize();
 
 
         // TODO: laplacian_GPU in these kernels only work on sym. matrices
@@ -146,17 +146,22 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         // cudaDeviceSynchronize();
         // print_GPU <<< 1 , 1 >>> ( m_d_beta );
         // // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
-        // cudaDeviceSynchronize();
-        // cout << "lambda" << endl;
-        // cudaDeviceSynchronize();
-        // print_GPU <<< 1 , 1 >>> ( m_d_lambda_l );
-        // print_GPU <<< 1 , 1 >>> ( m_d_lambda_u );
-        // cudaDeviceSynchronize();
-
-
 
         for ( int i = 0 ; i < 20 ; i++ )
         {
+            // cout << "iteration " << i << endl;
+            // cudaDeviceSynchronize();
+            // cout << "lambda_tr" << endl;
+            // print_GPU <<< 1 , 1 >>> ( m_d_lambda_tr );
+            // cudaDeviceSynchronize();
+            // cout << "lambda_l" << endl;
+            // print_GPU <<< 1 , 1 >>> ( m_d_lambda_l );
+            // cudaDeviceSynchronize();
+            // cout << "lambda_u" << endl;
+            // print_GPU <<< 1 , 1 >>> ( m_d_lambda_u );
+            // cudaDeviceSynchronize();
+
+
             calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_N[0], m_numElements);
 
             // printVector_GPU<<<1,4>>>( m_d_chi_tr, 4);
@@ -165,11 +170,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_chi_tr, m_numElements);
-                    
+            calcRhoTrial<<<1,1>>>(m_d_rho_tr, m_local_volume, m_numElements);
 
-            // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi_tr, m_numElements);
-            print_GPU<<<1,1>>>( m_d_rho_tr );
-            cudaDeviceSynchronize();
+            // // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi_tr, m_numElements);
+            // print_GPU<<<1,1>>>( m_d_rho_tr );
+            // cudaDeviceSynchronize();
+            // cout << "\n";
 
 
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
@@ -180,8 +186,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
-
-        
+       
 
 
     }

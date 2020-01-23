@@ -211,10 +211,11 @@ __global__ void calcP_w(double* p_w, double* df, double* uTAu, double* chi, int 
 
 __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double betastar, double* p_w );
 
+__global__ void calcRhoTrial(double* m_d_rho_tr, double local_volume, size_t numElements);
 
 // DEBUG:
 
-__global__ void temp(double* d_chi);
+
 
 __global__ void RA(vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, size_t num_rows, size_t num_cols);
 

@@ -157,6 +157,9 @@ DONE:       use full u to calculate local driving forces
 
 
 
+
+
+
 Questions:
 - bisection algo
 
@@ -200,55 +203,14 @@ latex : best practices masters thesis
 
 
 
+iteration 0
+0 7.045317e-02
+1 2.369059e-01
+2 6.595078e-02
+3 2.669032e-02
 
-
-
-
-
-// later
-- otf coarse grid
-    - prol matrix in gpu?
-- getting matrix free A_coarse
-    - need prol matrix stored in gpu?
-    - performance loss because of divergence?
-
-        for ( int j = 0 ; j < m_dim ; j++ )
-            {
-        
-            // same node
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j][i+j] = 1;
-
-            // east node
-            if ( (i / 2 + 1) % (m_N[k-1][0]+1) != 0 )
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2][i+j] += 0.5;
-
-            // north node
-            if ( i / 2 + (m_N[k-1][0] + 1) < (m_N[k-1][0] + 1)*(m_N[k-1][1] + 1))
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2*(m_N[k][0] + 1) ][i+j] += 0.5;
-
-            // west node
-            if ( (i / 2) % (m_N[k-1][0]+1) != 0 )
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2][i+j] += 0.5;
-
-            // south node
-            if ( i / 2 >= m_N[k-1][0] + 1)
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2*(m_N[k][0] + 1)][i+j] += 0.5;
-
-            // north-east node
-            if ( (i / 2 + 1) % (m_N[k-1][0]+1) != 0 && i / 2 + (m_N[k-1][0] + 1) < (m_N[k-1][0] + 1)*(m_N[k-1][1] + 1))
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2*(m_N[k][0] + 1) + 2 ][i+j] = 0.25;
-
-            // north-west node
-            if ( i / 2 + (m_N[k-1][0] + 1) < (m_N[k-1][0] + 1)*(m_N[k-1][1] + 1) && (i / 2) % (m_N[k-1][0]+1) != 0 )
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j + 2*(m_N[k][0] + 1) - 2 ][i+j] = 0.25;
-
-            // south-east node
-            if ( i / 2 >= m_N[k-1][0] + 1 && (i / 2 + 1) % (m_N[k-1][0]+1) != 0 )
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2*(m_N[k][0] + 1) + 2 ][i+j] = 0.25;
-
-            // south-west node
-            if ( i / 2 >= m_N[k-1][0] + 1 && (i / 2) % (m_N[k-1][0]+1) != 0 )
-                m_P[k-1][( 2*(i % ( (m_N[k-1][0] + 1)*m_dim) )) + ( (ceil)( i / ( 2*(m_N[k-1][0] + 1 ) ) ) )*2*m_dim*(m_N[k][0] + 1) + j - 2*(m_N[k][0] + 1) - 2 ][i+j] = 0.25;
-
-            }
-
+iteration 1
+0 1.860544e-01
+1 1.136802e-01
+2 1.002637e-01
+3 1.000000e-09

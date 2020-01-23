@@ -1033,18 +1033,27 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
     // east element
     if ( (ind + 1) % N != 0 )
         value += -1.0 * array[ind + 1];
+	else
+		value += -1.0 * array[ind];
     
     // north element
     if ( ind + N < N*N )    // TODO: N*N --> dim
         value += -1.0 * array[ind + N];
+	else
+		value += -1.0 * array[ind];
+	
 
     // west element
     if ( ind % N != 0 )
         value += -1.0 * array[ind - 1];
+	else
+		value += -1.0 * array[ind];
 
     // south element
     if ( ind >= N )
         value += -1.0 * array[ind - N];
+	else
+		value += -1.0 * array[ind];
 
     return value;
 }
@@ -1062,8 +1071,10 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
     double temp = -1.0e9;
     
 	while(index + offset < numElements){
-        // temp = fmaxf(temp, ( df_array[index + offset] + ( beta * laplacian[index] ) + eta ) );
-        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) + *eta ) );
+        
+		//TODO:DEBUG:
+        // temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) + *eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + *eta ) );
          
 		offset += stride;
 	}
@@ -1104,7 +1115,9 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
     
 
 	while(index + offset < numElements){
-        temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) - *eta ) );
+        //TODO:DEBUG:
+		// temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) - *eta ) );
+        temp = fminf(temp, ( df_array[index + offset] - *eta ) );
 		offset += stride;
 	}
     
@@ -1154,8 +1167,9 @@ void calcChiTrial(
 		// printf("%d : %e \n", id, del_chi[id]);
 		// printf("%e \n", *eta);
 
-
-        del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, N ) ) );
+		//TODO:DEBUG:
+        // del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, N ) ) );
+        del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial );
         
 
         if ( del_chi[id] + chi[id] > 1 )
@@ -1185,10 +1199,13 @@ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *la
 }
 
 
-__global__ void temp(double* d_chi)
+__global__ void calcRhoTrial(double* chi_trial, double local_volume, size_t numElements)
 {
+	double total_volume = local_volume * numElements;
 
-	// d_chi[0] = 
+	*chi_trial *= local_volume;
+	*chi_trial /= total_volume;
+
 }
 
 
