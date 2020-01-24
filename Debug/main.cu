@@ -20,14 +20,13 @@ using namespace std;
 // DONE: matrix assembly 2D 3D
 // DONE: fix prolongation assembly - has something to do with bc initialization
     // DONE: 2D assembly not symmetric
+
 // TODO: 3d elements' node distribution
-
 // TODO: store local k matrix in constant memory
-
+// TODO: ApplyTranspose(prol) --> Apply(rest)
 // TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
-// TODO: solve - ApplyTransposed() --> use restrictMatrix
-// TODO: 3D
-    // laplacian 3D
+// TODO: laplacian_GPU() in 3D
+    
 
 int main()
 {
@@ -37,7 +36,7 @@ int main()
     double poisson = 0.3;
 
 
-    size_t numLevels = 2;
+    size_t numLevels = 3;
 
     // domain dimensions (x,y,z) on coarsest grid
     vector<size_t> N;
@@ -48,7 +47,7 @@ int main()
     N = {1,1};
     bc_index[0] = { 0,1, 4,5 };
     bc_index[1] = { 0,1, 6,7, 12,13 };
-    // bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
+    bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
 
     // MBB : {2,1}
     // N = {2,1};
@@ -126,6 +125,9 @@ int main()
     vector<size_t*> d_node_index;
     // d_node_index.resize(4);
 
+    // cout << "### GPU-accelerated Thermodynamic Topology Optimization ###" << endl;
+    // cout << "Levels: " << numLevels << endl;
+
     /*
     ##################################################################
     #                           ASSEMBLY                             #
@@ -141,8 +143,8 @@ int main()
     
     // vector u, b
     vector<double> b(num_rows[numLevels - 1], 0);
-    b[5] = -10000;  // 1x1 base, 2 levels
-    // b[9] = -10000;  // 1x1 base, 3 levels
+    // b[5] = -10000;  // 1x1 base, 2 levels
+    b[9] = -10000;  // 1x1 base, 3 levels
 
     // b[9] = -10000; // 2x1 base, 2 levels
     // b[13] = -10000; // 3x1 base, 2 levels
@@ -253,14 +255,23 @@ int main()
     cudaDeviceSynchronize();    
 
 
-
+    // DEBUG:
     // // cudaDeviceSynchronize();
     // // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-    // // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
-    // // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+
+    // A matrix
+    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+
+    // prolongation matrix
+    // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
+    // printELL_GPU<<<1,1>>> ( d_p_value[1], d_p_index[1], p_max_row_size[1], num_rows[2], num_rows[1]);
+
+    // restriction matrix
+    // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_r_value[1], d_r_index[1], r_max_row_size[1], num_rows[1], num_rows[2]);
 
 
     ////////////////
@@ -268,7 +279,7 @@ int main()
     ////////////////
 
 
-    for ( int i = 1 ; i < 20 ; ++i )
+    for ( int i = 1 ; i < 30 ; ++i )
     {
     // TODO: something's wrong with the solver for N = {3,1}
     cout << "iteration " << i << endl;

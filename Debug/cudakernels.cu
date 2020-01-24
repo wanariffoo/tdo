@@ -58,9 +58,9 @@ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
 }
 
 // Determines 2-dimensional CUDA block and grid sizes based on the number of rows N
-__host__ void calculateDimensions2D(size_t N, dim3 &gridDim, dim3 &blockDim)
+__host__ void calculateDimensions2D(size_t Nx, size_t Ny, dim3 &gridDim, dim3 &blockDim)
 {
-    if ( N <= 1024 )
+    if ( Nx <= 32 && Ny <= 32)
     {
         blockDim.x = 32; blockDim.y = 32; blockDim.z = 1;
         gridDim.x  = 1; gridDim.y = 1; gridDim.z = 1;
@@ -69,7 +69,7 @@ __host__ void calculateDimensions2D(size_t N, dim3 &gridDim, dim3 &blockDim)
     else
     {
         blockDim.x = 32; blockDim.y = 32; blockDim.z = 1;
-        gridDim.x  = (int)ceil((N/2)/blockDim.x)+1; gridDim.y = (int)ceil((N/2)/blockDim.y)+1; gridDim.z = 1;
+        gridDim.x  = (int)ceil(Nx/blockDim.x)+1; gridDim.y = (int)ceil(Ny/blockDim.y)+1; gridDim.z = 1;
     }
 
 
@@ -1199,12 +1199,12 @@ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *la
 }
 
 
-__global__ void calcRhoTrial(double* chi_trial, double local_volume, size_t numElements)
+__global__ void calcRhoTrial(double* rho_tr, double local_volume, size_t numElements)
 {
 	double total_volume = local_volume * numElements;
 
-	*chi_trial *= local_volume;
-	*chi_trial /= total_volume;
+	*rho_tr *= local_volume;
+	*rho_tr /= total_volume;
 
 }
 
@@ -1288,6 +1288,13 @@ __global__ void RA(	double* p_value, size_t* p_index, size_t p_max_row_size,
 	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
+	// if ( idx == 0 && idy == 0 )
+	// {
+	// 	printf("%lu\n", num_rows);
+	// 	printf("%lu\n", num_cols);
+
+	// }
+
 	if ( idx < num_cols && idy < num_rows )
 	{	
 		
@@ -1305,7 +1312,9 @@ __global__ void RA(	double* p_value, size_t* p_index, size_t p_max_row_size,
 		// if ( idx == 8 && idy == 2)
 		// 		printf("%f\n", valueAt(2, 2, r_value, r_index, r_max_row_size));
 
+		// printf("%d, %d\n", idx, idy);
 	}
+
 
 }
 
@@ -1352,23 +1361,32 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 					vector<size_t> num_rows, 
 					size_t lev)
 {
-	// unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+	
 
+	// dim3 gridDim(2,2,1);
+    // dim3 blockDim(32,32,1);
 	dim3 gridDim;
     dim3 blockDim;
-	calculateDimensions2D( num_rows[0] * num_rows[1], gridDim, blockDim);
+	calculateDimensions2D( num_rows[lev], num_rows[lev], gridDim, blockDim);
 	
+
 	// temp_matrix = R * A_fine
-	RA<<<gridDim,blockDim>>>(p_value[0], p_index[0], p_max_row_size[0], value[1], index[1], max_row_size[1], temp_matrix, num_rows[0], num_rows[1]);
+	RA<<<gridDim,blockDim>>>(p_value[lev-1], p_index[lev-1], p_max_row_size[lev-1], value[lev], index[lev], max_row_size[lev], temp_matrix, num_rows[lev-1], num_rows[lev]);
 	cudaDeviceSynchronize();
 
 	// calculateDimensions2D( num_rows[0] * num_rows[0], gridDim, blockDim);
-	AP<<<gridDim,blockDim>>>( value[0], index[0], max_row_size[0], p_value[0], p_index[0], p_max_row_size[0], temp_matrix, num_rows[0], num_rows[1]);
+	AP<<<gridDim,blockDim>>>( value[lev-1], index[lev-1], max_row_size[lev-1], p_value[lev-1], p_index[lev-1], p_max_row_size[lev-1], temp_matrix, num_rows[lev-1], num_rows[lev]);
 	cudaDeviceSynchronize();
+
+	// cout << blockDim.x << endl;
+	// cout << blockDim.y << endl;
+	// cout << blockDim.z << endl;
 
 	// A_coarse = temp_matrix * P
 
+	// printVector_GPU<<<1, 18*50>>>( temp_matrix, 18*50);
 
+	// printELL_GPU<<<1, 1>>> (value[2], index[2], max_row_size[2], num_rows[2], num_rows[2]);
 	// printELL_GPU<<<1, 1>>> (r_value[0], r_index[0], r_max_row_size[0], 8, 18);
 
 

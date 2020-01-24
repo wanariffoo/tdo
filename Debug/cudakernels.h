@@ -29,7 +29,7 @@ __device__ double atomicAdd_double(double* address, double val);
 __host__ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim);
 
 // Determines 2-dimensional CUDA block and grid sizes based on the number of rows N
-__host__ void calculateDimensions2D(size_t N, dim3 &gridDim, dim3 &blockDim);
+__host__ void calculateDimensions2D(size_t Nx, size_t Ny, dim3 &gridDim, dim3 &blockDim);
 
 __host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim);
 

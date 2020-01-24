@@ -217,10 +217,10 @@ bool Assembler::init(
     assembleProlMatrix(m_topLev);
 
     // // DEBUG:
-    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // for ( int i = 0 ; i < num_rows[2] ; i++ )
     // {
-    //     for ( int j = 0 ; j < num_rows[0] ; j++ )
-    //         cout << m_P[0][i][j] << " ";
+    //     for ( int j = 0 ; j < num_rows[1] ; j++ )
+    //         cout << m_P[1][i][j] << " ";
 
     //     cout << "\n";
     // }
@@ -1210,25 +1210,29 @@ bool Assembler::UpdateGlobalStiffness(
     // calculating the needed cuda 2D grid size for the global assembly
     dim3 g_gridDim;
     dim3 g_blockDim;
-    calculateDimensions2D( m_num_rows[m_topLev], g_gridDim, g_blockDim);
+    calculateDimensions2D( m_num_rows[m_topLev], m_num_rows[m_topLev], g_gridDim, g_blockDim);
 
     
+
     // applying the boundary conditions on the global stiffness matrix   
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
         applyMatrixBC_GPU<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev] );
 
 
-    // TODO: 
-
 
     // TODO: use optimized matrix multiplication
-
+    
     setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
-    RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev);
+
+
+
+    // A_coarse = R * A_fine * P
+    for ( int lev = m_topLev ; lev != 0 ; lev--)
+        RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, lev);
+    // // RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev-1);
 
     // 	printVector_GPU<<<1,144>>>( d_temp_matrix, 144 );
 	cudaDeviceSynchronize();
-
 
 
     return true;
