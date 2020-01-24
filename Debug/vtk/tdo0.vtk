@@ -1,0 +1,74 @@
+# vtk DataFile Version 2.0
+Thermodynamics Topology Optimzation
+ASCII
+DATASET STRUCTURED_POINTS
+DIMENSIONS 8 8 1
+SPACING 0.125 0.125 1
+ORIGIN 0 0 0
+POINT_DATA 64
+SCALARS chi double 1
+LOOKUP_TABLE default
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4
+0.4

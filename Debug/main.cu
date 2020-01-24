@@ -30,13 +30,16 @@ using namespace std;
 
 int main()
 {
+  
+    // create vtk files
+    bool writeToVTK = false;
 
     // Material properties
     double youngMod = 210e6;
     double poisson = 0.3;
 
 
-    size_t numLevels = 3;
+    size_t numLevels = 4;
 
     // domain dimensions (x,y,z) on coarsest grid
     vector<size_t> N;
@@ -48,6 +51,7 @@ int main()
     bc_index[0] = { 0,1, 4,5 };
     bc_index[1] = { 0,1, 6,7, 12,13 };
     bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
+    bc_index[3] = { 0,1, 18,19, 36,37, 54,55, 72,73, 90,91, 108,109, 126,127, 144,145};
 
     // MBB : {2,1}
     // N = {2,1};
@@ -87,7 +91,7 @@ int main()
 
     
 
-
+    
 
    
     // TDO
@@ -144,7 +148,8 @@ int main()
     // vector u, b
     vector<double> b(num_rows[numLevels - 1], 0);
     // b[5] = -10000;  // 1x1 base, 2 levels
-    b[9] = -10000;  // 1x1 base, 3 levels
+    // b[9] = -10000;  // 1x1 base, 3 levels
+    b[17] = -10000;  // 1x1 base, 4 levels
 
     // b[9] = -10000; // 2x1 base, 2 levels
     // b[13] = -10000; // 3x1 base, 2 levels
@@ -166,13 +171,12 @@ int main()
     #                           SOLVER                               #
     ##################################################################
     */
+   
 
-    // TODO: remove num_cols
-        
-
-    //   printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+    // printELL_GPU<<<1,1>>> ( d_value[3], d_index[3], max_row_size[3], num_rows[3], num_rows[3]);
 
     // cout << "solver" << endl;
 
@@ -223,17 +227,30 @@ int main()
     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
 
 
-    // TODO: vtk stuff
-    // vector<double> chi(Assembly.getNumElements());
+    // vtk stuff
+    vector<double> chi(Assembly.getNumElements(), rho);
+    string fileformat(".vtk");
+    int file_index = 0;
+    stringstream ss; 
+    ss << "vtk/tdo";
+    ss << file_index;
+    ss << fileformat;
 
-    // cout << chi.size() << endl;
-    // CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+    if ( writeToVTK )
+    {
+        WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getGridSize(), h, Assembly.getNumElements() );
+        
+        CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
 
-    
-    // stringstream ss; 
-    // ss << "test.vtk";
-    // WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
-    // WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumNodes() );
+        file_index++;
+        ss.str( string() );
+        ss.clear();
+        ss << "vtk/tdo";
+        ss << file_index;
+        ss << fileformat;
+        
+        WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getGridSize(), h, Assembly.getNumElements() );
+    }
 
 
 
@@ -279,10 +296,10 @@ int main()
     ////////////////
 
 
-    for ( int i = 1 ; i < 30 ; ++i )
+    for ( int i = 1 ; i < 1 ; ++i )
     {
     // TODO: something's wrong with the solver for N = {3,1}
-    cout << "iteration " << i << endl;
+    // cout << "iteration " << i << endl;
     cudaDeviceSynchronize();
     GMG.reinit();
     GMG.set_verbose(false, false);
@@ -294,13 +311,27 @@ int main()
 
     tdo.innerloop(d_u, d_chi);
     
-    cudaDeviceSynchronize();
-    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    cudaDeviceSynchronize();
-    cout << "\n";
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+
+    if ( writeToVTK )
+    {
+        CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+
+        file_index++;
+        ss.str( string() );
+        ss.clear();
+        ss << "vtk/tdo";
+        ss << file_index;
+        ss << fileformat;
+        WriteVectorToVTK(chi, "chi", ss.str(), dim, Assembly.getGridSize(), h, Assembly.getNumElements() );
     }
 
     cudaDeviceSynchronize();
+
+    }
+
+//     cudaDeviceSynchronize();
 }
 
     // PTAP_GPU consider using 2d blocks? :

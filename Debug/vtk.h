@@ -15,10 +15,10 @@
 // 						const std::string& fctName, const std::string& filename)
 
 
-// template <std::size_t dim>
-void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std::string& filename, size_t dim, vector<size_t> meshSz, double elemSz, size_t numNodes )
+
+void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std::string& filename, size_t dim, vector<size_t> N, double h, size_t numElements )
 {
-    cout << "writeVectorToVTK" << endl;
+
 	std::ofstream ofs(filename, std::ios::out);
 	if (ofs.bad())
 	{
@@ -28,14 +28,15 @@ void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std
 	}
 
 	ofs << "# vtk DataFile Version 2.0" << std::endl;
-	ofs << "Exported solution" << std::endl;
+	ofs << "Thermodynamics Topology Optimzation" << std::endl;
 	ofs << "ASCII" << std::endl;
 	ofs << "DATASET STRUCTURED_POINTS" << std::endl;
+
 
 	ofs << "DIMENSIONS";
 	// const CoordVector<dim, std::size_t>& meshSz = m_grid.num_vertices_per_dim();
 	for (std::size_t i = 0; i < dim; ++i)
-		ofs << " " << meshSz[i];
+		ofs << " " << N[i];
 	for (std::size_t i = dim; i < 3; ++i)
 			ofs << " " << 1;
 	ofs << std::endl;
@@ -44,11 +45,10 @@ void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std
 	ofs << "SPACING";
 	// const CoordVector<dim>& elemSz = m_grid.mesh_sizes();
 	for (std::size_t i = 0; i < dim; ++i)
-		ofs << " " << elemSz;
+		ofs << " " << h;
 	for (std::size_t i = dim; i < 3; ++i)
 			ofs << " " << 1.0;
 	ofs << std::endl;
-
 
 
 	ofs << "ORIGIN";
@@ -58,13 +58,10 @@ void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std
 	for (std::size_t i = dim; i < 3; ++i)
 			ofs << " " << 0.0;
 	ofs << std::endl;
-	// TODO:
-	// ofs << CELL_DATA
-	ofs << "POINT_DATA " << numNodes << std::endl;
+
+	ofs << "POINT_DATA " << numElements << std::endl;
 	ofs << "SCALARS " << fctName << " double 1" << std::endl;
 
-
-    cout << "numNodes = " << numNodes << endl;
 
 	ofs << "LOOKUP_TABLE default" << std::endl;
 
@@ -75,6 +72,7 @@ void WriteVectorToVTK(vector<double> &vec, const std::string& fctName, const std
 		ofs << vec[i] << std::endl;
 
 	ofs.close();
+	
 }
 
 

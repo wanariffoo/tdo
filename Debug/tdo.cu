@@ -147,7 +147,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         // print_GPU <<< 1 , 1 >>> ( m_d_beta );
         // // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
 
-        for ( int i = 0 ; i < 20 ; i++ )
+        for ( int i = 1 ; i < 30 ; i++ )
         {
             // cout << "iteration " << i << endl;
             // cudaDeviceSynchronize();
