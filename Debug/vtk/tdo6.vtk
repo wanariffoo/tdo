@@ -2,73 +2,21 @@
 Thermodynamics Topology Optimzation
 ASCII
 DATASET STRUCTURED_POINTS
-DIMENSIONS 8 8 1
-SPACING 0.125 0.125 1
+DIMENSIONS 6 2 1
+SPACING 0.5 0.5 1
 ORIGIN 0 0 0
-POINT_DATA 64
+POINT_DATA 12
 SCALARS chi double 1
 LOOKUP_TABLE default
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
--nan
+0.010268
+0.3574
+0.290247
+0.298301
+0.576079
+1
+1
+0.281181
+0.296385
+0.294063
+0.396075
+1e-09

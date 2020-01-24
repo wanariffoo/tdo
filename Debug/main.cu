@@ -32,14 +32,14 @@ int main()
 {
   
     // create vtk files
-    bool writeToVTK = false;
+    bool writeToVTK = true;
 
     // Material properties
     double youngMod = 210e6;
     double poisson = 0.3;
 
 
-    size_t numLevels = 4;
+    size_t numLevels = 2;
 
     // domain dimensions (x,y,z) on coarsest grid
     vector<size_t> N;
@@ -47,11 +47,11 @@ int main()
 
     //// 2D
     // base : {1,1}
-    N = {1,1};
-    bc_index[0] = { 0,1, 4,5 };
-    bc_index[1] = { 0,1, 6,7, 12,13 };
-    bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
-    bc_index[3] = { 0,1, 18,19, 36,37, 54,55, 72,73, 90,91, 108,109, 126,127, 144,145};
+    // N = {1,1};
+    // bc_index[0] = { 0,1, 4,5 };
+    // bc_index[1] = { 0,1, 6,7, 12,13 };
+    // bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
+    // bc_index[3] = { 0,1, 18,19, 36,37, 54,55, 72,73, 90,91, 108,109, 126,127, 144,145};
 
     // MBB : {2,1}
     // N = {2,1};
@@ -60,16 +60,9 @@ int main()
 
 
     // MBB : {3,1}
-    // N = {3,1};
-    // bc_index[0] = {0,1, 8,9};
-    // bc_index[1] = {0,1, 14,15, 28,29};
-
-    // //// 3D
-    // // base : {1,1,1}
-    // N = {1,1,1};
-    // bc_index[0] = { 0,1,2, 6,7,8, 12,13,14, 18,19,20 };
-    // bc_index[1] = { 0,1,2, 9,10,11, 18,19,20, 27,28,29, 36,37,38, 45,46,47, 54,55,56, 63,64,65, 72,73,74 };
-    
+    N = {3,1};
+    bc_index[0] = {0,7,8};
+    bc_index[1] = {0,13,14,28};
 
 
     size_t dim = N.size();
@@ -82,21 +75,14 @@ int main()
 
     // smoother (jacobi damping parameter)
     double damp = 2.0/3.0;
-    
-    // boundary conditions (nodes)
-    // TODO: give BC cases
-        // MBB with fixed sides
-        // MBB with ...
-    // TODO: assembleBC( size_t case );
 
-    
+    size_t local_num_rows = 4 * dim;
 
-    
-
-   
     // TDO
     double rho = 0.4;
     size_t p = 3;
+    double etastar = 12.0;
+    double betastar = 2.0 * pow(h,2);
 
     vector<size_t> num_rows;
     vector<size_t> max_row_size;
@@ -149,10 +135,10 @@ int main()
     vector<double> b(num_rows[numLevels - 1], 0);
     // b[5] = -10000;  // 1x1 base, 2 levels
     // b[9] = -10000;  // 1x1 base, 3 levels
-    b[17] = -10000;  // 1x1 base, 4 levels
+    // b[17] = -10000;  // 1x1 base, 4 levels
 
-    // b[9] = -10000; // 2x1 base, 2 levels
-    // b[13] = -10000; // 3x1 base, 2 levels
+    // MBB
+    b[29] = -10000; // 3x1 base, 2 levels
 
 
     double* d_u;
@@ -178,17 +164,17 @@ int main()
     // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
     // printELL_GPU<<<1,1>>> ( d_value[3], d_index[3], max_row_size[3], num_rows[3], num_rows[3]);
 
-    // cout << "solver" << endl;
 
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    GMG.set_convergence_params(500, 1e-99, 1e-10);
+    // GMG.set_bs_convergence_params(10, 1e-99, 1e-10); // TODO: KIV
+    
 
     GMG.init();
-    GMG.set_verbose(false, false);
+    GMG.set_verbose(0, 0);
     GMG.set_num_prepostsmooth(3,3);
-    GMG.set_convergence_params(10, 1e-99, 1e-10);
-    GMG.set_bs_convergence_params(10, 1e-99, 1e-10);
     GMG.set_cycle('V');
-    GMG.set_steps(15, 5); 
+    // GMG.set_steps(15, 5); 
     
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
@@ -198,25 +184,11 @@ int main()
     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
     
     
-//     // /*
-//     // ##################################################################
-//     // #                           TDO                                  #
-//     // ##################################################################
-//     // */
-    
-    // // // TDO algorithm, tdo.cu
-    // // // produces updated d_chi
-    // cout << "\n";
-    // cout << "TDO" << endl;
-
-
-    size_t local_num_rows = 4 * dim;
-    
-    
-
-    // TODO: incorporate this in the beginning
-    double etastar = 12.0;
-    double betastar = 2.0 * pow(h,2);
+    /*
+    ##################################################################
+    #                           TDO                                  #
+    ##################################################################
+    */
 
     
     TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
@@ -227,6 +199,7 @@ int main()
     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
 
 
+    // TODO: write a function for this to make it neater
     // vtk stuff
     vector<double> chi(Assembly.getNumElements(), rho);
     string fileformat(".vtk");
@@ -263,18 +236,15 @@ int main()
     // DEBUG:
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 
-//     // // update stiffness matrix with new d_chi
-//     // // TODO: get d_value, d_index and d_A_local from the class, 
-//     // // in the end, it's only Update..(d_chi)
 
-    // // TODO: no need for R-matrix
-    Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
-    cudaDeviceSynchronize();    
+    // TODO: no need for R-matrix
+    // Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+    // cudaDeviceSynchronize();    
 
 
     // DEBUG:
     // // cudaDeviceSynchronize();
-    // // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 
     // A matrix
@@ -296,23 +266,25 @@ int main()
     ////////////////
 
 
-    for ( int i = 1 ; i < 1 ; ++i )
+    for ( int i = 1 ; i < 50 ; ++i )
     {
     // TODO: something's wrong with the solver for N = {3,1}
     // cout << "iteration " << i << endl;
     cudaDeviceSynchronize();
     GMG.reinit();
-    GMG.set_verbose(false, false);
-    GMG.set_steps(150, 5); 
+    GMG.set_verbose(0, 0);
+    // GMG.set_steps(200, 5); 
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
 
     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
 
+
     tdo.innerloop(d_u, d_chi);
     
     // cudaDeviceSynchronize();
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // cout << "\n";
 
     if ( writeToVTK )
     {
@@ -331,7 +303,7 @@ int main()
 
     }
 
-//     cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 }
 
     // PTAP_GPU consider using 2d blocks? :

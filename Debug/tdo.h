@@ -75,6 +75,9 @@ private:
     //NOTE: reuse this from somewhere? temp variable?
     double* m_d_rho_tr;   
 
+    // convergence check
+    bool m_tdo_foo = true;
+    bool* m_d_tdo_foo;
     
 
 };

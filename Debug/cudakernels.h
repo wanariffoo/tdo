@@ -151,6 +151,7 @@ __global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size
 // SOLVER
 ////////////////////////////////////////////
 
+__global__ void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t m_maxIter);
 
 __global__ void printInitialResult_GPU(double* res0, double* m_minRes, double* m_minRed);
 
@@ -212,6 +213,8 @@ __global__ void calcP_w(double* p_w, double* df, double* uTAu, double* chi, int 
 __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double betastar, double* p_w );
 
 __global__ void calcRhoTrial(double* m_d_rho_tr, double local_volume, size_t numElements);
+
+__global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial);
 
 // DEBUG:
 

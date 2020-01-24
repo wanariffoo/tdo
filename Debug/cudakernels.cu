@@ -665,6 +665,16 @@ __global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size
 // // SOLVER
 // ////////////////////////////////////////////
 
+__global__ 
+void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t m_maxIter){
+
+	if ( *res > *m_minRes && *res > *m_minRed*(*res0) && (*step) <= m_maxIter )
+		*foo = true;
+
+	else
+		*foo = false;
+	
+}
 
 __global__ 
 void printInitialResult_GPU(double* res0, double* m_minRes, double* m_minRed)
@@ -1410,4 +1420,10 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
     //         }
     //     }
 
+}
+
+__global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)
+{
+	if ( abs(rho - *rho_trial) < 1e-7 )
+		*foo = false;
 }

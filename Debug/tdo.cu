@@ -73,6 +73,10 @@ bool TDO::init()
     CUDA_CALL( cudaMemset( m_d_rho_tr, 0, sizeof(double) ) );
     CUDA_CALL( cudaMemset( m_d_p_w, 0, sizeof(double) ) );
 
+    CUDA_CALL( cudaMalloc( (void**)&m_d_tdo_foo, sizeof(bool) ) );
+    CUDA_CALL( cudaMemcpy(m_d_tdo_foo, &m_tdo_foo, sizeof(bool), cudaMemcpyHostToDevice) );
+    
+
     return true;
 }
 
@@ -80,7 +84,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 {
     m_d_u = d_u;
     m_d_chi = d_chi;
-    
+    m_tdo_foo = true;
+    setToTrue<<<1,1>>>( m_d_tdo_foo );
+
     // calculating the driving force of each element
     // df[] = ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) ) * sum( u^T * A_local * u )
     // df[] = u^T * A_local * u
@@ -147,7 +153,10 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         // print_GPU <<< 1 , 1 >>> ( m_d_beta );
         // // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
 
-        for ( int i = 1 ; i < 30 ; i++ )
+        // CHECK: for optimization?
+            // for ( int i = 1 ; i < 30 ; i++ )
+        
+        while(m_tdo_foo)
         {
             // cout << "iteration " << i << endl;
             // cudaDeviceSynchronize();
@@ -180,7 +189,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
               
-
+            checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
+            CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
+            
         }
 
 

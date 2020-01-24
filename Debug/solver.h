@@ -78,15 +78,21 @@ private:
     double *m_d_res;
 
     // minimum required residuum for convergence
-    double *m_d_m_minRes;
+    double *m_d_minRes;
     
     // minimum required reduction for convergence
-    double *m_d_m_minRed;
+    double *m_d_minRed;
 
     // iteration steps
     size_t* m_d_step;     // solver
     size_t* m_d_bs_step;  // base solver
     
+    // convergence checks
+    bool m_foo = true;
+    bool m_bs_foo = true;
+    bool* m_d_foo;
+    bool* m_d_bs_foo;
+
     // gmg's correction and residuum vectors of each level
     vector<double*> m_d_gmg_c;
     vector<double*> m_d_gmg_r;
@@ -139,8 +145,8 @@ private:
     // bs residuum variable
     double* m_d_bs_res;
     double* m_d_bs_res0;
-    double* m_d_bs_m_minRes;
-    double* m_d_bs_m_minRed;
+    // double* m_d_bs_minRes;
+    // double* m_d_bs_minRed;
     double* m_d_bs_lastRes;
 
     // DEBUG:
