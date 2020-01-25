@@ -1,22 +1,80 @@
 # vtk DataFile Version 2.0
 Thermodynamics Topology Optimzation
 ASCII
-DATASET STRUCTURED_POINTS
-DIMENSIONS 6 2 1
-SPACING 0.5 0.5 1
-ORIGIN 0 0 0
-POINT_DATA 12
-SCALARS chi double 1
+
+DATASET STRUCTURED_GRID
+DIMENSIONS 5 5 1
+POINTS 25 float
+ 0 0 0
+ 0.25 0 0
+ 0.5 0 0
+ 0.75 0 0
+ 1 0 0
+ 0 0.25 0
+ 0.25 0.25 0
+ 0.5 0.25 0
+ 0.75 0.25 0
+ 1 0.25 0
+ 0 0.5 0
+ 0.25 0.5 0
+ 0.5 0.5 0
+ 0.75 0.5 0
+ 1 0.5 0
+ 0 0.75 0
+ 0.25 0.75 0
+ 0.5 0.75 0
+ 0.75 0.75 0
+ 1 0.75 0
+ 0 1 0
+ 0.25 1 0
+ 0.5 1 0
+ 0.75 1 0
+ 1 1 0
+
+CELL_DATA 16
+SCALARS chi double
 LOOKUP_TABLE default
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
-0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+ 0.4
+
+POINT_DATA 25
+VECTORS displacements double
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0
+ 0 0 0

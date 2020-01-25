@@ -7,7 +7,7 @@ obj = main.o cudakernels.o solver.o assemble.o tdo.o
 all: $(obj)
 	nvcc $(obj) -o a
 
-main.o: main.cu
+main.o: main.cu vtk.h
 	nvcc main.cu -c
 
 cudakernels.o: cudakernels.cu

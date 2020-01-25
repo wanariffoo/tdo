@@ -578,6 +578,67 @@ void vectorEquals_GPU(double* a, double* b, size_t num_rows)
 // ASSEMBLER
 ////////////////////////////////////////////
   
+
+__host__ 
+vector<vector<size_t>> applyBC(vector<size_t> N, size_t numLevels, size_t bc_case, size_t dim)
+{
+	vector<vector<size_t>> bc_index(numLevels);
+	
+	vector<size_t> nodesPerDim;
+
+	nodesPerDim.push_back(N[0]+1);
+	nodesPerDim.push_back(N[1]+1);
+
+	// level 0
+	for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
+		bc_index[0].push_back(i*nodesPerDim[0]*2);
+
+		bc_index[0].push_back(dim*nodesPerDim[0] - 1 );
+
+
+	for ( int lev = 1 ; lev < numLevels ; lev++ )
+	{
+		nodesPerDim[0] = 2*nodesPerDim[0] - 1;
+		nodesPerDim[1] = 2*nodesPerDim[1] - 1;
+
+
+		for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
+			bc_index[lev].push_back(i*nodesPerDim[0]*2);
+
+			bc_index[lev].push_back(dim*nodesPerDim[0] - 1 );
+
+	}
+
+	return bc_index;
+}
+
+
+__host__ 
+void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_case, size_t dim, double force)
+{
+	
+	vector<size_t> nodesPerDim;
+
+	nodesPerDim.push_back(N[0]+1);
+	nodesPerDim.push_back(N[1]+1);
+
+
+	size_t index = 0;
+	
+	for ( int lev = 0 ; lev < numLevels - 1 ; lev++)
+	{
+		nodesPerDim[0] = 2*nodesPerDim[0] - 1;
+		nodesPerDim[1] = 2*nodesPerDim[1] - 1;
+	}
+
+
+	index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
+
+	b[index] = force;
+
+
+}
+
 __global__
 void assembleGrid2D_GPU(
     size_t N,               		// number of elements per row

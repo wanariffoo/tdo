@@ -134,6 +134,11 @@ __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);
 // ASSEMBLER
 ////////////////////////////////////////////
 
+
+__host__ vector<vector<size_t>> applyBC( vector<size_t> N, size_t numLevels, size_t bc_case, size_t dim);
+
+void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_case, size_t dim, double force);
+
 __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_chi, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
 
 __global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
