@@ -2,7 +2,6 @@
 # source = assemble_solve.cu cudakernels.cu solver.cu
 obj = main.o cudakernels.o solver.o assemble.o tdo.o
 
-
 # all: 
 all: $(obj)
 	nvcc $(obj) -o a
@@ -25,7 +24,8 @@ tdo.o: tdo.cu
 clean:
 	rm -f ${obj} *.o
 
-
+delvtk:
+	rm vtk/*.vtk
 
 # assemble_solve.o: assemble_solve.cu
 # 	nvcc assemble_solve.cu -c

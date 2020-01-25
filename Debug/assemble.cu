@@ -313,7 +313,6 @@ bool Assembler::init(
     cudaDeviceSynchronize();
 
     // copy memory to device
-    
     CUDA_CALL( cudaMemcpy(d_A_local, &m_A_local[0], sizeof(double) * m_A_local.size(), cudaMemcpyHostToDevice) );
     CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
 
@@ -334,12 +333,14 @@ bool Assembler::init(
         CUDA_CALL( cudaMemcpy(d_value[lev], &m_value_g[lev][0], sizeof(double) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
         CUDA_CALL( cudaMemcpy(d_index[lev], &m_index_g[lev][0], sizeof(size_t) * max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
     }
-    
+
     // DEBUG: TEST: node index
     // m_node_index[num of elements][num nodes per element]
     // m_node_index.resize(m_numElements, vector<size_t>(pow(2, m_dim)));
     // m_node_index.resize(m_numElements, vector<size_t>(4));
     // size_t m_node_index[m_numElements][pow(2, m_dim)];
+
+
 
 
     m_node_index.resize(m_numElements[m_topLev]);
@@ -791,7 +792,6 @@ bool Assembler::assembleProlMatrix(size_t lev)
                 if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
                     m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
 
-                    
 
                 //// next layer
                 if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) )
@@ -1062,10 +1062,10 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 
     // // DEBUG:
-    // for ( int i = 0 ; i < num_rows[1] ; i++ )
+    // for ( int i = 0 ; i < num_rows[m_topLev] ; i++ )
     // {
-    //     for ( int j = 0 ; j < num_rows[1] ; j++ )
-    //         cout << m_A_g[1][i][j] << " ";
+    //     for ( int j = 0 ; j < num_rows[m_topLev] ; j++ )
+    //         cout << m_A_g[m_topLev][i][j] << " ";
 
     //     cout << "\n";
     // }
@@ -1131,11 +1131,11 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 
     // int a = 0;
-    // for ( int j = 0 ; j < num_rows[0] ; j++ )
+    // for ( int j = 0 ; j < num_rows[3] ; j++ )
     // {
-    //     for ( int i = 0 ; i < max_row_size[0] ; i++ )
+    //     for ( int i = 0 ; i < max_row_size[3] ; i++ )
     //         {
-    //             cout << m_value_g[0][a] << " ";
+    //             cout << m_index_g[3][a] << " ";
     //             a++;
     //         }
 
@@ -1222,13 +1222,16 @@ bool Assembler::UpdateGlobalStiffness(
 
     // TODO: use optimized matrix multiplication
     
-    setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
+    // setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
 
 
 
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
+    {
+        setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
         RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, lev);
+    }
     // // RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev-1);
 
     // 	printVector_GPU<<<1,144>>>( d_temp_matrix, 144 );

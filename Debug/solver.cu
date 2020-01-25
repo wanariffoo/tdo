@@ -654,7 +654,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     checkIterationConditions<<<1,1>>>(m_d_foo, m_d_step, m_d_res, m_d_res0, m_d_minRes, m_d_minRed, m_maxIter);
     CUDA_CALL( cudaMemcpy( &m_foo, m_d_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
     
-    cout << m_foo << endl;
+    
     addStep<<<1,1>>>(m_d_step);
 
     }

@@ -42,68 +42,20 @@ int main()
     //// model set-up
     size_t numLevels = 3;
     
-    // domain dimensions (x,y,z) on coarsest grid
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
-
-
+    // domain dimensions (x,y,z) on coarsest grid
     N = {1,1};
-    size_t dim = N.size();
 
-
-    bc_index = applyBC(N, numLevels, 0, dim);
-
-    
-    
-
-    // std::vector<std::vector<double>> A (NUM_ROWS, std::vector <double> (NUM_COLS, <<VALUE>>));
-
-    // for (int i = 0 ; i < bc_index[0].size() ; i++)
-    //     cout << bc_index[0][i] << endl;
-    
-    // cout << endl;
-
-    // for (int i = 0 ; i < bc_index[1].size() ; i++)
-    //     cout << bc_index[1][i] << endl;
-    
-    // cout << endl;
-
-    // for (int i = 0 ; i < bc_index[2].size() ; i++)
-    //     cout << bc_index[2][i] << endl;
-   
-
-    //// 2D
-    // base : {1,1}
-    // N = {1,1};
-    // bc_index[0] = { 0,1, 4,5 };
-    // bc_index[1] = { 0,1, 6,7, 12,13 };
-    // bc_index[2] = { 0,1, 10,11, 20,21, 30,31, 40,41 };
-    // bc_index[3] = { 0,1, 18,19, 36,37, 54,55, 72,73, 90,91, 108,109, 126,127, 144,145};
-
-    // MBB : {2,1}
-    // N = {2,1};
-    // bc_index[0] = {0,1, 6,7};
-    // bc_index[1] = {0,1, 10,11, 20,21};
-
-
-    // TODO: create function : vector<size_t> apply BC (size_t case) : case 0 : MBB
-
-    // MBB : {3,1}
-    // N = {3,1};
-    // bc_index[0] = {0,7,8};
-    // bc_index[1] = {0,13,14,28};
-
-
-    // // MBB : {4,2}
-    // N = {4,2};
-    // bc_index[0] = {0,9,10,20};
-    // bc_index[1] = {0,17,18,36,54,72};
-
-
-
-    
     // local element mesh size on coarsest grid
     double h_coarse = 1;
+
+
+
+
+
+    size_t dim = N.size();
+    bc_index = applyBC(N, numLevels, 0, dim);
     
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
@@ -165,15 +117,9 @@ int main()
     Assembly.setBC(bc_index);
     Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
 
-    
-    // TODO: function: vector<double> applyLoad(size_t case)
     // vector u, b
     vector<double> b(num_rows[numLevels - 1], 0);
     double force = -10000;
-    
-    // b[5] = -10000;  // 1x1 base, 2 levels
-    // b[9] = -10000;  // 1x1 base, 3 levels
-    // b[17] = -10000;  // 1x1 base, 4 levels
 
     applyLoad(b, N, numLevels, 0, dim, force);
 
@@ -183,26 +129,30 @@ int main()
     double* d_u;
     double* d_b;
 
-
     CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
     CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
     CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
-
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
+
+    
+
+    // DEBUG:CHECK:
+    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+    // printELL_GPU<<<1,1>>> ( d_value[3], d_index[3], max_row_size[3], num_rows[3], num_rows[3]);
+
+
+
+
+
 
     /*
     ##################################################################
     #                           SOLVER                               #
     ##################################################################
     */
-   
-
-    // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
-    // printELL_GPU<<<1,1>>> ( d_value[3], d_index[3], max_row_size[3], num_rows[3], num_rows[3]);
-
 
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     GMG.set_convergence_params(500, 1e-99, 1e-10);
@@ -218,12 +168,18 @@ int main()
     GMG.solve(d_u, d_b, d_value);
     cudaDeviceSynchronize();
 
-  
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+    // // DEBUG:CHECK:
+    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
     
     
     
+
+
+
+
+
+
     /*
     ##################################################################
     #                           TDO                                  #
@@ -235,10 +191,11 @@ int main()
     tdo.init();
     tdo.innerloop(d_u, d_chi);    // get updated d_chi
 
-
+    // // DEBUG:CHECK:
+    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 
+    
     // TODO: write a function for this to make it neater
     // vtk stuff
     vector<double> chi(Assembly.getNumElements(), rho);
@@ -270,13 +227,14 @@ int main()
 
 
 
-    // // cudaDeviceSynchronize();
-    // // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-
-    // // cudaDeviceSynchronize();
-    // // DEBUG:
-    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // // // cudaDeviceSynchronize();
+    // // // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // // // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+    // printELL_GPU<<<1,1>>> ( d_value[3], d_index[3], max_row_size[3], num_rows[3], num_rows[3]);
+    // // // cudaDeviceSynchronize();
+    // // // DEBUG:
+    // // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 
     
 
@@ -285,70 +243,71 @@ int main()
     cudaDeviceSynchronize();    
 
 
-    // // DEBUG:
-    // // // cudaDeviceSynchronize();
-    // // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // // // DEBUG:
+    // // // // cudaDeviceSynchronize();
+    // // // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+    // // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
 
-    // // A matrix
+    // // // A matrix
     // // printELL_GPU<<<1,1>>> ( d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // // printELL_GPU<<<1,1>>> ( d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // // printELL_GPU<<<1,1>>> ( d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+    // // printELL_GPU<<<1,1>>> ( d_value[3], d_index[3], max_row_size[3], num_rows[3], num_rows[3]);
+    // printELL_GPU<<<1,1>>> ( d_value[4], d_index[4], max_row_size[4], num_rows[4], num_rows[4]);
 
-    // // prolongation matrix
+    // printVector_GPU<<<1,10>>>( d_value[4], 10);
+
+
+    // // // prolongation matrix
     // // printELL_GPU<<<1,1>>> ( d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
     // // printELL_GPU<<<1,1>>> ( d_p_value[1], d_p_index[1], p_max_row_size[1], num_rows[2], num_rows[1]);
 
-    // // restriction matrix
-    // // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
-    // // printELL_GPU<<<1,1>>> ( d_r_value[1], d_r_index[1], r_max_row_size[1], num_rows[1], num_rows[2]);
+    // // // restriction matrix
+    // // // printELL_GPU<<<1,1>>> ( d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
+    // // // printELL_GPU<<<1,1>>> ( d_r_value[1], d_r_index[1], r_max_row_size[1], num_rows[1], num_rows[2]);
 
 
-    // //////////////
-    // ITERATION
-    // //////////////
+    // ////////////////
+    // // ITERATION
+    // ////////////////
 
 
-    for ( int i = 1 ; i < 2 ; ++i )
-    {
-    // TODO: something's wrong with the solver for N = {3,1}
-    // cout << "iteration " << i << endl;
-    cudaDeviceSynchronize();
-    GMG.reinit();
-    GMG.set_verbose(1, 0);
-    // GMG.set_steps(200, 5); 
-    cout << "solve" << endl;
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
+    // for ( int i = 1 ; i < 1 ; ++i )
+    // {
+    //     // TODO: something's wrong with the solver for N = {3,1}
+    //     // cout << "iteration " << i << endl;
+    //     cudaDeviceSynchronize();
+    //     GMG.reinit();
+    //     GMG.set_verbose(0, 0);
+    //     // GMG.set_steps(200, 5); 
+    //     GMG.solve(d_u, d_b, d_value);
+    //     cudaDeviceSynchronize();
 
-    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+    //     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
 
-
-    tdo.innerloop(d_u, d_chi);
-    
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    // cout << "\n";
-
-    if ( writeToVTK )
-    {
+    //     tdo.innerloop(d_u, d_chi);
         
-        CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
-        CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
+    //     // cudaDeviceSynchronize();
+    //     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    //     // cout << "\n";
 
-        file_index++;
-        ss.str( string() );
-        ss.clear();
-        ss << "vtk/tdo";
-        ss << file_index;
-        ss << fileformat;
-        
-        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
-    }
+    //     if ( writeToVTK )
+    //     { 
+    //         CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+    //         CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
 
-    cudaDeviceSynchronize();
+    //         file_index++;
+    //         ss.str( string() );
+    //         ss.clear();
+    //         ss << "vtk/tdo";
+    //         ss << file_index;
+    //         ss << fileformat;
+            
+    //         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    //     }
 
-    }
+    //     cudaDeviceSynchronize();
+    // }
 
     cudaDeviceSynchronize();
 }
