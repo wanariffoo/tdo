@@ -89,6 +89,10 @@ __global__ void printVector_GPU(int* x);
 
 __global__ void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
 
+__global__ void printELLrow_GPU(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
+
+__host__ void printELLrow(size_t lev, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
+
 // (scalar) a = b
 __global__ void equals_GPU(double* a, double* b);
 
@@ -221,10 +225,6 @@ __global__ void calcRhoTrial(double* m_d_rho_tr, double local_volume, size_t num
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial);
 
-// DEBUG:
-
-
-
 __global__ void RA(vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, size_t num_rows, size_t num_cols);
 
 __global__ void AP(	double* value, size_t* index, size_t max_row_size, double* p_value, size_t* p_index, size_t p_max_row_size, double* temp_matrix, size_t num_rows, size_t num_cols);
@@ -235,6 +235,11 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 					double* temp_matrix,
 					vector<size_t> num_rows, 
 					size_t lev);
+
+// DEBUG: TEMP:
+__global__ void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size);
+
+
 
 #endif // CUDAKERNELS_H
 

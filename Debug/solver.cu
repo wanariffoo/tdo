@@ -249,6 +249,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
     // cout << "precond" << endl;
     cudaDeviceSynchronize();
 
+
     // reset correction
     // c.resize(d.size()); 
     // c = 0.0;
@@ -330,8 +331,9 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     
 
     // foo loop
-    
-    while(m_bs_foo)
+    int bs_step = 0;
+    // while(m_bs_foo || bs_step < m_bs_step)
+    while(bs_step < m_bs_step)
     {
     // TODO: check
     // smoother( m_d_bs_z, m_d_bs_r, 0);
@@ -394,7 +396,13 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_maxIter);
     CUDA_CALL( cudaMemcpy( &m_bs_foo, m_d_bs_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
     
+    if (!m_bs_foo) break;
+
     addStep<<<1,1>>>(m_d_bs_step);
+    
+    // DEBUG:
+    bs_step++;
+
     }
     
     // if ( m_bs_verbose )
@@ -412,6 +420,16 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     setToZero<<< m_gridDim[lev], m_blockDim[lev] >>>( m_d_ctmp[lev], m_num_rows[lev] );			
     cudaDeviceSynchronize();
 
+    
+    // static int apsie = 0;
+    // if (apsie == 0)
+    // {
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,450>>>( d_r, 450 );
+    // cudaDeviceSynchronize();
+    // cout << "\n";
+    // cout << "\n";
+    // }
 
     // if on base level
 	if( lev == 0 )
@@ -429,28 +447,40 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         // c += ctmp;
 		addVector_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(d_c, m_d_ctmp[lev], m_num_rows[0]);
         // r -= A[0] * c;
-
+        cudaDeviceSynchronize();
 
         //CHECK:
         // r = r - A[0] * ctmp0
 		UpdateResiduum_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
-		// cudaDeviceSynchronize();
+		cudaDeviceSynchronize();
 
         // cudaDeviceSynchronize();
-        // printVector_GPU<<<1,8>>> ( d_r, 8 );
+        // printVector_GPU<<<1,m_num_rows[lev]>>> ( d_r, m_num_rows[lev] );
         // cudaDeviceSynchronize();
 
 
         return true;
     }
    
+
+    // static int apsie = 0;
+    // if (apsie == 0)
+    // {
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,450>>>( d_r, 450 );
+    // cudaDeviceSynchronize();
+    // cout << "\n";
+    // cout << "\n";
+    // }
+    // apsie++;
+
     
     // presmooth
     
     for ( int i = 0 ; i < m_numPreSmooth ; i++)
     {
         smoother( m_d_ctmp[lev], d_r, lev );
-
+        cudaDeviceSynchronize();
         // cudaDeviceSynchronize();
         // printVector_GPU<<<1,18>>>( m_d_ctmp[lev], 18 );
         // cudaDeviceSynchronize();
@@ -462,12 +492,19 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         
         // r -= A[lev] * ctmp;
         UpdateResiduum_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
-
+        cudaDeviceSynchronize();
     }
 
+    // static int apsie = 0;
+    // if (apsie == 0)
+    // {
     // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,18>>>( m_d_ctmp[lev], 18 );
+    // printVector_GPU<<<1,450>>>( d_r, 450 );
     // cudaDeviceSynchronize();
+    // cout << "\n";
+    // cout << "\n";
+    // }
+    // apsie++;
 
 
 
@@ -488,10 +525,10 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 
 
     
-    
+    // TODO: r_coarse = R * r
     /// r_coarse = P^T * r
     ApplyTransposed_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
-
+    cudaDeviceSynchronize();
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_c[lev-1], m_num_rows[lev-1] );
 
 
@@ -543,13 +580,13 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     /// prolongate coarse grid correction
 	// ctmp = P[lev-1] * c_coarse;
     Apply_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>( m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], m_d_gmg_c[lev-1], m_d_ctmp[lev]);
-
+    cudaDeviceSynchronize();
     /// add correction and update defect
 	// c += ctmp;
 	addVector_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(d_c, m_d_ctmp[lev], m_num_rows[lev]);
-    
+    cudaDeviceSynchronize();
     UpdateResiduum_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>( m_num_rows[lev], m_max_row_size[lev] , m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
-    
+    cudaDeviceSynchronize();
     
     // postsmooth
     for ( int i = 0 ; i < m_numPostSmooth ; i++)
@@ -563,7 +600,19 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 
     }
 
+    
+    // static int apsie = 0;
+    // if (apsie == 0)
+    // {
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,450>>>( d_r, 450 );
+    // cudaDeviceSynchronize();
+    // cout << "\n";
+    // cout << "\n";
+    // }
+    // apsie++;
 
+    cudaDeviceSynchronize();
     return true;
 }
 
@@ -582,8 +631,12 @@ bool Solver::smoother(double* d_c, double* d_r, int lev)
 
 bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 {
+    
     // cout << "solve" << endl;
 
+    // // DEBUG:
+    // printVector_GPU<<<1, m_num_rows[m_topLev]>>> ( d_b, m_num_rows[m_topLev]);
+    // cudaDeviceSynchronize();
 
     //TODO: cantikkan
     setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( d_u, m_num_rows[m_topLev] );
@@ -613,6 +666,12 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
     // foo loop
     
+    // DEBUG:
+    // int step = 0;
+    // cout << "step = " << step << endl;
+    // while(m_foo || step < m_step)
+
+    
     while(m_foo)
     {
         
@@ -630,19 +689,19 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
     // update residuum r = r - A*c
     UpdateResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], m_d_c, m_d_r );
-
+    cudaDeviceSynchronize();
     
 
     // remember last residuum norm
     // lastRes = res;
     equals_GPU<<<1,1>>>(m_d_lastRes, m_d_res);
-
+    cudaDeviceSynchronize();
     // compute new residuum norm
     // res = r.norm();
     // norm_GPU<<<gridDim,blockDim>>>(d_res, d_r, A.num_rows());
     // TODO:
     norm_GPU(m_d_res, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
-
+    cudaDeviceSynchronize();
 
     if ( m_verbose )
     {
@@ -654,9 +713,12 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     checkIterationConditions<<<1,1>>>(m_d_foo, m_d_step, m_d_res, m_d_res0, m_d_minRes, m_d_minRed, m_maxIter);
     CUDA_CALL( cudaMemcpy( &m_foo, m_d_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
     
-    
-    addStep<<<1,1>>>(m_d_step);
+    // if ( !m_foo )
+    //     break;
 
+    addStep<<<1,1>>>(m_d_step);
+    
+    
     }
 
 

@@ -333,6 +333,8 @@ void printVector_GPU(int* x)
 __global__
 void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
+	
+
 		for ( int i = 0 ; i < num_rows ; i++)
 		{
 			for ( int j = 0 ; j < num_cols ; j++)
@@ -341,6 +343,29 @@ void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_
 			printf("\n");
 		}
 	
+}
+
+
+__global__
+void printELLrow_GPU(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
+{
+		for ( int j = 0 ; j < num_cols ; j++)
+			printf("%f ", valueAt(row, j, value, index, max_row_size) );
+
+		printf("\n");
+	
+}
+
+
+__host__
+void printELLrow(size_t lev, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
+{
+
+    for ( size_t i = 0 ; i < num_rows ; i++ )
+    {
+        printELLrow_GPU<<<1,1>>> (i, value, index, max_row_size, num_rows, num_cols);
+        cudaDeviceSynchronize();    
+    }
 }
 
 // (scalar) a = b
@@ -541,6 +566,7 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
 	
 }
 
+//TEMP:
 // sets identity rows and columns of the DOF in which a BC is applied
 void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows, size_t dim)
 {
@@ -920,7 +946,10 @@ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<d
 		for( int j = 0 ; j < num_rows_ ; j++ )
 		{
 			for ( int k = 0 ; k < num_rows ; k++)
+			{
+				// cout << "PTAP-ijk = " << i << " " << j << " " << k << endl;
 				foo[i][j] += A[i][k] * P[k][j];
+			}
 		}
 	}
 
@@ -933,6 +962,7 @@ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<d
                     A_[i][j] += P[k][i] * foo[k][j];
             }
         }
+	
 }
 
 
@@ -1487,4 +1517,20 @@ __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)
 {
 	if ( abs(rho - *rho_trial) < 1e-7 )
 		*foo = false;
+}
+
+
+__global__
+void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size)
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {
+        if(vIndex[x * max_row_size + k] == y)
+		{
+            printf("%e\n", vValue[x * max_row_size + k]);
+
+		}
+    }
+
+    printf("tak jumpa, so zero\n");
 }
