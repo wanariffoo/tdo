@@ -198,19 +198,20 @@ latex : best practices masters thesis
 
 
 
+hiwi:
+- thesis guideline
+- hpcg benchmark
+    - lower flops, will try again
 
 
+thesis:
+- thesis flow
+- no update on progress
+- see anything wrong with my result?
+- any recommendations on tackling this issue of non-converging?
+    - handling big matrices
 
-
-
-iteration 0
-0 7.045317e-02
-1 2.369059e-01
-2 6.595078e-02
-3 2.669032e-02
-
-iteration 1
-0 1.860544e-01
-1 1.136802e-01
-2 1.002637e-01
-3 1.000000e-09
+recommendation letter
+ - prof write or i draft it?
+ - want to mention coding
+ - rate code level

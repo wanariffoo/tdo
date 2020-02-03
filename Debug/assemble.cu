@@ -181,23 +181,36 @@ bool Assembler::init(
     // initial value is rho in all elements
     m_chi.resize(m_numElements[m_topLev], m_rho);
 
-
     // DEBUG:
 
     // NOTE: TODO: comment : this produces the local stiffness without rho implementation
     test_assembleLocal();
 
-        // int a = 0;
-        // for ( int i = 0 ; i < m_num_rows_l ; ++i )
-        // {
-        //     for( int k = 0 ; k < m_num_rows_l ; ++k )
-        //     {
-        //         cout << m_A_local[a] << " ";
-        //         a++;
-        //     }
+//     // DEBUG: temporary
+//     m_A_local = {
+//         103846153846.154,	37500000000,	-63461538461.5385,	-2884615384.61538,	11538461538.4615,	2884615384.61538,	-51923076923.0769,	-37500000000,
+// 37500000000,	103846153846.154,	2884615384.61538,	11538461538.4615,	-2884615384.61538,	-63461538461.5385,	-37500000000,	-51923076923.0769,
+// -63461538461.5385,	2884615384.61538,	103846153846.154,	-37500000000,	-51923076923.0769,	37500000000,	11538461538.4615,	-2884615384.61538,
+// -2884615384.61538,	11538461538.4615,	-37500000000,	103846153846.154,	37500000000,	-51923076923.0769,	2884615384.61538,	-63461538461.5385,
+// 11538461538.4615,	-2884615384.61538,	-51923076923.0769,	37500000000,	103846153846.154,	-37500000000,	-63461538461.5385,	2884615384.61538,
+// 2884615384.61538,	-63461538461.5385,	37500000000,	-51923076923.0769,	-37500000000,	103846153846.154,	-2884615384.61538,	11538461538.4615,
+// -51923076923.0769,	-37500000000,	11538461538.4615,	2884615384.61538,	-63461538461.5385,	-2884615384.61538,	103846153846.154,	37500000000,
+// -37500000000,	-51923076923.0769,	-2884615384.61538,	-63461538461.5385,	2884615384.61538,	11538461538.4615,	37500000000,	103846153846.154};
 
-        //     cout << "\n";
-        // }
+
+
+        int a = 0;
+        for ( int i = 0 ; i < m_num_rows_l ; ++i )
+        {
+            for( int k = 0 ; k < m_num_rows_l ; ++k )
+            {
+                // cout << m_A_local[a] << " ";
+                printf("%f ", m_A_local[a]);
+                a++;
+            }
+
+            cout << "\n";
+        }
 
     
 
@@ -439,11 +452,19 @@ bool Assembler::test_assembleLocal()
         E[2][2] = (1 - m_poisson) / 2 * E[0][0];
         E[2][0] = E[2][1] = E[1][2] = E[0][2] = 0.0;
 
+        
+        
+
         // 4 gauss points
         vector<vector<double>> GP = {   {-0.57735,	-0.57735} ,
                                         { 0.57735,	-0.57735} ,
                                         {-0.57735,	 0.57735} ,
                                         { 0.57735,	 0.57735}
+                                    };
+
+        // 4 gauss points
+        vector<vector<double>> GP_ = {  {-0.57735,	 0.57735} ,
+                                        {-0.57735,	 0.57735}
                                     };
 
         foo = m_h / 2 ;
@@ -464,12 +485,15 @@ bool Assembler::test_assembleLocal()
                     { -(1-GP[i][0]), -(1+GP[i][0]), (1+GP[i][0]),  (1-GP[i][0]) } };
             
 
-            // for ( int i = 0 ; i < 2 ; i++ )
+            // if ( i == 0 )
             // {
-            //     for ( int j = 0 ; j < 4 ; j++ )
-            //         cout << N[i][j] << " ";
+            //     for ( int i = 0 ; i < 2 ; i++ )
+            //     {
+            //         for ( int j = 0 ; j < 4 ; j++ )
+            //             cout << N[i][j] << " ";
 
-            //         cout << "\n";
+            //             cout << "\n";
+            //     }
             // }
 
             // cout << "\n";
@@ -477,27 +501,63 @@ bool Assembler::test_assembleLocal()
 
             vector<vector<double>> B(3, vector <double> (8, 0));
 
-            // inv_J * foo * N
-            for ( int j = 0 ; j < 2 ; ++j )
-            {
-                for( int k = 0 ; k < 4 ; ++k )
-                {
-                    N[j][k] *= inv_jacobi * foo;
+                    
+                    // node 0
+                    B[0][0] = -0.5*(1-GP[i][1])/m_h;
+                    B[2][1] = B[0][0];
+                    B[1][1] = -0.5*(1-GP[i][0])/m_h;
+                    B[2][0] = B[1][1];
+                
+                    // node 1
+                    B[0][2] = 0.5*(1-GP[i][1])/m_h;
+                    B[2][3] = B[0][2];
+                    B[1][3] = -0.5*(1+GP[i][0])/m_h;
+                    B[2][2] = B[1][3];
 
-                    B[0][2*k] = N[0][k];
-                    B[1][2*k+1] = N[1][k];
-                    B[2][2*k] = N[1][k];
-                    B[2][2*k+1] = N[0][k];
-                }
-            }
+                    // node 2
+                    B[0][4] = -0.5*(1+GP[i][1])/m_h;
+                    B[2][5] = B[0][4];
+                    B[1][5] = 0.5*(1-GP[i][0])/m_h;
+                    B[2][4] = B[1][5];
 
-            // for ( int i = 0 ; i < 3 ; i++ )
+                    // node 3
+                    B[0][6] = 0.5*(1+GP[i][1])/m_h;
+                    B[2][7] = B[0][6];
+                    B[1][7] = 0.5*(1+GP[i][0])/m_h;
+                    B[2][6] = B[1][7];
+
+
+
+
+
+
+
+
+            // // inv_J * foo * N
+            // for ( int j = 0 ; j < 2 ; ++j )
             // {
-            //     for ( int j = 0 ; j < 8 ; j++ )
-            //         cout << B[i][j] << " ";
-
-            //         cout << "\n";
+            //     for( int k = 0 ; k < 4 ; ++k )
+            //     {
+            //         // N[j][k] *= inv_jacobi * foo;
+                    
+            //         B[0][2*k] = N[0][k];
+            //         B[1][2*k+1] = N[1][k];
+            //         B[2][2*k] = N[1][k];
+            //         B[2][2*k+1] = N[0][k];
+            //     }
             // }
+
+
+            
+            
+            //     for ( int i = 0 ; i < 3 ; i++ )
+            //     {
+            //         for ( int j = 0 ; j < 8 ; j++ )
+            //             cout << B[i][j] << " ";
+
+            //             cout << "\n";
+            //     }
+            
 
             // cout << "\n";
             // cout << "\n";
@@ -513,6 +573,18 @@ bool Assembler::test_assembleLocal()
                         A_[i][j] += E[i][k] * B[k][j];
                 }
             }
+
+            // for ( int i = 0 ; i < 1 ; i++ )
+            // {
+            //     for( int j = 0 ; j < 1 ; j++ )
+            //     {
+            //         for ( int k = 0 ; k < 3 ; k++)
+            //             printf("%f\n", E[i][k]);
+            //             // A_[i][j] += E[i][k] * B[k][j];
+            //     }
+            // }
+            
+            // cout << A_[0][0] << endl;
 
             // for ( int i = 0 ; i < 3 ; i++ )
             // {
@@ -1080,6 +1152,9 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
         }
     }
 
+
+
+
     // applying BC on the matrix
     // DOFs which are affected by BC will have identity rows/cols { 0 0 .. 1 .. 0 0}
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; ++i )
@@ -1101,11 +1176,13 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
 
     // filling in the coarse matrices of each level
-    // for ( int lev = m_topLev ; lev != 0 ; lev-- )
-    //     PTAP(m_A_g[lev-1], m_A_g[lev], m_P[lev-1], num_rows[lev], num_rows[lev-1] );
+
+    for ( int lev = m_topLev ; lev != 0 ; lev-- )
+        PTAP(m_A_g[lev-1], m_A_g[lev], m_P[lev-1], num_rows[lev], num_rows[lev-1] );
 
     
-	
+
+  
 
 
 

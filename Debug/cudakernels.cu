@@ -615,6 +615,8 @@ vector<vector<size_t>> applyBC(vector<size_t> N, size_t numLevels, size_t bc_cas
 	nodesPerDim.push_back(N[0]+1);
 	nodesPerDim.push_back(N[1]+1);
 
+	
+
 	// level 0
 	for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
 		bc_index[0].push_back(i*nodesPerDim[0]*2);
@@ -624,6 +626,7 @@ vector<vector<size_t>> applyBC(vector<size_t> N, size_t numLevels, size_t bc_cas
 
 	for ( int lev = 1 ; lev < numLevels ; lev++ )
 	{
+		
 		nodesPerDim[0] = 2*nodesPerDim[0] - 1;
 		nodesPerDim[1] = 2*nodesPerDim[1] - 1;
 
@@ -940,9 +943,12 @@ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<d
 	// temp vectors
 	std::vector<std::vector<double>> foo ( num_rows, std::vector <double> (num_rows_, 0.0));
 
+
 	// foo = A * P
 	for ( int i = 0 ; i < num_rows ; i++ )
 	{
+		
+		
 		for( int j = 0 ; j < num_rows_ ; j++ )
 		{
 			for ( int k = 0 ; k < num_rows ; k++)
@@ -953,6 +959,9 @@ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<d
 		}
 	}
 
+	
+	
+
 	// A_ = P^T * foo
 	for ( int i = 0 ; i < num_rows_ ; i++ )
         {
@@ -962,6 +971,88 @@ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<d
                     A_[i][j] += P[k][i] * foo[k][j];
             }
         }
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	// temp vectors
+	// std::vector<std::vector<double>> foo ( num_rows, std::vector <double> (num_rows_, 0.0));
+
+	// double** foo = new double*[num_rows];
+	// for(int i = 0; i < num_rows; i++)
+	// {
+	// 	foo[i] = new double[num_rows_];
+	// }
+  
+	// for ( int i = 0 ; i < num_rows ; i++ )
+	// {
+	// 	for( int j = 0 ; j < num_rows_ ; j++ )
+	// 	{
+	// 			foo[i][j] = 0;
+	// 	}
+	// }
+
+
+	// // foo = A * P
+	// for ( int i = 0 ; i < num_rows ; i++ )
+	// {
+	// 	for( int j = 0 ; j < num_rows_ ; j++ )
+	// 	{
+	// 		for ( int k = 0 ; k < num_rows ; k++)
+	// 		{
+	// 			// cout << "PTAP-ijk = " << i << " " << j << " " << k << endl;
+	// 			foo[i][j] += A[i][k] * P[k][j];
+	// 		}
+	// 	}
+	// }
+
+	// // A_ = P^T * foo
+	// for ( int i = 0 ; i < num_rows_ ; i++ )
+    //     {
+    //         for( int j = 0 ; j < num_rows_ ; j++ )
+    //         {
+    //             for ( int k = 0 ; k < num_rows ; k++)
+    //                 A_[i][j] += P[k][i] * foo[k][j];
+    //         }
+    //     }
+
+	// for ( int i = 0 ; i < num_rows ; i++ )
+	// {
+	// 	for( int j = 0 ; j < num_rows_ ; j++ )
+	// 		cout << foo[i][j] << " ";
+
+	// 	cout << endl;
+		
+	// }
+
+	// for(int i = 0; i < num_rows; i++)
+	// {
+	// 	delete [] foo[i];
+	// }
+	// delete [] foo;
+
+
+
+
+
+
+
+
+
+	
 	
 }
 
