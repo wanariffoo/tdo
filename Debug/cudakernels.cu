@@ -612,29 +612,70 @@ vector<vector<size_t>> applyBC(vector<size_t> N, size_t numLevels, size_t bc_cas
 	
 	vector<size_t> nodesPerDim;
 
-	nodesPerDim.push_back(N[0]+1);
-	nodesPerDim.push_back(N[1]+1);
+	// nodesPerDim.push_back(N[0]+1);
+	// nodesPerDim.push_back(N[1]+1);
 
+	for( int i = 0 ; i < N.size() ; i++ )
+		nodesPerDim.push_back(N[i]+1);
 	
 
-	// level 0
+	// base level
+	size_t totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
+
 	for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
-		bc_index[0].push_back(i*nodesPerDim[0]*2);
+	{
+		bc_index[0].push_back(i*nodesPerDim[0]*dim);
 
-		bc_index[0].push_back(dim*nodesPerDim[0] - 1 );
+		if ( dim == 3 )
+		{
+			for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+				bc_index[0].push_back(i*nodesPerDim[0]*dim + totalNodes2D*3*j);
+		}
 
+	}
 
+	// y-direction boundary condition at bottom right node
+	bc_index[0].push_back(dim*N[0] + 1 );
+
+	if ( dim == 3 )
+	{
+		for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+			bc_index[0].push_back(dim*N[0] + 1 + totalNodes2D*3*j);
+	}
+	
+
+	// finer levels
 	for ( int lev = 1 ; lev < numLevels ; lev++ )
 	{
-		
-		nodesPerDim[0] = 2*nodesPerDim[0] - 1;
-		nodesPerDim[1] = 2*nodesPerDim[1] - 1;
+		for( int i = 0 ; i < N.size() ; i++ )
+			nodesPerDim[i] = 2*nodesPerDim[i] - 1;
+
+
+		totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
 
 
 		for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
-			bc_index[lev].push_back(i*nodesPerDim[0]*2);
+		{
+			bc_index[lev].push_back(i*nodesPerDim[0]*dim);
 
-			bc_index[lev].push_back(dim*nodesPerDim[0] - 1 );
+			if ( dim == 3 )
+			{
+				for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+					bc_index[lev].push_back(i*nodesPerDim[0]*dim + totalNodes2D*3*j);
+
+			}
+
+		}
+
+		// y-direction boundary condition at bottom right node
+		bc_index[lev].push_back(nodesPerDim[0]*dim - (dim-1));
+		
+		if ( dim == 3 )
+		{
+			for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+				bc_index[lev].push_back(dim*nodesPerDim[0] - (dim-1) + totalNodes2D*3*j);
+
+		}
 
 	}
 
