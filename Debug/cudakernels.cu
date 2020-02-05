@@ -689,22 +689,32 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 	
 	vector<size_t> nodesPerDim;
 
-	nodesPerDim.push_back(N[0]+1);
-	nodesPerDim.push_back(N[1]+1);
+	for ( int i = 0 ; i < N.size() ; i++)
+		nodesPerDim.push_back(N[i]+1);
+
 
 
 	size_t index = 0;
 	
 	for ( int lev = 0 ; lev < numLevels - 1 ; lev++)
 	{
-		nodesPerDim[0] = 2*nodesPerDim[0] - 1;
-		nodesPerDim[1] = 2*nodesPerDim[1] - 1;
-	}
+		for ( int i = 0 ; i < N.size() ; i++)
+		nodesPerDim[i] = 2*nodesPerDim[i] - 1;
 
+	}
 
 	index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
 
 	b[index] = force;
+
+	if ( dim == 3 )
+	{
+		for ( int i = 1 ; i < nodesPerDim[2] ; i++ )
+		{
+			index = index + (nodesPerDim[0]*nodesPerDim[1])*dim;
+			b[index] = force;
+		}
+	}
 
 
 }
