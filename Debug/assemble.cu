@@ -1023,7 +1023,6 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
 
     size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
 
-    cout << m_numElements[m_topLev] << endl;
 
     // assign the nodes to each element
     if ( m_dim == 2)
@@ -1036,32 +1035,30 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
             m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
         }
     }
-
-
-
     // m_dim == 3
     else    
     {
+        
+        size_t numElementsIn2D = (m_N[m_topLev][0])*(m_N[m_topLev][1]);
+
+        // loop through each element
         for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
         {
             // base counter
-            size_t base = i%((m_N[m_topLev][0])*(m_N[m_topLev][1]));
-            cout << base << endl;
-            m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] ]);   // lower left node
-            m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + 1]);   // lower right node
-            m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
-            m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
+            size_t base = i%numElementsIn2D;
 
-            if ( m_dim == 3)
-            {
-                    m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D]);
-                    m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D + 1]);
-                    m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D + m_N[m_topLev][0] + 1]);
-                    m_element[i].addNode(&m_node[ base + (i/base)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D + m_N[m_topLev][0] + 2]);
-            }
-            
-            m_element[i].printNodes();
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] ]);   // lower left node
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + 1]);   // lower right node
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
+
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D]);
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D + 1]);
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D + m_N[m_topLev][0] + 1]);
+            m_element[i].addNode(&m_node[ base + (i/numElementsIn2D)*numNodesIn2D + base/m_N[m_topLev][0] + numNodesIn2D + m_N[m_topLev][0] + 2]);
+
         }
+        
     }
 
     
