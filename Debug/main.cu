@@ -45,7 +45,7 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
     // domain dimensions (x,y,z) on coarsest grid
-    N = {3,1};
+    N = {1,1,1};
 
     // local element mesh size on coarsest grid
     double h_coarse = 1;
@@ -104,6 +104,7 @@ int main()
 
     cout << "### GPU-accelerated Thermodynamic Topology Optimization ###" << endl;
     cout << "Number of Multigrid Levels: " << numLevels << endl;
+    cout << "Dimension: " << dim << endl;
     cout << "Coarsest grid size = { " << N[0];
         for ( int i = 1 ; i < dim ; ++i )
             cout << ", " << N[i];
@@ -120,7 +121,7 @@ int main()
 
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    // Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
+    Assembly.init(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
     
     // cout << "Top-level number of rows = " << num_rows[numLevels - 1] << endl;
     // cout << "Assembly ... DONE" << endl;

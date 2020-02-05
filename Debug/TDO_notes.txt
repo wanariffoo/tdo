@@ -215,3 +215,12 @@ recommendation letter
  - prof write or i draft it?
  - want to mention coding
  - rate code level
+
+
+PTAP slow.
+- since will be doing matrix-less later, should I ...
+    - repair this by using ELLpack for assembly
+        - if so, max_row_size question
+    - start with matrix-less
+        - copy only local stiffness matrix to device?
+        - P and R matrices?
