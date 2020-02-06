@@ -1166,53 +1166,100 @@ void UpdateDrivingForce(double *df, double* uTau, double p, double *chi, double 
 
 // x[] = u[]^T * A * u[]
 __global__
-void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim)
+void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim)
 {
-    int id = blockDim.x * blockIdx.x + threadIdx.x;
-    
-    if ( id < num_rows )
-    {
-		double temp[24];
+	double temp[24];
 
-        x[id] = 0;
-        for ( int n = 0; n < num_rows; n++ )
+	*x = 0;
+	for ( int n = 0; n < num_rows; n++ )
+	{
+		temp[n]=0;
+		for ( int m = 0; m < num_rows; m++)
 		{
-			temp[n]=0;
 			// converts local node to global node
+			int global_col = ( node_index [ m / dim ] * dim ) + ( m % dim ); 
 
-			for ( int m = 0; m < num_rows; m++)
-			{
-            	int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim ); 
-            	temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
-			}
 
-			if(id==0)
-			printf("%e\n", temp[n]);
-			// printf("%e\n", u[global_col]);
-			// printf("%d\n", global_col);
-        }
+			temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
 
-		for ( int n = 0; n < num_rows; n++ )
-		{
-			int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim );
-        	x[id] += temp[n] * u[global_col];
-
-			if(id==0)
-			printf("%e = %e x %e\n", x[id], temp[n], u[global_col]);
-
-			// printf("%e\n", u[global_col]);
-			// printf("%e\n", x[id]);
-			// printf("%d\n", global_col);
 
 		}
+
+	}
+
+
+	for ( int n = 0; n < num_rows; n++ )
+	{
+		int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim );
+		*x += temp[n] * u[global_col];
+
 		
+	}
+	
+	*x *= 0.5 * p * pow(*chi, p-1);
+
+			// if(n==2)
+			// printf("%e = %e x %e\n", *x, temp[n], u[global_col]);
+			// 	printf("%e = %e x %e\n", temp[n], u[global_col], d_A_local[ n + m*num_rows ]);
+			// if(id==0)
+			// printf("%e\n", temp[n]);
+			// printf("%e\n", u[global_col]);
+			// printf("%d\n", global_col);
 		// if(id==0)
 		// printf("%e\n", x[id]);
-    }
 
+				// if(id==0 && n==1 && m==7)
+				// printf("%e = %e x %e\n", u[global_col]*d_A_local[ n + m*num_rows ], u[global_col], d_A_local[ n + m*num_rows ]);
 
+				// if(id==0 && n==1)
+				// printf("%e = %e x %e\n", temp[n], u[global_col], d_A_local[ n + m*num_rows ]);
+							// printf("%e\n", u[global_col]);
+			// printf("%e\n", x[id]);
+			// printf("%d\n", global_col);
+    
 }
 
+
+// calculate the driving force per element
+__host__
+void calcDrivingForce(
+    double *df,             // driving force
+    double *chi,            // design variable
+    double p,               // penalization parameter
+    double *uTAu,           // dummy/temp vector
+    double *u,              // elemental displacement vector
+    vector<size_t*> node_index,
+	double* d_A_local,
+    size_t num_rows,        // local ELLPack stiffness matrix's number of rows
+    dim3 gridDim,           // grid and 
+    dim3 blockDim,
+	const size_t dim,
+	size_t numElements)          // block sizes needed for running CUDA kernels
+{
+	
+	// printVector_GPU<<<1,20>>>( u, 20);
+
+	// calculate the driving force in each element ( 1 element per thread )
+    // df[] = 0.5 * p * pow(chi.p-1) - u[]^T * A * u[]
+	
+	for ( int i = 0 ; i < numElements; i++ )
+	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim);
+
+    cudaDeviceSynchronize();
+	// printVector_GPU<<<1,numElements>>>( df, numElements);
+
+
+
+
+	// // calculate the driving force in each element
+    // sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
+    // cudaDeviceSynchronize();
+    
+	//TODO: det_J not implemented yet
+	// df[] *= ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) * det(J)
+    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, uTAu, p, chi, local_volume, num_rows);
+	
+}
 
 __global__ 
 void sumOfVector_GPU(double* sum, double* x, size_t n)
@@ -1252,42 +1299,6 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 		atomicAdd_double(sum, cache[0]);
 }
 
-// calculate the driving force per element
-__host__
-void calcDrivingForce(
-    double *df,             // driving force
-    double *chi,            // design variable
-    double p,               // penalization parameter
-    double *uTAu,           // dummy/temp vector
-    double *u,              // elemental displacement vector
-    size_t* node_index,
-	double* d_A_local,
-    size_t num_rows,        // local ELLPack stiffness matrix's number of rows
-    dim3 gridDim,           // grid and 
-    dim3 blockDim,
-	const size_t dim)          // block sizes needed for running CUDA kernels
-{
-	
-	// printVector_GPU<<<1,20>>>( u, 20);
-
-    // uTAu[] = u[]^T * A * u[]
-    uTAu_GPU<<<1, num_rows>>>(uTAu, u, node_index, d_A_local, num_rows, dim);
-    cudaDeviceSynchronize();
-
-	// printVector_GPU<<<1,8>>>( uTAu, 8);
-
-
-
-
-	// // calculate the driving force in each element
-    // sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
-    // cudaDeviceSynchronize();
-    
-	//TODO: det_J not implemented yet
-	// df[] *= ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) * det(J)
-    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, uTAu, p, chi, local_volume, num_rows);
-	
-}
 
 __host__ 
 void TestcalcDrivingForce(
@@ -1552,7 +1563,7 @@ void int_g_p(double* d_temp, double* d_df, double local_volume, size_t numElemen
 
 // calculate the average weighted driving force, p_w
 __global__ 
-void calcP_w(double* p_w, double* df, double* uTAu, double* chi, int p, double local_volume, size_t numElements)
+void calcP_w_GPU(double* p_w, double* df, double* uTAu, double* chi, int p, double local_volume, size_t numElements)
 {
 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -1567,32 +1578,106 @@ void calcP_w(double* p_w, double* df, double* uTAu, double* chi, int p, double l
 		int_g[id] = (chi[id] - 1e-9)*(1-chi[id]) * local_volume;
 
 
-	__syncthreads();
+		__syncthreads();
 
-	// atomicAdd_double(&d_temp[0], int_g_p[id]);
-	// atomicAdd_double(&d_temp[1], int_g[id]);
+		// atomicAdd_double(&d_temp[0], int_g_p[id]);
+		// atomicAdd_double(&d_temp[1], int_g[id]);
 
-	if ( id == 0 )
+		if ( id == 0 )
+		{
+			for ( int i = 1 ; i < numElements ; ++i )
+				int_g_p[0] += int_g_p[i];
+		}
+
+		if ( id == 1 )
+		{
+			for ( int i = 1 ; i < numElements ; ++i )
+				int_g[0] += int_g[i];
+		}
+
+		__syncthreads();
+
+		if ( id == 0 )
+			*p_w = int_g_p[0] / int_g[0];
+
+
+	}
+}
+
+__global__ 
+void calc_g_GPU(double*g, double* chi, size_t numElements)
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if (id < numElements)
 	{
-		for ( int i = 1 ; i < numElements ; ++i )
-			int_g_p[0] += int_g_p[i];
+		g[id] = (chi[id] - 1e-9)*(1-chi[id]);
 	}
+}
 
-	if ( id == 1 )
+
+__global__ 
+void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t n)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+    
+    // if ( id < n )
+    // printf("%d : %e\n", id, x[id]);
+
+	__shared__ double cache[1024];
+    cache[threadIdx.x] = 0;
+    
+	double temp = 0.0;
+	while(id < n)
 	{
-		for ( int i = 1 ; i < numElements ; ++i )
-			int_g[0] += int_g[i];
+		temp += df[id]*g[id];
+		id += stride;
 	}
-
+	
+    cache[threadIdx.x] = temp;
+    
 	__syncthreads();
-
-	if ( id == 0 )
-		*p_w = int_g_p[0] / int_g[0];
-
-
+	
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] += cache[threadIdx.x + i];
+		}
+		__syncthreads();
+		i /= 2;
 	}
+
+	// reduce sum from all blocks' cache
+	if(threadIdx.x == 0)
+		atomicAdd_double(sum, cache[0]);
+}
+
+
+__host__
+void calcP_w(double* p_w, double* df, double* chi, double* g, double* df_g, size_t numElements)
+{	
+	dim3 gridDim;
+	dim3 blockDim;
+
+	calculateDimensions(numElements, gridDim, blockDim);
+	calc_g_GPU<<<gridDim, blockDim>>>(g, chi, numElements);
+
+
+	// calculate p_w = sum(g)
+	// using p_w as a temp
+	sumOfVector_GPU<<<gridDim, blockDim>>>(df_g, g, numElements);
+	calcSum_df_g_GPU<<<gridDim, blockDim>>>(p_w, df, g, numElements);
+	
+	divide_GPU<<<1,1>>>(p_w, p_w, df_g);
+	// cudaDeviceSynchronize();
+	// printVector_GPU<<<gridDim,blockDim>>>( df, numElements );
+
+
 
 }
+
 
 __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double betastar, double* p_w )
 {

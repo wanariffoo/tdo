@@ -209,37 +209,37 @@ int main()
     // cudaDeviceSynchronize();
 
     // // // DEBUG:CHECK:
-    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_b, num_rows[numLevels - 1]);
 
     
     // TODO: write a function for this to make it neater
     // vtk stuff
-    // vector<double> chi(Assembly.getNumElements(), rho);
-    // vector<double> u(Assembly.getNumNodes() * dim, 0);
-    // string fileformat(".vtk");
-    // int file_index = 0;
+    vector<double> chi(Assembly.getNumElements(), rho);
+    vector<double> u(Assembly.getNumNodes() * dim, 0);
+    string fileformat(".vtk");
+    int file_index = 0;
     stringstream ss; 
-    // ss << "vtk/tdo";
-    // ss << file_index;
-    // ss << fileformat;
+    ss << "vtk/tdo";
+    ss << file_index;
+    ss << fileformat;
 
-    // if ( writeToVTK )
-    // {
-    //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    if ( writeToVTK )
+    {
+        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
         
-    //     CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
-    //     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
+        CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+        CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
 
-    //     file_index++;
-    //     ss.str( string() );
-    //     ss.clear();
-    //     ss << "vtk/tdo";
-    //     ss << file_index;
-    //     ss << fileformat;
+        file_index++;
+        ss.str( string() );
+        ss.clear();
+        ss << "vtk/tdo";
+        ss << file_index;
+        ss << fileformat;
         
-    //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
-    // }
+        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    }
 
 
 
