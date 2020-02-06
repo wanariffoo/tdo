@@ -21,7 +21,7 @@
 // outputs design variable vector
 void WriteVectorToVTK(vector<double> &chi, vector<double> &u, const std::string& filename, size_t dim, vector<size_t> numNodesPerDim, double h, size_t numElements, size_t numNodes)
 {
-
+	
 	std::ofstream ofs(filename, std::ios::out);
 	if (ofs.bad())
 	{

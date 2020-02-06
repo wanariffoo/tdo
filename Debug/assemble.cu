@@ -267,6 +267,22 @@ bool Assembler::init(
     assembleGlobal(num_rows, max_row_size, p_max_row_size, r_max_row_size);
 
 
+    // // DEBUG:
+    //     int a = 0;
+    //     for ( int i = 0 ; i < num_rows[1] ; ++i )
+    //     {
+    //         for( int k = 0 ; k < num_rows[1] ; ++k )
+    //         {
+    //             // cout << m_A_local[a] << " ";
+    //             printf("%f ", m_A_local[a]);
+    //             a++;
+    //         }
+
+    //         cout << "\n";
+    //     }
+
+
+
     // cout << max_row_size[1] << endl;
     
     //// CUDA
@@ -418,7 +434,7 @@ bool Assembler::init(
     // printELLrow_GPU<<<1,1>>> (2, d_p_value[1], d_p_index[1], p_max_row_size[1], num_rows[2], num_rows[1]);
     cudaDeviceSynchronize();
 
-
+    
 
     return true;
 
@@ -428,7 +444,7 @@ bool Assembler::init(
 bool Assembler::assembleLocal()
 {
     // DEBUG:
-    
+
     double foo; // jacobi = foo * identity matrix // TODO: delete cmnt
     double det_jacobi;
     double inv_jacobi;
@@ -1198,7 +1214,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     
 
     // // DEBUG:
-    // int bbbb = 0;
+    // int bbbb = 1;
     // for ( int i = 0 ; i < num_rows[bbbb] ; i++ )
     // {
     //     for ( int j = 0 ; j < num_rows[bbbb] ; j++ )
@@ -1292,28 +1308,35 @@ bool Assembler::UpdateGlobalStiffness(
         //         cout << "\n";
         //     }
 
+
     
     //// reinitialize relevant variables
     // stiffness matrices, A
     for ( int lev = 0 ; lev < m_numLevels ; ++lev )
     setToZero<<<ell_gridDim[lev], ell_blockDim[lev]>>>( d_value[lev], m_num_rows[lev]*m_max_row_size[lev]);
 
+
+    // printELLrow(2, d_value[2], d_index[2], m_max_row_size[2], m_num_rows[2], m_num_rows[2]);
+    // printELLrow(1, d_value[1], d_index[1], m_max_row_size[1], m_num_rows[1], m_num_rows[1]);
     
+
     dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
 
-    // printVector_GPU<<<1,4>>>( d_chi, 4)    ;
+    // printVector_GPU<<<1,4>>>( d_chi, 4);
     
     // assemble the global stiffness matrix on the finest grid with the updated chi of each element
+
+    
     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_num_rows_l, m_d_node_index[i], m_p);
 
-    
 
-    // // DEBUG: temp :
-    // vector<vector<size_t>> temp_bc_index(2);
 
-    // temp_bc_index[0] = {0,1 ,4,5};
-    // temp_bc_index[1] = {0,1 ,6,7, 12,13};
+    // // // DEBUG: temp :
+    // // vector<vector<size_t>> temp_bc_index(2);
+
+    // // temp_bc_index[0] = {0,1 ,4,5};
+    // // temp_bc_index[1] = {0,1 ,6,7, 12,13};
     
     // // DEBUG: temp: not optimized
     // // d_temp_matrix[8][18] to store R*A
@@ -1334,21 +1357,37 @@ bool Assembler::UpdateGlobalStiffness(
 
 
 
-    // TODO: use optimized matrix multiplication
-    
-    // setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
+
+    // cudaDeviceSynchronize();
+    // printELLrow(2, d_value[2], d_index[2], m_max_row_size[2], m_num_rows[2], m_num_rows[2]);
 
 
 
+    // // TODO: use optimized matrix multiplication
+    dim3 temp_gridDim;
+    dim3 temp_blockDim;
+       
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
     {
-        setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
+        calculateDimensions(m_num_rows[lev] * m_num_rows[lev-1], temp_gridDim, temp_blockDim);
+        setToZero<<<temp_gridDim, temp_blockDim>>>( d_temp_matrix, m_num_rows[lev] * m_num_rows[lev-1]);
         RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, lev);
     }
-    // // RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev-1);
+    // // // RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, d_temp_matrix, m_num_rows, m_topLev-1);
 
-    // 	printVector_GPU<<<1,144>>>( d_temp_matrix, 144 );
+        // setToZero<<<1,m_num_rows[m_topLev] * m_num_rows[m_topLev-1]>>>( d_temp_matrix, m_num_rows[m_topLev] * m_num_rows[m_topLev-1]);
+    // // 	printVector_GPU<<<1,144>>>( d_temp_matrix, 144 );
+
+
+
+
+    cudaDeviceSynchronize();
+    // printELLrow(1, d_p_value[1], d_p_index[1], m_p_max_row_size[1], m_num_rows[2], m_num_rows[1]);
+    // printELLrow(1, d_value[1], d_index[1], m_max_row_size[1], m_num_rows[1], m_num_rows[1]);
+    // printELLrow(0, d_value[0], d_index[0], m_max_row_size[0], m_num_rows[0], m_num_rows[0]);
+
+
 	cudaDeviceSynchronize();
 
 

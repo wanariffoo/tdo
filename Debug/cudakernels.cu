@@ -704,7 +704,7 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 	}
 
 	index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
-	cout << index << endl;
+	
 	b[index] = force;
 
 	if ( dim == 3 )

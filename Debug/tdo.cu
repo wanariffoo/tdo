@@ -115,17 +115,15 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // NOTE: reduction issue if numElements > blocksize
     // calcP_w<<<m_gridDim,m_blockDim>>>(m_d_p_w, m_d_df, m_d_uTAu, m_d_chi, m_p, m_local_volume, m_numElements);
 
+    
     calcP_w(m_d_p_w, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements);
     
-    // cudaDeviceSynchronize();
-    // cout << "aps" << endl;
-    // print_GPU<<<1,1>>>( m_d_p_w );
-
 
     // // calculate eta and beta
     calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
     cudaDeviceSynchronize();
 
+    // cout << "aps" << endl;
     // cout << m_etastar << endl;
     // cout << m_betastar << endl;
 
@@ -133,6 +131,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_eta );
     // cudaDeviceSynchronize();
+
 
 
     // NOTE:
@@ -181,12 +180,10 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
             // print_GPU <<< 1 , 1 >>> ( m_d_lambda_u );
             // cudaDeviceSynchronize();
 
-
             calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_N[0], m_numElements);
 
             // printVector_GPU<<<1,4>>>( m_d_chi_tr, 4);
             // cudaDeviceSynchronize();
-
 
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_chi_tr, m_numElements);
@@ -197,14 +194,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
             // cudaDeviceSynchronize();
             // cout << "\n";
 
-
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
               
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
             
         }
-
 
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
@@ -219,3 +214,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     return true;
 
 }
+
+    // cudaDeviceSynchronize();
+    // cout << "aps" << endl;
+    // print_GPU<<<1,1>>>( m_d_p_w );

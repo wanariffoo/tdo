@@ -306,6 +306,11 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
 
+        if ( m_bs_verbose )
+        print_GPU<<<1,1>>>( m_d_bs_res );
+    cudaDeviceSynchronize();
+
+
     equals_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_res);
     
     if ( m_bs_verbose )
@@ -322,6 +327,9 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // printVector_GPU<<<1,8>>>( m_d_bs_r, 8 );
     // cudaDeviceSynchronize();
 	
+
+
+
     
     addStep<<<1,1>>>(m_d_bs_step);
 
@@ -339,22 +347,29 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     
     vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
 
+
+
     // rho = < z, r >
     dotProduct(m_d_bs_rho, m_d_bs_r, m_d_bs_z, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
     
     // cudaDeviceSynchronize();
-    // print_GPU<<<1,1>>>( m_d_bs_rho );
+    // DEBUG:
+    // if ( m_bs_verbose )
+    //     print_GPU<<<1,1>>>( m_d_bs_rho );
     // cudaDeviceSynchronize();
 
 
     calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
     
+
     // cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_bs_p );
     // cudaDeviceSynchronize();
 
     /// z = A*p
     Apply_GPU<<<m_gridDim[0],m_blockDim[0]>>>( m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], m_d_bs_p, m_d_bs_z );
+
+    
 
     // cudaDeviceSynchronize();
     // // printVector_GPU<<<1,8>>>( m_d_bs_p, 8 );
@@ -364,6 +379,15 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // alpha = rho / (p * z)
     calculateAlpha(m_d_bs_alpha, m_d_bs_rho, m_d_bs_p, m_d_bs_z, m_d_bs_alpha_temp, m_num_rows[0], m_gridDim[0], m_blockDim[0] );
 
+    // // //DEBUG:
+    // if ( m_bs_verbose )
+    // {
+    //     cudaDeviceSynchronize();
+    //     print_GPU<<<1,1>>>( m_d_bs_alpha );
+    //     // printVector_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_num_rows[0]);
+    //     // printELLrow(0, m_d_value[0], m_d_index[0], m_max_row_size[0], m_num_rows[0], m_num_rows[0]);
+    //     cudaDeviceSynchronize();
+    // }
 
 
     // add correction to solution
@@ -385,12 +409,12 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // rho_old = rho;
     vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_rho_old, m_d_bs_rho, m_num_rows[0]);
 
-    if ( m_bs_verbose )
-    {
-    cudaDeviceSynchronize();
-    printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_minRed);
-    cudaDeviceSynchronize();
-    }
+    // if ( m_bs_verbose )
+    // {
+    // cudaDeviceSynchronize();
+    // printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_minRed);
+    // cudaDeviceSynchronize();
+    // }
     
     checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_maxIter);
     CUDA_CALL( cudaMemcpy( &m_bs_foo, m_d_bs_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);

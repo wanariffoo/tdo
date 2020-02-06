@@ -230,4 +230,6 @@ PTAP slow.
         - P and R matrices?
 
 
-weird results when stringstream ss
+
+- losing value in second iteration due to ELLpack
+    - coarser matrices lose some values because of "fill-ins"
