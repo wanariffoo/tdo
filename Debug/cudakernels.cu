@@ -704,7 +704,7 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 	}
 
 	index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
-
+	cout << index << endl;
 	b[index] = force;
 
 	if ( dim == 3 )
@@ -998,8 +998,6 @@ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<d
 	// foo = A * P
 	for ( int i = 0 ; i < num_rows ; i++ )
 	{
-		
-		
 		for( int j = 0 ; j < num_rows_ ; j++ )
 		{
 			for ( int k = 0 ; k < num_rows ; k++)
@@ -1168,24 +1166,48 @@ void UpdateDrivingForce(double *df, double* uTau, double p, double *chi, double 
 
 // x[] = u[]^T * A * u[]
 __global__
-void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows)
+void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
     
     if ( id < num_rows )
     {
+		double temp[24];
+
         x[id] = 0;
         for ( int n = 0; n < num_rows; n++ )
 		{
-            int global_col = ( node_index [ n / 2 ] * 2 ) + ( n % 2 ); // converts local node to global node
-            x[id] += u[global_col] * d_A_local[ id + n*num_rows ];
+			temp[n]=0;
+			// converts local node to global node
 
-			// if ( id == 3 )
-			// 	printf("%e\n", x[0]);
+			for ( int m = 0; m < num_rows; m++)
+			{
+            	int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim ); 
+            	temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
+			}
+
+			if(id==0)
+			printf("%e\n", temp[n]);
+			// printf("%e\n", u[global_col]);
+			// printf("%d\n", global_col);
         }
 
-        x[id] *= u[ ( node_index [ id / 2 ] * 2 ) + ( id % 2 ) ];
+		for ( int n = 0; n < num_rows; n++ )
+		{
+			int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim );
+        	x[id] += temp[n] * u[global_col];
 
+			if(id==0)
+			printf("%e = %e x %e\n", x[id], temp[n], u[global_col]);
+
+			// printf("%e\n", u[global_col]);
+			// printf("%e\n", x[id]);
+			// printf("%d\n", global_col);
+
+		}
+		
+		// if(id==0)
+		// printf("%e\n", x[id]);
     }
 
 
@@ -1242,23 +1264,83 @@ void calcDrivingForce(
 	double* d_A_local,
     size_t num_rows,        // local ELLPack stiffness matrix's number of rows
     dim3 gridDim,           // grid and 
-    dim3 blockDim)          // block sizes needed for running CUDA kernels
+    dim3 blockDim,
+	const size_t dim)          // block sizes needed for running CUDA kernels
 {
+	
+	// printVector_GPU<<<1,20>>>( u, 20);
 
-    // temp[] = u[]^T * A * u[]
-    uTAu_GPU<<<gridDim, blockDim>>>(uTAu, u, node_index, d_A_local, num_rows);
+    // uTAu[] = u[]^T * A * u[]
+    uTAu_GPU<<<1, num_rows>>>(uTAu, u, node_index, d_A_local, num_rows, dim);
     cudaDeviceSynchronize();
 
-	// printVector_GPU<<<1,4>>>( u, 4);
+	// printVector_GPU<<<1,8>>>( uTAu, 8);
 
 
-	// calculates the driving force in each element
-    sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
-    cudaDeviceSynchronize();
+
+
+	// // calculate the driving force in each element
+    // sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
+    // cudaDeviceSynchronize();
     
 	//TODO: det_J not implemented yet
 	// df[] *= ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) * det(J)
-    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, p, chi, local_volume, num_rows);
+    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, uTAu, p, chi, local_volume, num_rows);
+	
+}
+
+__host__ 
+void TestcalcDrivingForce(
+	double *df, 
+	double *chi, 
+	double p,
+	double *u, 
+	size_t* node_index, 
+	double* d_A_local, 
+	size_t num_rows, 
+	dim3 gridDim, 
+	dim3 blockDim,
+	size_t numElements)
+{
+
+
+
+}
+
+__global__ 
+void calcDrivingForce_(
+    double *df,             // driving force
+    double *chi,            // design variable
+    double p,               // penalization parameter
+    double *u,              // elemental displacement vector
+    size_t* node_index,
+	double* d_A_local,
+    size_t num_rows,        // local ELLPack stiffness matrix's number of rows
+    size_t dim)          
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	__shared__ double uTAu_[1024];
+
+    if ( id < num_rows )
+    {
+        uTAu_[id] = 0;
+
+		// uTAu = uT * A
+        for ( int n = 0; n < num_rows; n++ )
+		{
+			// converts local node to global node
+            int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim ); 
+            uTAu_[id] += u[global_col] * d_A_local[ id + n*num_rows ];
+
+        }
+
+		// uTAu *= u
+        uTAu_[id] *= u[ ( node_index [ id / dim ] * dim ) + ( id % dim ) ];
+
+
+		df[id] = uTAu_[id] * (p) * pow(chi[id], (p-1));
+    }
 	
 }
 

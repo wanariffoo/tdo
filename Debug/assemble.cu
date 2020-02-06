@@ -190,18 +190,18 @@ bool Assembler::init(
     // NOTE: TODO: comment : this produces the local stiffness without rho implementation
     assembleLocal();
 
-    //     // int a = 0;
-    //     // for ( int i = 0 ; i < m_num_rows_l ; ++i )
-    //     // {
-    //     //     for( int k = 0 ; k < m_num_rows_l ; ++k )
-    //     //     {
-    //     //         // cout << m_A_local[a] << " ";
-    //     //         printf("%f ", m_A_local[a]);
-    //     //         a++;
-    //     //     }
+        // int a = 0;
+        // for ( int i = 0 ; i < m_num_rows_l ; ++i )
+        // {
+        //     for( int k = 0 ; k < m_num_rows_l ; ++k )
+        //     {
+        //         // cout << m_A_local[a] << " ";
+        //         printf("%f ", m_A_local[a]);
+        //         a++;
+        //     }
 
-    //     //     cout << "\n";
-    //     // }
+        //     cout << "\n";
+        // }
 
     
 

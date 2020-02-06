@@ -199,9 +199,13 @@ __global__ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t n
 
 __global__ void UpdateDrivingForce(double *df, double* uTau, double p, double *chi, double local_volume, size_t N);
 
-__global__ void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows);
+__global__ void uTAu_GPU(double *x, double *u, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim);
 
-__host__ void calcDrivingForce(double *df, double *chi, double p, double *temp, double *u, size_t* node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim);
+__host__ void calcDrivingForce(double *df, double *chi, double p, double *temp, double *u, size_t* node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim, size_t dim);
+
+__host__ void TestcalcDrivingForce(double *df, double *chi, double p, double *u, size_t* node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim, size_t numElements);
+
+__global__ void calcDrivingForce_(double *df, double *chi, double p, double *temp, double *u, size_t* node_index, double* d_A_local, size_t num_rows, size_t dim);
 
 __global__ void sumOfVector_GPU(double* sum, double* x, size_t n);
 
