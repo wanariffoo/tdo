@@ -45,7 +45,7 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
     // domain dimensions (x,y,z) on coarsest grid
-    N = {3,1};
+    N = {1,1};
 
     // local element mesh size on coarsest grid
     double h_coarse = 1;

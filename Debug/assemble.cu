@@ -445,7 +445,7 @@ bool Assembler::init(
     
     
     // printVector_GPU<<<1,756>>>( dt_index, 756 );
-    // printLinearVector( dt_index, 42, 18);
+    printLinearVector( dt_index, 42, 18);
     
     
     

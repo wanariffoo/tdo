@@ -1880,11 +1880,14 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 	int counter = 0;
 	int dim = 2;
 
+	int base_id = (id - id%dim);
+	// NOTE: base_id = (id - id%dim)
+
 	// DEBUG: testing row 1
 	
 
-	// if(id==2)
-	// printf("%d\n", (id - id%dim));
+	if(id==0)
+	printf("%d\n", base_id);
 
 	// south-west
 	if ( id  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
@@ -1907,7 +1910,7 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 	}
 
 	// south-east
-	if ( id  >= (Nx + 1)*dim && id % Nx*dim != Nx*dim )
+	if ( id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 )
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
@@ -1934,8 +1937,14 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 			counter++;
 		}
 
+	// if ( (id) % (Nx*dim) != Nx*dim )
+
+	// if( id == 41 )
+	// 	printf("%d\n", (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) );
+		// printf("%d\n", (base_id/(2*(Nx+1)))*dim*(Nx+1) );
+
 	// east
-	if ( id % Nx*dim != Nx*dim )
+	if ( base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 )
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
@@ -1965,7 +1974,7 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 	}
 
 	// north-east
-	if ( id < (Nx+1)*(Ny)*dim && id % Nx*dim != Nx*dim )
+	if ( base_id == 0 || id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 )
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
@@ -1974,13 +1983,13 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 		}
 	}
 
-	if ( id == 12 )
-	{
-		// printf("%d\n", 1 - 1%2 );
-		// printf("%d\n", 3 - 3%2 );
-		// printf("%d\n", 2%2 );
-		for ( int i = 0 ; i < max_row_size ; ++i )
-		printf("%lu\n", index[id*max_row_size+i]);
+	// if ( id == 0 )
+	// {
+	// 	// printf("%d\n", 1 - 1%2 );
+	// 	// printf("%d\n", 3 - 3%2 );
+	// 	// printf("%d\n", 2%2 );
+	// 	for ( int i = 0 ; i < max_row_size ; ++i )
+	// 	printf("%lu\n", index[id*max_row_size+i]);
 
-	}
+	// }
 }
