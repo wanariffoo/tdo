@@ -295,6 +295,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     setToTrue<<<1,1>>>(m_d_bs_foo);
     cudaDeviceSynchronize();
 
+    
     m_bs_foo = true;
     // cudaDeviceSynchronize();
     // cout << "d_bs_b\n";
@@ -306,19 +307,20 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
 
-        if ( m_bs_verbose )
-        print_GPU<<<1,1>>>( m_d_bs_res );
-    cudaDeviceSynchronize();
+    //     if ( m_bs_verbose )
+    //     print_GPU<<<1,1>>>( m_d_bs_res );
+    // cudaDeviceSynchronize();
 
 
     equals_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_res);
     
     if ( m_bs_verbose )
     {
+        // cout << "\n";
+        // cout << "## CG  ##################################################################" << endl;
+        // cout << "  Iter     Residuum       Required       Rate        Reduction     Required" << endl;
+        cout << "CG  : ";
         cudaDeviceSynchronize();
-        cout << "\n";
-        cout << "## CG  ##################################################################" << endl;
-        cout << "  Iter     Residuum       Required       Rate        Reduction     Required" << endl;
         printInitialResult_GPU<<<1,1>>>(m_d_bs_res0, m_d_minRes, m_d_minRed);
         cudaDeviceSynchronize();
     }
@@ -328,7 +330,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // cudaDeviceSynchronize();
 	
 
-
+    
 
     
     addStep<<<1,1>>>(m_d_bs_step);
@@ -340,6 +342,9 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // foo loop
     int bs_step = 0;
     // while(m_bs_foo || bs_step < m_bs_step)
+
+    
+
     while(bs_step < m_bs_step)
     {
     // TODO: check
@@ -352,7 +357,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // rho = < z, r >
     dotProduct(m_d_bs_rho, m_d_bs_r, m_d_bs_z, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
     
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     // DEBUG:
     // if ( m_bs_verbose )
     //     print_GPU<<<1,1>>>( m_d_bs_rho );
@@ -362,7 +367,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
     
 
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_bs_p );
     // cudaDeviceSynchronize();
 
@@ -371,7 +376,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     
 
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     // // printVector_GPU<<<1,8>>>( m_d_bs_p, 8 );
     // printELL_GPU<<<1,1>>>( m_d_value[0], m_d_index[0], m_max_row_size[0], m_num_rows[0], m_num_rows[0]);
     // cudaDeviceSynchronize();
@@ -389,35 +394,47 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     //     cudaDeviceSynchronize();
     // }
 
+        cudaDeviceSynchronize();
 
     // add correction to solution
     // x = x + alpha * p
     axpy_GPU<<<m_gridDim[0],m_blockDim[0]>>>(d_bs_u, m_d_bs_alpha, m_d_bs_p, m_num_rows[0]);
+        cudaDeviceSynchronize();
 
     // update residuum
     // r = r - alpha * z
     axpy_neg_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_r, m_d_bs_alpha, m_d_bs_z, m_num_rows[0]);
+        cudaDeviceSynchronize();
     
     // compute residuum
     // lastRes = res;
     equals_GPU<<<1,1>>>(m_d_bs_lastRes, m_d_bs_res);
+        cudaDeviceSynchronize();
     
     // res = r.norm();
     norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
+        cudaDeviceSynchronize();
 
     // store old rho
     // rho_old = rho;
     vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_rho_old, m_d_bs_rho, m_num_rows[0]);
+    cudaDeviceSynchronize();
 
-    // if ( m_bs_verbose )
-    // {
-    // cudaDeviceSynchronize();
-    // printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_minRed);
-    // cudaDeviceSynchronize();
-    // }
+    if ( m_bs_verbose )
+    {
+        cout << "CG  : ";
+    cudaDeviceSynchronize();
+    printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_minRed);
+    cudaDeviceSynchronize();
+    }
     
+
+
     checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_maxIter);
     CUDA_CALL( cudaMemcpy( &m_bs_foo, m_d_bs_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
+    
+    // //DEBUG:
+    // cout << "CG checkiteration. m_bs_foo = " << m_bs_foo << endl;
     
     if (!m_bs_foo) break;
 
@@ -681,6 +698,8 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
     if ( m_verbose )
     {
+        cout << "GMG : ";
+        cudaDeviceSynchronize();
         printInitialResult_GPU<<<1,1>>>(m_d_res0, m_d_minRes, m_d_minRed);
         cudaDeviceSynchronize();
     }
@@ -728,6 +747,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
     if ( m_verbose )
     {
+    cout << "MGM : ";
     cudaDeviceSynchronize();
     printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_minRes, m_d_lastRes, m_d_res0, m_d_minRed);
     cudaDeviceSynchronize();

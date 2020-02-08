@@ -432,6 +432,27 @@ bool Assembler::init(
     // printELLrow(1, d_p_value[1], d_p_index[1], p_max_row_size[1], num_rows[2], num_rows[1]);
     
     // printELLrow_GPU<<<1,1>>> (2, d_p_value[1], d_p_index[1], p_max_row_size[1], num_rows[2], num_rows[1]);
+    
+    
+
+    // DEBUG: testing something
+    int num_rows_ = 42;
+    size_t* dt_index;
+    CUDA_CALL( cudaMalloc((void**)&dt_index, sizeof(size_t) * num_rows_*18 ) );
+    assembleGlobal_GPU<<<1,num_rows_>>>(dt_index, m_N[m_topLev][0], m_N[m_topLev][1], 18, num_rows_);
+    
+    
+    
+    
+    // printVector_GPU<<<1,756>>>( dt_index, 756 );
+    // printLinearVector( dt_index, 42, 18);
+    
+    
+    
+    
+    
+    
+    
     cudaDeviceSynchronize();
 
     
@@ -1151,7 +1172,7 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     }
 
 
-    //DEBUG:
+    // //DEBUG:
     // for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ )
     // {
     //     for ( int y = 0 ; y < m_numNodes[m_topLev]*m_dim ; y++ )
@@ -1163,15 +1184,15 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     // }
 
 
-    // cleanup: replacing any values <1e-7 to 0.0
-    for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ )
-    {
-        for ( int y = 0 ; y < m_numNodes[m_topLev]*m_dim ; y++ )
-        {      
-            if ( m_A_g[m_topLev][x][y] < 1e-7 && m_A_g[m_topLev][x][y] > -1e-7)
-                m_A_g[m_topLev][x][y] = 0.0;
-        }
-    }
+    // // cleanup: replacing any values <1e-7 to 0.0
+    // for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ )
+    // {
+    //     for ( int y = 0 ; y < m_numNodes[m_topLev]*m_dim ; y++ )
+    //     {      
+    //         if ( m_A_g[m_topLev][x][y] < 1e-7 && m_A_g[m_topLev][x][y] > -1e-7)
+    //             m_A_g[m_topLev][x][y] = 0.0;
+    //     }
+    // }
 
     // // DEBUG:
     // for ( int x = 0 ; x < m_numNodes[m_topLev]*m_dim ; x++ )
@@ -1273,6 +1294,18 @@ bool Assembler::assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row
     //     for ( int i = 0 ; i < max_row_size[1] ; i++ )
     //     {
     //         cout << m_value_g[1][a] << " ";
+    //         a++;
+    //     }
+
+    //     cout << "\n";
+    // }
+
+    // int a = 0;
+    // for ( int j = 0 ; j < num_rows[1] ; j++ )
+    // {
+    //     for ( int i = 0 ; i < max_row_size[1] ; i++ )
+    //     {
+    //         cout << m_index_g[1][a] << " ";
     //         a++;
     //     }
 

@@ -85,7 +85,6 @@ bool TDO::init()
 
 bool TDO::innerloop(double* &d_u, double* &d_chi)
 {
-
     
     m_d_u = d_u;
     m_d_chi = d_chi;
@@ -98,9 +97,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // for ( int i = 0 ; i < m_numElements ; i++ )
     //     calcDrivingForce ( &m_d_df[i], &m_d_chi[i], m_p, m_d_uTAu, m_d_u, m_d_node_index[i], m_d_A_local, m_num_rows, m_gridDim, m_blockDim );
 
-    
+
     calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements );
- 
+
     // UpdateDrivingForce<<<m_gridDim,m_blockDim>>>( m_d_df, m_d_uTAu, m_p, m_d_chi, m_local_volume, m_numElements );
     cudaDeviceSynchronize();
 
@@ -165,7 +164,8 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
         // CHECK: for optimization?
             // for ( int i = 1 ; i < 30 ; i++ )
-        
+  
+  
         while(m_tdo_foo)
         {
             // cout << "iteration " << i << endl;
@@ -198,15 +198,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
               
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
-            
         }
 
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
        
-
-
-    }
+  }
 
     
 

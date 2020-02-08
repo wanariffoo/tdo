@@ -294,6 +294,25 @@ void print_GPU(bool* x)
 	printf("[GPU] x = %d\n", *x);
 }
 
+__global__ void printLinearVector_GPU(size_t* x, size_t i, size_t num_rows, size_t num_cols)
+{
+        for ( int j = 0 ; j < num_cols ; j++ )
+            printf("%lu ", x[j+i*num_cols]);
+
+        printf("\n");
+}
+
+__host__ void printLinearVector(size_t* x, size_t num_rows, size_t num_cols)
+{
+	for(int i = 0 ; i < num_rows ; i++ )
+	{
+		printLinearVector_GPU<<<1,1>>>(x, i, num_rows, num_cols);
+		cudaDeviceSynchronize();
+	}
+
+
+}
+
 __global__ 
 void printVector_GPU(double* x)
 {
@@ -813,7 +832,17 @@ void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0
 		*foo = true;
 
 	else
+	{
+		// printf("false\n");
+		// printf("res = %f\n",*res);
+		// printf("m_minRes = %f\n",*m_minRes);
+		// printf("m_minRed = %f\n",*m_minRed);
+		// printf("step = %lu\n",(*step));
+
 		*foo = false;
+
+
+	}
 	
 }
 
@@ -1842,4 +1871,116 @@ void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size
     }
 
     printf("tak jumpa, so zero\n");
+}
+
+__global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows)
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	int counter = 0;
+	int dim = 2;
+
+	// DEBUG: testing row 1
+	
+
+	// if(id==2)
+	// printf("%d\n", (id - id%dim));
+
+	// south-west
+	if ( id  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim - dim + i;
+			counter++;
+		}
+	}
+
+	// south
+	if ( id  >= (Nx + 1)*dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + i;
+			counter++;
+		}
+	}
+
+	// south-east
+	if ( id  >= (Nx + 1)*dim && id % Nx*dim != Nx*dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + dim + i;
+			counter++;
+		}
+	}
+
+	// west
+	if ( (id) % ((Nx + 1)*dim) >= dim )
+	{
+
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) - dim + i;
+			counter++;
+		}
+	}
+
+	// origin
+	for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) + i;
+			counter++;
+		}
+
+	// east
+	if ( id % Nx*dim != Nx*dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) + dim + i;
+			counter++;
+		}
+	}
+
+	// north-west
+	if ( id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim - dim + i;
+			counter++;
+		}
+	}
+
+	// north
+	if ( id < (Nx+1)*(Ny)*dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + i;
+			counter++;
+		}
+	}
+
+	// north-east
+	if ( id < (Nx+1)*(Ny)*dim && id % Nx*dim != Nx*dim )
+	{
+		for(int i = 0 ; i < dim ; i++)
+		{
+			index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + dim + i;
+			counter++;
+		}
+	}
+
+	if ( id == 12 )
+	{
+		// printf("%d\n", 1 - 1%2 );
+		// printf("%d\n", 3 - 3%2 );
+		// printf("%d\n", 2%2 );
+		for ( int i = 0 ; i < max_row_size ; ++i )
+		printf("%lu\n", index[id*max_row_size+i]);
+
+	}
 }
