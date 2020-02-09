@@ -133,7 +133,8 @@ bool Assembler::init(
     }
 
     else
-        cout << "error" << endl; //TODO: add error/assert
+        throw(runtime_error("Error : Grid dimension must be 2D or 3D"));
+        
 
 
     m_topLev = m_numLevels - 1;
@@ -460,6 +461,372 @@ bool Assembler::init(
     return true;
 
 }
+
+
+bool Assembler::init_GPU(
+    double* &d_A_local, 
+    vector<double*> &d_value, 
+    vector<size_t*> &d_index, 
+    vector<double*> &d_p_value, 
+    vector<size_t*> &d_p_index, 
+    vector<double*> &d_r_value, 
+    vector<size_t*> &d_r_index, 
+    double* &d_chi, 
+    vector<size_t> &num_rows, 
+    vector<size_t> &max_row_size, 
+    vector<size_t> &p_max_row_size,
+    vector<size_t> &r_max_row_size,
+    vector<size_t*> &d_node_index)
+{
+    // TODO: CHECK:
+    m_d_A_local = d_A_local;
+
+    // setting size of the local stiffness matrix
+    if ( m_dim == 2 )
+    {
+        m_A_local.resize(64, 0.0);
+        m_num_rows_l = 8;
+    }
+
+    else if (m_dim == 3 )
+    {
+        m_A_local.resize(576, 0.0);
+        m_num_rows_l = 24;
+    }
+
+    else
+        throw(runtime_error("Error : Grid dimension must be 2D or 3D"));
+
+    // getting the top level grid index
+    m_topLev = m_numLevels - 1;
+
+    // number of elements in each grid-level
+    m_numElements.resize(m_numLevels, 1);
+    
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        for ( int i = 0 ; i < m_dim ; i++)
+        {
+            m_numElements[lev] *= m_N[lev][i];
+        }
+    }
+
+    
+    // obtaining the maximum row size of each grid
+    max_row_size.resize(m_numLevels);
+    if ( m_topLev == 0 )
+        throw(runtime_error("Error : Please use at least 2 levels of multigrid solver"));
+
+    else
+    {
+        if ( m_dim == 2 )
+        {
+            // base level
+            if (m_N[0][0] == 1 && m_N[0][1] == 1)
+                max_row_size[0] = 8;
+            else if (m_N[0][0] == 1 || m_N[0][1] == 1)
+                max_row_size[0] = 12;
+            else
+                max_row_size[0] = 18;
+
+            
+
+            // loop through each level
+            for (int lev = m_topLev ; lev != 0 ; --lev)
+            {
+                max_row_size[lev] = 18;
+            }
+        }
+
+        else 
+        {
+            throw(runtime_error("TODO: calculate max_row_size for 3D not done yet!"));
+        }
+    }
+
+    // m_numNodesPerDim[lev][dim]
+    m_numNodesPerDim.resize(m_numLevels, vector<size_t>(m_dim));
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        for ( int i = 0 ; i < m_dim ; i++)
+            m_numNodesPerDim[lev][i] = m_N[lev][i] + 1;
+    }
+    
+    
+
+    // number of nodes per grid-level
+    m_numNodes.resize(m_numLevels, 1);
+    // m_numNodes = 1;
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        for ( int i = 0 ; i < m_dim ; i++ )
+            m_numNodes[lev] *= m_numNodesPerDim[lev][i];
+    }
+
+    // number of DOFs per level
+    num_rows.resize(m_numLevels);
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+        num_rows[lev] = m_numNodes[lev] * m_dim;
+
+
+    // storing the design variable in each element
+    // initial value is rho in all elements
+    m_chi.resize(m_numElements[m_topLev], m_rho);
+
+    // DEBUG:
+
+    // TODO: 3D doesn't work yet
+    assembleLocal();
+
+    
+    //// prolongation & restriction matrices
+
+    // resizing the prolongation matrices according to the number of grid-levels
+    m_P.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
+    {
+        // number of columns in each level
+        m_P[lev].resize(num_rows[lev+1]);
+        
+        // number of rows in each level
+        for ( int j = 0 ; j < num_rows[lev+1] ; j++ )
+                m_P[lev][j].resize(num_rows[lev]);
+    }
+    
+    assembleProlMatrix(m_topLev);
+
+    // resizing the restriction matrices according to the number of grid-levels
+    m_R.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
+    {
+        // number of columns in each level
+        m_R[lev].resize(num_rows[lev]);
+        
+        // number of rows in each level
+        for ( int j = 0 ; j < num_rows[lev] ; j++ )
+                m_R[lev][j].resize(num_rows[lev+1]);
+    }
+
+    assembleRestMatrix(m_topLev);
+
+
+    //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
+
+    // resizing the vectors required for ELLPACK for each level
+    p_max_row_size.resize(m_numLevels - 1);
+    r_max_row_size.resize(m_numLevels - 1);
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        p_max_row_size[lev] = getMaxRowSize(m_P[lev], num_rows[lev+1], num_rows[lev]);
+    
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        r_max_row_size[lev] = getMaxRowSize(m_R[lev], num_rows[lev], num_rows[lev+1]);
+    
+    
+
+    // resizing the vectors
+    m_p_value_g.resize( m_numLevels - 1 );
+    m_p_index_g.resize( m_numLevels - 1 );
+    m_r_value_g.resize( m_numLevels - 1 );
+    m_r_index_g.resize( m_numLevels - 1 );
+
+    // prolongation matrices
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], p_max_row_size[lev], num_rows[lev+1], num_rows[lev] );    
+
+    // restriction matrices
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        transformToELL(m_R[lev], m_r_value_g[lev], m_r_index_g[lev], r_max_row_size[lev], num_rows[lev], num_rows[lev+1] );    
+
+    
+
+    // prolongation matrices on each grid-level
+    d_p_value.resize( m_numLevels - 1 );
+    d_p_index.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1] ) );
+    }
+
+    // restriction matrices on each grid-level
+    d_r_value.resize( m_numLevels - 1 );
+    d_r_index.resize( m_numLevels - 1 );
+
+
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_r_value[lev], sizeof(double) * r_max_row_size[lev] * num_rows[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_r_index[lev], sizeof(size_t) * r_max_row_size[lev] * num_rows[lev] ) );
+    }
+    
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * p_max_row_size[lev] * num_rows[lev+1], cudaMemcpyHostToDevice) );
+    }
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_r_value[lev], &m_r_value_g[lev][0], sizeof(double) * r_max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_r_index[lev], &m_r_index_g[lev][0], sizeof(size_t) * r_max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
+    }
+
+
+
+    // adding nodes and elements to the top-level global grid
+    for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
+        m_node.push_back(Node(i));
+
+    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+        m_element.push_back(Element(i));
+
+    size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
+
+
+    // assign the nodes to each element
+    if ( m_dim == 2)
+    {
+        for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+        {
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
+        }
+    }
+
+    // m_dim == 3
+    else    
+    {
+        throw(runtime_error("3D not done yet!"));
+    }
+
+    m_node_index.resize(m_numElements[m_topLev]);
+    d_node_index.resize(m_numElements[m_topLev]);
+    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    {
+        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+    }
+
+
+    // design variable
+    CUDA_CALL( cudaMalloc((void**)&d_chi, sizeof(double) * m_numElements[m_topLev] ) );
+    CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+
+    // local stiffness matrix to device
+    CUDA_CALL( cudaMalloc((void**)&m_d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
+    CUDA_CALL( cudaMemcpy( m_d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
+
+
+    // global matrices on each grid-level
+    d_value.resize( m_numLevels );
+    d_index.resize( m_numLevels );
+    
+    // calculate the number of nodes in a local element
+    size_t numNodes_local = pow(2,m_dim);
+
+    for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+    {
+        CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * numNodes_local) );
+        CUDA_CALL( cudaMemcpy( d_node_index[i], &m_node_index[i][0], sizeof(size_t) * numNodes_local, cudaMemcpyHostToDevice) );
+    }
+
+    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
+        CUDA_CALL( cudaMemset( d_value[lev], 0, sizeof(double) * num_rows[lev]*max_row_size[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
+        CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
+    }
+    
+
+    // fill in index vector
+    // TODO: change to a more appropriate name
+    assembleGlobal_GPU<<<1,num_rows[m_topLev]>>>(d_index[m_topLev], m_N[m_topLev][0], m_N[m_topLev][1], max_row_size[m_topLev], num_rows[m_topLev]);
+    assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
+    cudaDeviceSynchronize();
+    
+    // CUDA block size for assembling the global stiffness matrix
+    dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
+
+    // cout << m_N[m_topLev][0] << endl;
+
+    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], m_d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+
+
+
+    // calculating the needed cuda 2D grid size for the global assembly
+    dim3 g_gridDim;
+    dim3 g_blockDim;
+
+    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    // cout << m_bc_index[m_topLev][i] << endl;
+    
+
+    // TODO: think it's a bit overkill to use a lot of cuda threads here
+    //// apply boundary condition to global and P/R matrices
+    // global stiffness matrix
+    calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
+    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+        applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
+
+
+    // prolongation matrix
+    calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
+    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+        applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
+
+
+    // // TODO: use optimized matrix multiplication
+    dim3 temp_gridDim;
+    dim3 temp_blockDim;
+       
+    // // d_temp_matrix[lev-1][lev] to store R*A
+    double* d_temp_matrix;
+    CUDA_CALL( cudaMalloc((void**)&d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    CUDA_CALL( cudaMemset( d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    
+
+    // A_coarse = R * A_fine * P
+    for ( int lev = m_topLev ; lev != 0 ; lev--)
+    {
+        calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
+        setToZero<<<temp_gridDim, temp_blockDim>>>( d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
+        RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, d_temp_matrix, num_rows, lev);
+    }
+
+
+
+
+
+    // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELLrow(0, d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
+    // printELLrow(0, d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
+
+    // printVector_GPU<<<1,756>>>( dt_index, 756 );
+    // printLinearVector( d_index[0], 16, max_row_size[0]);
+    // printLinearVector( m_d_A_local, 8, 8);
+    // printLinearVector( d_temp_matrix, 16, 42);
+    cudaDeviceSynchronize();
+
+    return true;
+
+}
+
+
+
+
 
 // TODO:
 bool Assembler::assembleLocal()

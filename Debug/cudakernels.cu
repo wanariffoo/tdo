@@ -302,6 +302,14 @@ __global__ void printLinearVector_GPU(size_t* x, size_t i, size_t num_rows, size
         printf("\n");
 }
 
+__global__ void printLinearVector_GPU(double* x, size_t i, size_t num_rows, size_t num_cols)
+{
+        for ( int j = 0 ; j < num_cols ; j++ )
+            printf("%f ", x[j+i*num_cols]);
+
+        printf("\n");
+}
+
 __host__ void printLinearVector(size_t* x, size_t num_rows, size_t num_cols)
 {
 	for(int i = 0 ; i < num_rows ; i++ )
@@ -310,6 +318,15 @@ __host__ void printLinearVector(size_t* x, size_t num_rows, size_t num_cols)
 		cudaDeviceSynchronize();
 	}
 
+}
+
+__host__ void printLinearVector(double* x, size_t num_rows, size_t num_cols)
+{
+	for(int i = 0 ; i < num_rows ; i++ )
+	{
+		printLinearVector_GPU<<<1,1>>>(x, i, num_rows, num_cols);
+		cudaDeviceSynchronize();
+	}
 
 }
 
@@ -604,6 +621,11 @@ void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows,
 	
 }
 
+__host__
+void applyMatrixBC(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols, size_t dim, size_t bc_index)
+{
+
+}
 
 // a = b
 __global__ 
@@ -774,6 +796,31 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 
 	if ( idx == bc_index && idy == bc_index )
 		setAt( idx, idy, value, index, max_row_size, 1.0 );
+
+}
+
+// CHECK: overkill to use this many threads?
+__global__
+void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+{
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	// printf("(%d, %d) = %lu, %d, %d\n", idx, idy, bc_index, num_rows, num_cols);
+	if ( idx < num_cols && idy < num_rows )
+	{
+		if ( idx == bc_index && idy == bc_index )
+		{
+			for ( int i = 0 ; i < num_rows ; i++ )
+				setAt( i, idy, value, index, max_row_size, 0.0 );
+
+			for ( int j = 0 ; j < num_cols ; j++ )
+				setAt( idx, j, value, index, max_row_size, 0.0 );
+
+
+			setAt( idx, idy, value, index, max_row_size, 1.0 );
+		}
+	}
 }
 
 
@@ -1743,8 +1790,8 @@ __global__ void RA(	double* p_value, size_t* p_index, size_t p_max_row_size,
 			// temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
 
 			
-			// if ( idx == 8 && idy == 2)
-				// printf("%f\n", temp_matrix[44]);
+			// if ( idx == 13 && idy == 7)
+			// 	printf("%f\n", valueAt(idx, j, value, index, max_row_size));
 		}
 			// temp_matrix[idx + idy*num_cols] += valueAt(j, idy, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
 
@@ -1752,6 +1799,8 @@ __global__ void RA(	double* p_value, size_t* p_index, size_t p_max_row_size,
 		// 		printf("%f\n", valueAt(2, 2, r_value, r_index, r_max_row_size));
 
 		// printf("%d, %d\n", idx, idy);
+
+		
 	}
 
 
@@ -1885,10 +1934,6 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 
 	// DEBUG: testing row 1
 	
-
-	if(id==0)
-	printf("%d\n", base_id);
-
 	// south-west
 	if ( id  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
 	{
