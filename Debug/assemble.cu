@@ -679,6 +679,7 @@ bool Assembler::init_GPU(
         CUDA_CALL( cudaMemcpy(d_r_index[lev], &m_r_index_g[lev][0], sizeof(size_t) * r_max_row_size[lev] * num_rows[lev], cudaMemcpyHostToDevice) );
     }
 
+    
 
 
     // adding nodes and elements to the top-level global grid
@@ -772,7 +773,7 @@ bool Assembler::init_GPU(
     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
     // cout << m_bc_index[m_topLev][i] << endl;
     
-
+    // TODO: CHECK: this is a bit shaky
     // TODO: think it's a bit overkill to use a lot of cuda threads here
     //// apply boundary condition to global and P/R matrices
     // global stiffness matrix
@@ -781,10 +782,10 @@ bool Assembler::init_GPU(
         applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
 
 
-    // prolongation matrix
-    calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
-    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-        applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
+    // // prolongation matrix
+    // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
+    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
 
 
     // // TODO: use optimized matrix multiplication
@@ -809,7 +810,7 @@ bool Assembler::init_GPU(
 
 
 
-    // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELLrow(0, d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
     // printELLrow(0, d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);

@@ -26,6 +26,10 @@ using namespace std;
 // TODO: ApplyTranspose(prol) --> Apply(rest)
 // TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
 // TODO: laplacian_GPU() in 3D
+
+
+//// LOW PRIORITY
+// TODO: RA and AP's valueAt(indices) are a bit messed up and confusing
 // TODO: enum : bc case 
     
 

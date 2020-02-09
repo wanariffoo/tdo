@@ -1767,73 +1767,51 @@ __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double b
 
 }
 
-__global__ void RA(	double* p_value, size_t* p_index, size_t p_max_row_size, 
-					double* value, size_t* index, size_t max_row_size,
-					double* temp_matrix, size_t num_rows, size_t num_cols)
+__global__ void RA(	
+	double* r_value, 		// restriction matrix's
+	size_t* r_index, 		// ELLPACK vectors
+	size_t r_max_row_size, 	
+	double* value, 			// global stiffness matrix's
+	size_t* index, 			// ELLPACK vectors
+	size_t max_row_size,	
+	double* temp_matrix, 	// empty temp matrix
+	size_t num_rows, 		// no. of rows of temp matrix
+	size_t num_cols			// no. of cols of temp matrix
+)
 {
 	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
-
-	// if ( idx == 0 && idy == 0 )
-	// {
-	// 	printf("%lu\n", num_rows);
-	// 	printf("%lu\n", num_cols);
-
-	// }
 
 	if ( idx < num_cols && idy < num_rows )
 	{	
 		
 		for ( int j = 0 ; j < num_cols ; ++j )
-		{
-			temp_matrix[idx + idy*num_cols] += valueAt(j, idy, p_value, p_index, p_max_row_size) * valueAt(idx, j, value, index, max_row_size);
-			// temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
-
-			
-			// if ( idx == 13 && idy == 7)
-			// 	printf("%f\n", valueAt(idx, j, value, index, max_row_size));
-		}
-			// temp_matrix[idx + idy*num_cols] += valueAt(j, idy, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
-
-		// if ( idx == 8 && idy == 2)
-		// 		printf("%f\n", valueAt(2, 2, r_value, r_index, r_max_row_size));
-
-		// printf("%d, %d\n", idx, idy);
-
+			temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(j, idx, value, index, max_row_size);
 		
 	}
-
 
 }
 
 
-__global__ void AP(	double* value, size_t* index, size_t max_row_size, 
-					double* p_value, size_t* p_index, size_t p_max_row_size, 
-					double* temp_matrix, size_t num_rows, size_t num_cols)
+__global__ void AP(	
+	double* value, 			// global stiffness matrix's
+	size_t* index,			// ELLPACK vectors
+	size_t max_row_size, 
+	double* p_value, 		// prolongation matrix's
+	size_t* p_index, 		// ELLPACK vectors
+	size_t p_max_row_size, 
+	double* temp_matrix, 	// temp_matrix = R*A
+	size_t num_rows, 		// no. of rows of temp matrix
+	size_t num_cols			// no. of cols of temp matrix
+)
 {
 	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
 	if ( idx < num_cols && idy < num_rows )
 	{	
-		
 		for ( int j = 0 ; j < num_cols ; ++j )
-		{
-			// temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
-
-			// if ( idx == 3 && idy == 2 )
-			// {
-			// 	printf("%f\n", valueAt(j, idx, p_value, p_index, p_max_row_size));
-			// }
-				
-				addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
-			
-
-		}
-			// temp_matrix[idx + idy*num_cols] += valueAt(j, idy, r_value, r_index, r_max_row_size) * valueAt(idx, j, value, index, max_row_size);
-
-		// if ( idx == 0 && idy == 0)
-		// 		printf("%f\n", valueAt(0, 0, value, index, max_row_size));
+			addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
 
 	}
 
@@ -1859,7 +1837,7 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 	
 
 	// temp_matrix = R * A_fine
-	RA<<<gridDim,blockDim>>>(p_value[lev-1], p_index[lev-1], p_max_row_size[lev-1], value[lev], index[lev], max_row_size[lev], temp_matrix, num_rows[lev-1], num_rows[lev]);
+	RA<<<gridDim,blockDim>>>(r_value[lev-1], r_index[lev-1], r_max_row_size[lev-1], value[lev], index[lev], max_row_size[lev], temp_matrix, num_rows[lev-1], num_rows[lev]);
 	cudaDeviceSynchronize();
 
 	// calculateDimensions2D( num_rows[0] * num_rows[0], gridDim, blockDim);
