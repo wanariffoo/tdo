@@ -440,7 +440,7 @@ bool Assembler::init(
     int num_rows_ = 42;
     size_t* dt_index;
     CUDA_CALL( cudaMalloc((void**)&dt_index, sizeof(size_t) * num_rows_*18 ) );
-    assembleGlobal_GPU<<<1,num_rows_>>>(dt_index, m_N[m_topLev][0], m_N[m_topLev][1], 18, num_rows_);
+    // assembleGlobal_GPU<<<1,num_rows_>>>(dt_index, m_N[m_topLev][0], m_N[m_topLev][1], 18, num_rows_);
     
     
     
@@ -724,8 +724,8 @@ bool Assembler::init_GPU(
     CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
 
     // local stiffness matrix to device
-    CUDA_CALL( cudaMalloc((void**)&m_d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
-    CUDA_CALL( cudaMemcpy( m_d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
+    CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
+    CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
 
 
     // global matrices on each grid-level
@@ -750,19 +750,30 @@ bool Assembler::init_GPU(
     }
     
 
-    // fill in index vector
-    // TODO: change to a more appropriate name
-    assembleGlobal_GPU<<<1,num_rows[m_topLev]>>>(d_index[m_topLev], m_N[m_topLev][0], m_N[m_topLev][1], max_row_size[m_topLev], num_rows[m_topLev]);
-    assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
+
+    // TODO: parallelizable
+    // fill in global stiffness matrix's ELLPACK index vector for all levels
+    dim3 index_gridDim;
+    dim3 index_blockDim;
+    for (int lev = m_topLev ; lev >= 0 ; --lev )
+    {
+        calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
+        fillIndexVector_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
+    }
+
+    
+    // assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
     cudaDeviceSynchronize();
     
+
+
     // CUDA block size for assembling the global stiffness matrix
     dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
 
     // cout << m_N[m_topLev][0] << endl;
 
     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], m_d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
 
 
 
@@ -810,14 +821,19 @@ bool Assembler::init_GPU(
 
 
 
-    printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
     // printELLrow(0, d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
+    // printELLrow(1, d_r_value[1], d_r_index[1], r_max_row_size[1], num_rows[1], num_rows[2]);
     // printELLrow(0, d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
+    // printELLrow(1, d_p_value[1], d_p_index[1], p_max_row_size[1], num_rows[2], num_rows[1]);
 
-    // printVector_GPU<<<1,756>>>( dt_index, 756 );
-    // printLinearVector( d_index[0], 16, max_row_size[0]);
-    // printLinearVector( m_d_A_local, 8, 8);
+    // printVector_GPU<<<1,10>>>( dt_index, 10 );
+    // printLinearVector( d_index[0], num_rows[0], max_row_size[0]);
+    // printLinearVector( d_index[1], num_rows[1], max_row_size[1]);
+    // printLinearVector( d_index[2], num_rows[2], max_row_size[2]);
+    // printLinearVector( d_A_local, 8, 8);
     // printLinearVector( d_temp_matrix, 16, 42);
     cudaDeviceSynchronize();
 

@@ -1312,13 +1312,11 @@ void calcDrivingForce(
 	const size_t dim,
 	size_t numElements)          // block sizes needed for running CUDA kernels
 {
-	
-	// printVector_GPU<<<1,20>>>( u, 20);
-
 	// calculate the driving force in each element ( 1 element per thread )
     // df[] = 0.5 * p * pow(chi.p-1) - u[]^T * A * u[]
 	
-	for ( int i = 0 ; i < numElements; i++ )
+	// for ( int i = 0 ; i < numElements; i++ )
+	int i = 0 ;
 	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim);
 
     cudaDeviceSynchronize();
@@ -1794,7 +1792,7 @@ __global__ void RA(
 
 
 __global__ void AP(	
-	double* value, 			// global stiffness matrix's
+	double* value, 			// coarse global stiffness matrix's
 	size_t* index,			// ELLPACK vectors
 	size_t max_row_size, 
 	double* p_value, 		// prolongation matrix's
@@ -1813,7 +1811,33 @@ __global__ void AP(
 		for ( int j = 0 ; j < num_cols ; ++j )
 			addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
 
+
 	}
+
+		// if ( num_cols == 42 )
+		// {
+			
+		// 	for ( int j = 0 ; j < num_cols ; ++j )
+		// 		addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
+
+			
+			
+		// 	if (idx==1 && idy==1)
+		// 	{
+		// 		addAt( idx, idy, value, index, max_row_size, 20.0 );
+		// 		printf("%f\n", valueAt(idx, idx, value, index, max_row_size));
+		// 	}
+			
+		// }
+
+
+
+		// else
+		// {
+		// }
+
+	// if ( idx == 0 && idy == 0 )
+	// 	printf("%f\n", valueAt(1, 1, value, index, max_row_size));
 
 }
 
@@ -1828,7 +1852,7 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 					size_t lev)
 {
 	
-
+	
 	// dim3 gridDim(2,2,1);
     // dim3 blockDim(32,32,1);
 	dim3 gridDim;
@@ -1855,6 +1879,12 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 	// printELL_GPU<<<1, 1>>> (value[2], index[2], max_row_size[2], num_rows[2], num_rows[2]);
 	// printELL_GPU<<<1, 1>>> (r_value[0], r_index[0], r_max_row_size[0], 8, 18);
 
+	// if ( lev == 1 )
+	// {
+		
+	// 	// printELLrow(0, value[0], index[0], max_row_size[0], num_rows[0], num_rows[0]);
+	// 	printLinearVector( temp_matrix, 16, 42);
+	// }
 
 
 	// for ( int i = 0 ; i < num_rows ; i++ )
@@ -1900,12 +1930,16 @@ void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size
     printf("tak jumpa, so zero\n");
 }
 
-__global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows)
+__global__ void fillIndexVector_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows)
 {
 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
 
 	int counter = 0;
 	int dim = 2;
+
+	if ( id < num_rows )
+	{
+	
 
 	int base_id = (id - id%dim);
 	// NOTE: base_id = (id - id%dim)
@@ -2015,4 +2049,5 @@ __global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t m
 	// 	printf("%lu\n", index[id*max_row_size+i]);
 
 	// }
+	}
 }

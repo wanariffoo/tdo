@@ -77,7 +77,7 @@ bool TDO::init()
     CUDA_CALL( cudaMemset( m_d_p_w, 0, sizeof(double) ) );
 
     CUDA_CALL( cudaMalloc( (void**)&m_d_tdo_foo, sizeof(bool) ) );
-    CUDA_CALL( cudaMemcpy(m_d_tdo_foo, &m_tdo_foo, sizeof(bool), cudaMemcpyHostToDevice) );
+    CUDA_CALL( cudaMemcpy( m_d_tdo_foo, &m_tdo_foo, sizeof(bool), cudaMemcpyHostToDevice) );
     
 
     return true;
@@ -91,6 +91,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     m_tdo_foo = true;
     setToTrue<<<1,1>>>( m_d_tdo_foo );
 
+
     // calculating the driving force of each element
     // df[] = ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) ) * sum( u^T * A_local * u )
     // df[] = u^T * A_local * u
@@ -100,12 +101,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
     calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements );
 
+
     // UpdateDrivingForce<<<m_gridDim,m_blockDim>>>( m_d_df, m_d_uTAu, m_p, m_d_chi, m_local_volume, m_numElements );
     cudaDeviceSynchronize();
 
     // printVector_GPU<<<1,m_numElements>>>( m_d_df, m_numElements);
     // printVector_GPU<<<1,20>>>( m_d_u, 20);
-
      
 
     // d_temp = u^T * A * u
@@ -130,12 +131,16 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_eta );
     // cudaDeviceSynchronize();
+    // print_GPU<<<1,1>>>( m_d_tdo_foo );
+    // cudaDeviceSynchronize();
 
+    
 
+    // CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
 
     // NOTE:
     //// for loop
-     for ( int j = 0 ; j < m_n ; j++ )
+    for ( int j = 0 ; j < m_n ; j++ )
     {
 
         // df[] = ( 1 / 2*element_volume ) * p * pow(chi_element, (p-1) ) * temp[]
@@ -195,7 +200,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
             // cout << "\n";
 
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
-              
+            
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
         }

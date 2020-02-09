@@ -256,7 +256,7 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 __global__ void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size);
 
 
-__global__ void assembleGlobal_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows);
+__global__ void fillIndexVector_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows);
 
 #endif // CUDAKERNELS_H
 

@@ -302,6 +302,17 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // printVector_GPU<<<1,8>>>( d_bs_b, 8 );
     // cudaDeviceSynchronize();
 
+
+    // if (m_bs_verbose)
+    //     printELLrow(0, m_d_value[0], m_d_index[0], m_max_row_size[0], m_num_rows[0], m_num_rows[0]);
+
+
+
+
+
+
+
+
     // m_d_bs_r = d_bs_b - A*d_bs_u
     ComputeResiduum_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], d_bs_u, m_d_bs_r, d_bs_b);
 
@@ -329,7 +340,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // printVector_GPU<<<1,8>>>( m_d_bs_r, 8 );
     // cudaDeviceSynchronize();
 	
-
+ 
     
 
     
@@ -747,7 +758,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
     if ( m_verbose )
     {
-    cout << "MGM : ";
+    cout << "GMG : ";
     cudaDeviceSynchronize();
     printResult_GPU<<<1,1>>>(m_d_step, m_d_res, m_d_minRes, m_d_lastRes, m_d_res0, m_d_minRed);
     cudaDeviceSynchronize();
