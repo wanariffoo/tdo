@@ -141,14 +141,16 @@ private:
     //// CUDA
 
     // cuda block dimension for ellpack matrices
-    vector<dim3> ell_gridDim;
-    vector<dim3> ell_blockDim;
+    vector<dim3> m_ell_gridDim;
+    vector<dim3> m_ell_blockDim;
 
     // local stiffness matrix
     double* m_d_A_local;
 
     vector<size_t*> m_d_node_index;
     size_t* d_bc_index;
+
+    double* m_d_temp_matrix;
 
     
 };

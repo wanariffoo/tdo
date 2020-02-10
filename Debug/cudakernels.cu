@@ -1299,24 +1299,23 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 // calculate the driving force per element
 __host__
 void calcDrivingForce(
-    double *df,             // driving force
-    double *chi,            // design variable
-    double p,               // penalization parameter
-    double *uTAu,           // dummy/temp vector
-    double *u,              // elemental displacement vector
+    double *df,             	// driving force
+    double *chi,            	// design variable
+    double p,               	// penalization parameter
+    double *uTAu,           	// dummy/temp vector
+    double *u,              	// elemental displacement vector
     vector<size_t*> node_index,
 	double* d_A_local,
-    size_t num_rows,        // local ELLPack stiffness matrix's number of rows
-    dim3 gridDim,           // grid and 
+    size_t num_rows,        	// local ELLPack stiffness matrix's number of rows
+    dim3 gridDim,           	// grid and 
     dim3 blockDim,
 	const size_t dim,
-	size_t numElements)          // block sizes needed for running CUDA kernels
+	size_t numElements)         // block sizes needed for running CUDA kernels
 {
 	// calculate the driving force in each element ( 1 element per thread )
-    // df[] = 0.5 * p * pow(chi.p-1) - u[]^T * A * u[]
+    // df[] = 0.5 * p * pow(chi,p-1) - u[]^T * A * u[]
 	
-	// for ( int i = 0 ; i < numElements; i++ )
-	int i = 0 ;
+	for ( int i = 0 ; i < numElements; i++ )
 	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim);
 
     cudaDeviceSynchronize();

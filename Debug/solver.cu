@@ -689,6 +689,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     // printVector_GPU<<<1, m_num_rows[m_topLev]>>> ( d_b, m_num_rows[m_topLev]);
     // cudaDeviceSynchronize();
 
+
     //TODO: cantikkan
     setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( d_u, m_num_rows[m_topLev] );
     setToTrue<<<1,1>>>(m_d_foo);
@@ -696,12 +697,15 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
     m_d_value = d_value;
     
+
     // r = b - A*u
     ComputeResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], d_u, m_d_r, d_b);
     cudaDeviceSynchronize();
     
+    
     // d_res0 = norm(m_d_r)
-    norm_GPU(m_d_res0, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
+    // norm_GPU(m_d_res0, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
+    norm_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_d_res0, m_d_r, m_num_rows[m_topLev]);
     cudaDeviceSynchronize();
 
     // res = res0;

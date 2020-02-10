@@ -9,10 +9,13 @@ public:
     TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
     bool init();
     bool innerloop(double* &d_u, double* &d_chi);
+    void set_verbose(bool verbose);
 
 
 
 private:
+
+    bool m_verbose;
 
     // grid
     size_t m_dim;
