@@ -19,6 +19,7 @@ public:
     
 
     bool base_solve(double* d_bs_u, double* d_bs_b);
+    
 
     bool precond(double* d_c, double* d_r);
     // bool precond_(double* d_c, double* d_r, double* d_value, size_t* d_index, size_t max_row_size, size_t m_num_rows);

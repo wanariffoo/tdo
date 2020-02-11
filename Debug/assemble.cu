@@ -804,7 +804,7 @@ bool Assembler::init_GPU(
     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
 
-
+// printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
     // calculating the needed cuda 2D grid size for the global assembly
     dim3 g_gridDim;
@@ -849,7 +849,7 @@ bool Assembler::init_GPU(
 
 
 
-
+    // cout << "aps" << endl;
     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
@@ -1312,87 +1312,7 @@ bool Assembler::assembleProlMatrix(size_t lev)
             }
         }
     }
-    
-    //DEBUG:
-        // cout << m_bc_index[0].size() << endl;
-        // cout << m_bc_index[1].size() << endl;
-        // cout << m_bc_index[2].size() << endl;
-
-
-
-    // // CHECK: have to loop through the fine DOFs?
-    // // applying BC to relevant DOFs
-    // for ( int k = lev ; k != 0 ; k-- )
-    // {
-    //     // loop through each element in bc_index vector
-    //     for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
-    //     {
-    //         // size_t j = 2 * m_bc_index[k-1][bc];
-    //             // cout << "lev = " << k << ", " << j << endl;
-            
-    //         // for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
-    //         // {
-    //         //         // if ( k == 2 )
-    //         //         // cout << "bc " << m_bc_index[k-1][m] << endl;
-
-    //             // if ( j == m_bc_index[k-1][m] )
-    //             // {
-
-    //                 // clear columns of the bc indices 
-    //                 for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
-    //                 {
-    //                     // loop through each dimension
-    //                     for ( int n = 0 ; n < m_dim ; n++ )
-    //                         m_P[k-1][i][j+n] = 0;
-    //                 }
-
-    //                 // // set "1" to the respective fine grid node index
-    //                 // for ( int n = 0 ; n < m_dim ; n++ )
-    //                 //     m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
-    //             // }
-    //         // }
-    //     }
-    // }
-
-
-    // // DEBUG:CHECK: have to loop through the fine DOFs?
-    // // applying BC to relevant DOFs
-    // for ( int k = lev ; k != 0 ; k-- )
-    // {
-    //     // loop through each element in bc_index vector
-    //     for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
-    //     {
-    //         size_t j = m_bc_index[k-1][bc];
-    //             // cout << "lev = " << k << ", " << j << endl;
-            
-    //         // for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
-    //         // {
-    //         //         // if ( k == 2 )
-    //         //         // cout << "bc " << m_bc_index[k-1][m] << endl;
-
-    //             // if ( j == m_bc_index[k-1][m] )
-    //             // {
-
-    //                 // clear columns of the bc indices 
-    //                 for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
-    //                 {
-    //                         m_P[k-1][i][j] = 0;
-    //                 }
-
-    //             cout << j << endl;
-
-    //             m_P[k-1][ getFineNode(j, m_N[k-1], m_dim) - (j%m_dim) ][j] = 1;
-
-    //                 // // set "1" to the respective fine grid node index
-    //                 // for ( int n = 0 ; n < m_dim ; n++ )
-    //                 //     m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
-    //             // }
-    //         // }
-    //     }
-    // }
-    
-
-
+  
     
     // if ( m_dim == 3 )
     // {
@@ -1405,33 +1325,15 @@ bool Assembler::assembleProlMatrix(size_t lev)
             for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
             {
                 size_t j = m_bc_index[k-1][bc];
-                    // cout << "lev = " << k << ", " << j << endl;
-                
                 size_t node_index = j / m_dim;
-                // for ( int m = 0 ; m < m_bc_index[k-1].size() ; m++ )
-                // {
-                //         // if ( k == 2 )
-                //         // cout << "bc " << m_bc_index[k-1][m] << endl;
 
-                    // if ( j == m_bc_index[k-1][m] )
-                    // {
+                // clear columns of the bc indices 
+                for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
+                        m_P[k-1][i][j] = 0;
+                        
 
-                        // clear columns of the bc indices 
-                        for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
-                        {
-                                m_P[k-1][i][j] = 0;
-                        }
-
-                    // j = { 0,1,2, 6,7,8, 12,13,14, 18,19,20 };
-                    // node_index = 0, 2, 4, 6
-                    m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
-                    // m_P[k-1][ getFineNode(base_j, m_N[k-1], m_dim) - (j%m_dim) ][j] = 1;
-
-                        // // set "1" to the respective fine grid node index
-                        // for ( int n = 0 ; n < m_dim ; n++ )
-                        //     m_P[k-1][ getFineNode(j, m_N[k], m_dim) + n ][j + n] = 1;
-                    // }
-                // }
+                m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
+                   
             }
         }
     // }

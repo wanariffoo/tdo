@@ -139,7 +139,7 @@ int main()
     
     applyLoad(b, N, numLevels, 0, dim, force);
 
-    
+
 
     double* d_u;
     double* d_b;
@@ -162,13 +162,13 @@ int main()
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
     // TODO: repair these three, it's a bit messed up
-    GMG.set_convergence_params(1, 1e-99, 1e-15);
-    GMG.set_bs_convergence_params(10, 1e-99, 1e-15);
-    GMG.set_steps(1, 10); 
+    GMG.set_convergence_params(50, 1e-99, 1e-15);
+    GMG.set_bs_convergence_params(20, 1e-99, 1e-15);
+    GMG.set_steps(50, 20); 
     
 
     GMG.init();
-    GMG.set_verbose(1, 1);
+    GMG.set_verbose(1, 0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -185,7 +185,7 @@ int main()
     
     
 //     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-//     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
 
