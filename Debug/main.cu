@@ -75,7 +75,7 @@ int main()
     double rho = 0.3;
     size_t p = 3;
     double etastar = 12.0;
-    double betastar = 2.0 * pow(h,2);
+    double betastar = 20 * pow(h,2);
 
     vector<size_t> num_rows;
     vector<size_t> max_row_size;
@@ -276,7 +276,7 @@ int main()
     // ITERATION
     // //////////////
 
-    for ( int i = 1 ; i < 10 ; ++i )
+    for ( int i = 1 ; i < 800 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
