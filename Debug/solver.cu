@@ -341,6 +341,19 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // cudaDeviceSynchronize();
 	
  
+    // check iteration conditions before the loop
+
+    checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_bs_maxIter);
+    CUDA_CALL( cudaMemcpy( &m_bs_foo, m_d_bs_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
+    
+    // //DEBUG:
+    // cout << "CG checkiteration. m_bs_foo = " << m_bs_foo << endl;
+    
+    if (!m_bs_foo) return true;
+
+    else
+    {
+
     
 
     
@@ -541,6 +554,8 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     //     cout << "\n";
 
     return true;
+    
+    }
 }
 
 
