@@ -1432,7 +1432,7 @@ void calcDrivingForce_(
 }
 
 __device__
-double laplacian_GPU( double *array, size_t ind, size_t N )
+double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz )
 {
     double value = 4.0 * array[ind];
 
@@ -1443,27 +1443,27 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
 	// }
 	
     // east element
-    if ( (ind + 1) % N != 0 )
+    if ( (ind + 1) % Nx != 0 )
         value += -1.0 * array[ind + 1];
 	else
 		value += -1.0 * array[ind];
     
     // north element
-    if ( ind + N < N*N )    // TODO: N*N --> dim
-        value += -1.0 * array[ind + N];
+    if ( ind + Nx < Nx*Ny )
+        value += -1.0 * array[ind + Nx];
 	else
 		value += -1.0 * array[ind];
 	
 
     // west element
-    if ( ind % N != 0 )
+    if ( ind % Nx != 0 )
         value += -1.0 * array[ind - 1];
 	else
 		value += -1.0 * array[ind];
 
     // south element
-    if ( ind >= N )
-        value += -1.0 * array[ind - N];
+    if ( ind >= Nx )
+        value += -1.0 * array[ind - Nx];
 	else
 		value += -1.0 * array[ind];
 
@@ -1471,7 +1471,7 @@ double laplacian_GPU( double *array, size_t ind, size_t N )
 }
 
 __global__ 
-void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, unsigned int N, unsigned int numElements)
+void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1486,8 +1486,8 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 	while(index + offset < numElements){
         
 		//TODO:DEBUG:
-        // temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) + *eta ) );
-        temp = fmaxf(temp, ( df_array[index + offset] + *eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz ) ) + *eta ) );
+        // temp = fmaxf(temp, ( df_array[index + offset] + *eta ) );
          
 		offset += stride;
 	}
@@ -1515,7 +1515,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 
 
 __global__ 
-void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, unsigned int N, unsigned int numElements)
+void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1527,34 +1527,37 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
 	*mutex = 0;
     double temp = 1.0e9;
     
+	if ( index < numElements )
+	{
 
-	while(index + offset < numElements){
-        //TODO:DEBUG:
-		// temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, N ) ) - *eta ) );
-        temp = fminf(temp, ( df_array[index + offset] - *eta ) );
-		offset += stride;
-	}
-    
-	cache[threadIdx.x] = temp;
-	__syncthreads();
+		while(index + offset < numElements){
+			
+			temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz ) ) - *eta ) );
+			// temp = fminf(temp, ( df_array[index + offset] - *eta ) );
+			offset += stride;
+		}
+		
+		cache[threadIdx.x] = temp;
+		__syncthreads();
 
 
-	// reduction
-	unsigned int i = blockDim.x/2;
-	while(i != 0){
-		if(threadIdx.x < i){
-			cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + i]);
+		// reduction
+		unsigned int i = blockDim.x/2;
+		while(i != 0){
+			if(threadIdx.x < i){
+				cache[threadIdx.x] = fminf(cache[threadIdx.x], cache[threadIdx.x + i]);
+			}
+
+			__syncthreads();
+			i /= 2;
 		}
 
-		__syncthreads();
-		i /= 2;
+		if(threadIdx.x == 0){
+			while(atomicCAS(mutex,0,1) != 0);  //lock
+			*min = fminf(*min, cache[0]);
+			atomicExch(mutex, 0);  //unlock
+		}
 	}
-
-	if(threadIdx.x == 0){
-		while(atomicCAS(mutex,0,1) != 0);  //lock
-		*min = fminf(*min, cache[0]);
-		atomicExch(mutex, 0);  //unlock
-    }
     
 }
 
@@ -1567,7 +1570,9 @@ void calcChiTrial(
     double* eta,
     double* beta,
     double* chi_trial,
-    size_t N,
+    size_t Nx,
+    size_t Ny,
+    size_t Nz,
     size_t numElements
 )
 {
@@ -1582,8 +1587,8 @@ void calcChiTrial(
 		// printf("%e \n", *eta);
 
 		//TODO:DEBUG:
-        // del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, N ) ) );
-        del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial );
+        del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, Nx, Ny, Nz ) ) );
+        // del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial );
         
 
         if ( del_chi[id] + chi[id] > 1 )

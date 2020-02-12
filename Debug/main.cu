@@ -21,11 +21,15 @@ using namespace std;
 // DONE: fix prolongation assembly - has something to do with bc initialization
     // DONE: 2D assembly not symmetric
 
-// TODO: 3d elements' node distribution
 // TODO: store local k matrix in constant memory
 // TODO: ApplyTranspose(prol) --> Apply(rest)
 // TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
-// TODO: laplacian_GPU() in 3D
+
+
+// 3D
+// TODO: local stiffness
+// DONE: 3d elements' node distribution
+// TODO: laplacian
 
 //// PARALELLIZABLE
 // TODO: fillIndexVector_GPU()
@@ -131,6 +135,7 @@ int main()
     Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
     
     cout << "Top-level number of rows = " << num_rows[numLevels - 1] << endl;
+    cout << "Number of Elements = " << Assembly.getNumElements() << endl;
     cout << "Assembly ... DONE" << endl;
   
     // vector u, b
@@ -276,7 +281,7 @@ int main()
     // ITERATION
     // //////////////
 
-    for ( int i = 1 ; i < 800 ; ++i )
+    for ( int i = 1 ; i < 100 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);

@@ -23,7 +23,9 @@ private:
     double m_local_volume;
     size_t m_numElements;
     size_t m_num_rows;
-    vector<size_t> m_N;
+    size_t m_Nx;
+    size_t m_Ny;
+    size_t m_Nz;
     size_t m_numLevels;
 
     // inner loop

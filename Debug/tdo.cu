@@ -9,12 +9,20 @@ using namespace std;
 
 
 TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, double etastar, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p)
- : m_d_u(d_u), m_d_chi(d_chi), m_h(h), m_dim(dim), m_numElements(numElements), m_num_rows(num_rows), m_d_A_local(d_A_local), m_d_node_index(d_node_index), m_N(N), m_rho(rho), m_etastar(etastar), m_betastar(betastar), m_numLevels(numLevels), m_p(p)
+ : m_d_u(d_u), m_d_chi(d_chi), m_h(h), m_dim(dim), m_numElements(numElements), m_num_rows(num_rows), m_d_A_local(d_A_local), m_d_node_index(d_node_index), m_rho(rho), m_etastar(etastar), m_betastar(betastar), m_numLevels(numLevels), m_p(p)
 {
     // inner loop frequency, n
     m_n = (6 / m_etastar) * ( m_betastar / (m_h*m_h) );
     m_del_t = 1.0 / m_n;
 
+
+    m_Nx = N[0];
+    m_Ny = N[1];
+
+    if (N.size() == 3)
+        m_Nz = N[2];
+    else
+        m_Nz = 0;
     
     // // TODO: calculate p_w
     // double g
@@ -94,6 +102,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     setToTrue<<<1,1>>>( m_d_tdo_foo );
     // setToZero<<<1,1>>>( m_d_uTAu );
 
+
     
     // calculating the driving force of each element
     // df[] = ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) ) * sum( u^T * A_local * u )
@@ -148,49 +157,17 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     for ( int j = 0 ; j < m_n ; j++ )
     {
 
-        // df[] = ( 1 / 2*element_volume ) * p * pow(chi_element, (p-1) ) * temp[]
-        // temp[] = u[]^T * A * u[]
-        // UpdateDrivingForce<<<m_gridDim,m_blockDim>>>( m_d_df, m_d_uTAu, m_p, m_d_chi, m_local_volume, m_numElements );
-
-        // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
-        // cudaDeviceSynchronize();
-
-
-        // TODO: laplacian_GPU in these kernels only work on sym. matrices
-        // esp for north elements, N*N --> Nx * Ny
         // bisection algo: 
-        
+     
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
-        calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_N[0], m_numElements);
-        calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_N[0], m_numElements);
+        calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements);
+        calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements);
         
-        // cudaDeviceSynchronize();
-        // cout << "eta, beta" << endl;
-        // cudaDeviceSynchronize();
-        // print_GPU <<< 1 , 1 >>> ( m_d_eta );
-        // cudaDeviceSynchronize();
-        // print_GPU <<< 1 , 1 >>> ( m_d_beta );
-        // printVector_GPU<<<1,m_numElements>>> ( m_d_df, m_numElements );
-
-        // CHECK: for optimization?
-            // for ( int i = 1 ; i < 30 ; i++ )
-  
   
         while(m_tdo_foo)
         {
-            // cout << "iteration " << i << endl;
-            // cudaDeviceSynchronize();
-            // cout << "lambda_tr" << endl;
-            // print_GPU <<< 1 , 1 >>> ( m_d_lambda_tr );
-            // cudaDeviceSynchronize();
-            // cout << "lambda_l" << endl;
-            // print_GPU <<< 1 , 1 >>> ( m_d_lambda_l );
-            // cudaDeviceSynchronize();
-            // cout << "lambda_u" << endl;
-            // print_GPU <<< 1 , 1 >>> ( m_d_lambda_u );
-            // cudaDeviceSynchronize();
-
-            calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_N[0], m_numElements);
+           
+            calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements);
 
             // printVector_GPU<<<1,4>>>( m_d_chi_tr, 4);
             // cudaDeviceSynchronize();

@@ -219,13 +219,13 @@ __global__ void calcDrivingForce_(double *df, double *chi, double p, double *tem
 
 __global__ void sumOfVector_GPU(double* sum, double* x, size_t n);
 
-__device__ double laplacian_GPU( double *array, size_t ind, size_t N );
+__device__ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz );
 
-__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, unsigned int N, unsigned int numElements);
+__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements);
 
-__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, unsigned int N, unsigned int numElements);
+__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements);
 
-__global__ void calcChiTrial( double *chi, double *df, double *lambda_trial, double del_t, double* eta, double* beta, double* chi_trial, size_t N, size_t numElements);
+__global__ void calcChiTrial( double *chi, double *df, double *lambda_trial, double del_t, double* eta, double* beta, double* chi_trial, size_t Nx, size_t Ny, size_t Nz, size_t numElements);
 
 __global__ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *lambda_u, double *lambda_trial);
 
