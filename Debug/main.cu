@@ -3,9 +3,9 @@
 */
 
 #include <iostream>
-#include <cuda.h>
+// #include <cuda.h>
 #include <vector>
-#include <cuda_runtime.h>
+// #include <cuda_runtime.h>
 // #include "../include/mycudaheader.h"
 // #include "precond.h"
 #include "cudakernels.h"
@@ -75,7 +75,7 @@ int main()
     double rho = 0.3;
     size_t p = 3;
     double etastar = 12.0;
-    double betastar = 20 * pow(h,2);
+    double betastar = 2 * pow(h,2);
 
     vector<size_t> num_rows;
     vector<size_t> max_row_size;

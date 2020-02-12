@@ -19,6 +19,7 @@
 using namespace std;
 
 
+
 // Self-defined double-precision atomicAdd function for nvidia GPUs with Compute Capability 6 and below.
 // Pre-defined atomicAdd() with double-precision does not work for pre-CC7 nvidia GPUs.
 __device__ 
@@ -223,6 +224,8 @@ void sumOfSquare_GPU(double* sum, double* x, size_t n)
 	// reduce sum from all blocks' cache
 	if(threadIdx.x == 0)
 		atomicAdd_double(sum, cache[0]);
+
+
 }
 
 
@@ -1477,6 +1480,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 	__shared__ double cache[1024];
 
     *max = -1.0e9;
+	*mutex = 0;
     double temp = -1.0e9;
     
 	while(index + offset < numElements){
@@ -1520,6 +1524,7 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
 	__shared__ double cache[1024];
 
     *min = 1.0e9;
+	*mutex = 0;
     double temp = 1.0e9;
     
 
