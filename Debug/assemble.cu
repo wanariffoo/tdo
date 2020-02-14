@@ -1223,7 +1223,7 @@ bool Assembler::assembleRestMatrix_GPU(
     
     cudaDeviceSynchronize();
 
-    // printLinearVector( d_r_index[0], m_num_rows[0], m_r_max_row_size[0]);
+    printLinearVector( d_r_index[0], m_num_rows[0], m_r_max_row_size[0]);
     // printELLrow(0, d_r_value[0], d_r_index[0], m_r_max_row_size[0], m_num_rows[0], m_num_rows[1]);
 
 

@@ -2217,63 +2217,63 @@ __global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny,
 	//// previous layer
 
 		// south-west
-		if ( id >= (Nx+1)*(Ny+1) && id >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( id >= (Nx+1)*(Ny+1)*dim && id >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 - dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// south
-		if ( id >= (Nx+1)*(Ny+1) && id  >= (Nx + 1)*dim )
+		if ( id >= (Nx+1)*(Ny+1)*dim && id  >= (Nx + 1)*dim )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// south-east
-		if ( id >= (Nx+1)*(Ny+1) && id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( id >= (Nx+1)*(Ny+1)*dim && id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
 		{	
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// west
-		if ( id >= (Nx+1)*(Ny+1) && (id) % ((Nx + 1)*dim) >= dim )
+		if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// origin
-		if ( id >= (Nx+1)*(Ny+1) && id != 0)
+		if ( id >= (Nx+1)*(Ny+1)*dim && id != 0)
 		{
 				r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 				counter++;
 		}
 
 		// east
-		if ( id >= (Nx+1)*(Ny+1) && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( id >= (Nx+1)*(Ny+1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// north-west
-		if ( id >= (Nx+1)*(Ny+1) && id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( id >= (Nx+1)*(Ny+1)*dim && id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 - dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// north
-		if ( id >= (Nx+1)*(Ny+1) && id < (Nx+1)*(Ny)*dim )
+		if ( id >= (Nx+1)*(Ny+1)*dim && id < (Nx+1)*(Ny)*dim )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
 		}
 
 		// north-east
-		if ( id >= (Nx+1)*(Ny+1) && id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( id >= (Nx+1)*(Ny+1)*dim && id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
 		{
 			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
 			counter++;
@@ -2354,68 +2354,68 @@ __global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny,
 	//// next layer
 
 		
-		// // south-west
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// south-west
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && id  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // south
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id  >= (Nx + 1)*dim )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// south
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && id  >= (Nx + 1)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // south-east
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
-		// {	
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// south-east
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{	
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // west
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// west
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // origin
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// origin
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // east
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// east
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // north-west
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// north-west
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // north
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id < (Nx+1)*(Ny)*dim )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// north
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && id < (Nx+1)*(Ny)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
-		// // north-east
-		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && base_id == 0 || id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
-		// {
-		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
-		// 	counter++;
-		// }
+		// north-east
+		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && base_id == 0 || id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
 
 
 
@@ -2437,11 +2437,15 @@ __global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny,
 	}
 
 
-	if ( id == 3 )
-	{
-		for ( int i = 0 ; i < r_max_row_size ; i++)
-			printf("%lu ", r_index[i + id*r_max_row_size]);
+	// if ( id == 12 )
+	// {
+	// 	for ( int i = 0 ; i < r_max_row_size ; i++)
+	// 		printf("%lu ", r_index[i + id*r_max_row_size]);
 
-		printf("\n");
-	}
+	// 	printf("\n");
+	// }
+
+
+
+
 }
