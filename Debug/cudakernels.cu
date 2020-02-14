@@ -857,10 +857,13 @@ size_t getFineNode(size_t index, vector<size_t> N, size_t dim)
 	{	
 		size_t twoDimSize = (N[0]+1)*(N[1]+1);
 		size_t baseindex = index % twoDimSize;
+		size_t base_idx = baseindex % (N[0]+1);
 		size_t fine2Dsize = (2*N[0]+1)*(2*N[1]+1);
 		size_t multiplier = index/twoDimSize;
 		
-		return 2*multiplier*fine2Dsize + (2*( baseindex % twoDimSize ) + (ceil)(baseindex/2)*2) ;
+		// return 2*multiplier*fine2Dsize + (2*( baseindex % twoDimSize ) + (ceil)(baseindex/2)*2) ;
+		return 2*base_idx + (baseindex/(N[0]+1))*2*(2*N[0] + 1) + 2*fine2Dsize*multiplier;
+		
 		
 	}
 
@@ -872,17 +875,20 @@ size_t getFineNode(size_t index, vector<size_t> N, size_t dim)
 __device__
 size_t getFineNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim)
 {
-	// check for error
-	size_t num_nodes = (Nx + 1)*(Ny + 1)*(Nz + 1);
+	
+	// size_t num_nodes = (Nx + 1)*(Ny + 1)*(Nz + 1);
 	
 	if ( dim == 3 )
 	{	
 		size_t twoDimSize = (Nx+1)*(Ny+1);
 		size_t baseindex = index % twoDimSize;
+		size_t base_idx = baseindex % (Nx+1);
 		size_t fine2Dsize = (2*Nx+1)*(2*Ny+1);
 		size_t multiplier = index/twoDimSize;
 		
-		return 2*multiplier*fine2Dsize + (2*( baseindex % twoDimSize ) + (baseindex/2)*2) ;
+		return 2*base_idx + (baseindex/(Nx+1))*2*(2*Nx + 1) + 2*fine2Dsize*multiplier;
+		// return 2*multiplier*fine2Dsize + (2*( baseindex  ) + (baseindex/2)*2) ;
+		// return 2*multiplier*fine2Dsize + (2*( baseindex % twoDimSize ) + (baseindex/2)*2) ;
 		
 	}
 
@@ -2094,7 +2100,7 @@ __global__ void fillIndexVector_GPU(size_t* index, size_t Nx, size_t Ny, size_t 
 	}
 }
 
-__global__ void fillIndexVectorRest_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t r_max_row_size, size_t num_rows, size_t num_cols)
+__global__ void fillIndexVectorRest2D_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t r_max_row_size, size_t num_rows, size_t num_cols)
 {
 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -2179,5 +2185,263 @@ __global__ void fillIndexVectorRest_GPU(size_t* r_index, size_t Nx, size_t Ny, s
 		r_index[i + id*r_max_row_size] = num_cols;
 	}
 
+	}
+}
+
+
+__global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t Nz, size_t r_max_row_size, size_t num_rows, size_t num_cols)
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	int counter = 0;
+	int dim = 3;	
+
+	if ( id < num_rows )
+	{
+	size_t coarse_node_index = id / dim;
+	size_t fine_id = getFineNode_GPU(id, Nx, Ny, 0, dim);
+	size_t base_id = (id - id%dim);
+
+
+	// all on fine grid
+	// base : dim*getFineNode_GPU(coarse_node_index, Nx, Ny, 0, dim) = (id - id%dim)
+	
+	// w : - dim
+	// n : ((Nx)*2 + 1)*3
+	// s : - ((Nx)*2 + 1)*3
+	// previous layer
+	// id >= (Nx+1)*(Ny+1)
+
+
+
+	//// previous layer
+
+		// south-west
+		if ( id >= (Nx+1)*(Ny+1) && id >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 - dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// south
+		if ( id >= (Nx+1)*(Ny+1) && id  >= (Nx + 1)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// south-east
+		if ( id >= (Nx+1)*(Ny+1) && id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{	
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// west
+		if ( id >= (Nx+1)*(Ny+1) && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// origin
+		if ( id >= (Nx+1)*(Ny+1) && id != 0)
+		{
+				r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+				counter++;
+		}
+
+		// east
+		if ( id >= (Nx+1)*(Ny+1) && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// north-west
+		if ( id >= (Nx+1)*(Ny+1) && id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 - dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// north
+		if ( id >= (Nx+1)*(Ny+1) && id < (Nx+1)*(Ny)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+		// north-east
+		if ( id >= (Nx+1)*(Ny+1) && id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + dim + id%dim - (2*Nx+1)*(2*Ny+1)*3;
+			counter++;
+		}
+
+
+
+
+
+
+
+
+
+
+	//// current layer
+		
+		// south-west
+		if ( id  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 - dim + id%dim;
+			counter++;
+		}
+
+		// south
+		if ( id  >= (Nx + 1)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + id%dim;
+			counter++;
+		}
+
+		// south-east
+		if ( id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{	
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + dim + id%dim;
+			counter++;
+		}
+
+		// west
+		if ( (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - dim + id%dim;
+			counter++;
+		}
+
+		// origin
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + id%dim;
+			counter++;
+
+		// east
+		if ( base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + dim + id%dim;
+			counter++;
+		}
+
+		// north-west
+		if ( id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 - dim + id%dim;
+			counter++;
+		}
+
+		// north
+		if ( id < (Nx+1)*(Ny)*dim )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + id%dim;
+			counter++;
+		}
+
+		// north-east
+		if ( base_id == 0 || id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		{
+			r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + dim + id%dim;
+			counter++;
+		}
+
+
+	//// next layer
+
+		
+		// // south-west
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // south
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id  >= (Nx + 1)*dim )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // south-east
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// {	
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - ((Nx)*2 + 1)*3 + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // west
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // origin
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // east
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // north-west
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 - dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // north
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && id < (Nx+1)*(Ny)*dim )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+		// // north-east
+		// if ( id < (Nx+1)*(Ny+1)*(Nz+1)*dim && base_id == 0 || id < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// {
+		// 	r_index[counter + id*r_max_row_size] = dim*getFineNode_GPU(coarse_node_index, Nx, Ny, Nz, dim) + ((Nx)*2 + 1)*3 + dim + id%dim + (2*Nx+1)*(2*Ny+1)*3;
+		// 	counter++;
+		// }
+
+
+
+
+
+
+
+
+
+
+	for ( int i = counter ; i < r_max_row_size; i++)
+	{
+		r_index[i + id*r_max_row_size] = num_cols;
+	}
+
+
+
+
+	}
+
+
+	if ( id == 3 )
+	{
+		for ( int i = 0 ; i < r_max_row_size ; i++)
+			printf("%lu ", r_index[i + id*r_max_row_size]);
+
+		printf("\n");
 	}
 }

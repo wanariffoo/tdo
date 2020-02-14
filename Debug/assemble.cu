@@ -199,9 +199,39 @@ bool Assembler::init_GPU(
             }
         }
 
+        // dim = 3
         else 
         {
-            throw(runtime_error("TODO: calculate max_row_size for 3D not done yet!"));
+            if (m_N[0][0] == 1 && m_N[0][1] == 1 && m_N[0][2] == 1)
+            {
+                max_row_size[0] = 24;
+                
+                throw(runtime_error("TODO: N={1,1,1) is not done yet"));
+            }
+
+            else if (m_N[0][0] == 3 && m_N[0][1] == 1 && m_N[0][2] == 1 )
+            {
+                max_row_size[0] = 36;
+                p_max_row_size[0] = 8;
+                r_max_row_size[0] = 12;
+            }
+
+            else
+            {   
+                throw(runtime_error("TODO: not done"));
+            }
+
+            // loop through each level (stiffness matrix)
+            for (int lev = m_topLev ; lev != 0 ; --lev)
+                max_row_size[lev] = 27*3;
+            
+            // loop through each level (prolongation & restriction matrices)
+            for (int lev = m_topLev - 1; lev != 0 ; --lev)
+            {
+                p_max_row_size[lev] = 8;
+                r_max_row_size[lev] = 27;
+            }
+            
         }
     }
 
@@ -224,6 +254,7 @@ bool Assembler::init_GPU(
         for ( int i = 0 ; i < m_dim ; i++ )
             m_numNodes[lev] *= m_numNodesPerDim[lev][i];
     }
+
 
     // number of DOFs per level
     num_rows.resize(m_numLevels);
@@ -259,153 +290,153 @@ bool Assembler::init_GPU(
 
     // TODO: assemble in GPU, currently it's assembling in CPU
     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
+    
 
     assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
-
-    // allocating temp matrix to be used in RAP
-    CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
-    CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    // // allocating temp matrix to be used in RAP
+    // CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    // CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
     
 
 
-    //// adding nodes and elements to the top-level global grid
-    for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
-        m_node.push_back(Node(i));
+    // //// adding nodes and elements to the top-level global grid
+    // for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
+    //     m_node.push_back(Node(i));
 
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-        m_element.push_back(Element(i));
+    // for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+    //     m_element.push_back(Element(i));
 
-    size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
-
-
-    // assigning the nodes to each element
-    if ( m_dim == 2)
-    {
-        for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-        {
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
-        }
-    }
-
-    // m_dim == 3
-    else    
-    {
-        throw(runtime_error("3D not done yet!"));
-    }
-
-    m_node_index.resize(m_numElements[m_topLev]);
-    d_node_index.resize(m_numElements[m_topLev]);
-    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    {
-        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
-            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
-    }
+    // size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
 
 
-    // allocating and copying the design variable to device
-    // design variable currently has initial values of rho
-    CUDA_CALL( cudaMalloc((void**)&d_chi, sizeof(double) * m_numElements[m_topLev] ) );
-    CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+    // // assigning the nodes to each element
+    // if ( m_dim == 2)
+    // {
+    //     for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+    //     {
+    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
+    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
+    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
+    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
+    //     }
+    // }
 
-    // allocating and copying the (linear vector) local stiffness matrix to device
-    CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
-    CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
+//     // m_dim == 3
+//     else    
+//     {
+//         throw(runtime_error("3D not done yet!"));
+//     }
 
-    
-    // calculating the number of nodes in a local element
-    size_t numNodes_local = pow(2,m_dim);
-
-    // copying the node index vector to device
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-    {
-        CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * numNodes_local) );
-        CUDA_CALL( cudaMemcpy( d_node_index[i], &m_node_index[i][0], sizeof(size_t) * numNodes_local, cudaMemcpyHostToDevice) );
-    }
-
-    m_d_node_index = d_node_index;
-
-    //// allocating the global matrices of each level to device
-    // matrices are empty for now, will be filled in later
-
-    // resizing global matrices for each grid-level
-    d_value.resize( m_numLevels );
-    d_index.resize( m_numLevels );
-
-    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    {
-        CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
-        CUDA_CALL( cudaMemset( d_value[lev], 0, sizeof(double) * num_rows[lev]*max_row_size[lev] ) );
-        CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
-        CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
-    }
-    
+//     m_node_index.resize(m_numElements[m_topLev]);
+//     d_node_index.resize(m_numElements[m_topLev]);
+//     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+//     {
+//         for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+//             m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+//     }
 
 
-    // TODO: parallelizable
-    // filling in global stiffness matrix's ELLPACK index vector for all levels
-    dim3 index_gridDim;
-    dim3 index_blockDim;
-    for (int lev = m_topLev ; lev >= 0 ; --lev )
-    {
-        calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
-        fillIndexVector_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
-    }
+//     // allocating and copying the design variable to device
+//     // design variable currently has initial values of rho
+//     CUDA_CALL( cudaMalloc((void**)&d_chi, sizeof(double) * m_numElements[m_topLev] ) );
+//     CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
+
+//     // allocating and copying the (linear vector) local stiffness matrix to device
+//     CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
+//     CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
 
     
-    // assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
-    cudaDeviceSynchronize();
+//     // calculating the number of nodes in a local element
+//     size_t numNodes_local = pow(2,m_dim);
+
+//     // copying the node index vector to device
+//     for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+//     {
+//         CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * numNodes_local) );
+//         CUDA_CALL( cudaMemcpy( d_node_index[i], &m_node_index[i][0], sizeof(size_t) * numNodes_local, cudaMemcpyHostToDevice) );
+//     }
+
+//     m_d_node_index = d_node_index;
+
+//     //// allocating the global matrices of each level to device
+//     // matrices are empty for now, will be filled in later
+
+//     // resizing global matrices for each grid-level
+//     d_value.resize( m_numLevels );
+//     d_index.resize( m_numLevels );
+
+//     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+//     {
+//         CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
+//         CUDA_CALL( cudaMemset( d_value[lev], 0, sizeof(double) * num_rows[lev]*max_row_size[lev] ) );
+//         CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
+//         CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
+//     }
     
 
-    //// filling in the top level global stiffness matrix
-    // CUDA block size for assembling the global stiffness matrix
-    dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
 
-    // filling in from each element
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+//     // TODO: parallelizable
+//     // filling in global stiffness matrix's ELLPACK index vector for all levels
+//     dim3 index_gridDim;
+//     dim3 index_blockDim;
+//     for (int lev = m_topLev ; lev >= 0 ; --lev )
+//     {
+//         calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
+//         fillIndexVector_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
+//     }
 
-// // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-
-    // calculating the needed cuda 2D grid size for the global assembly
-    dim3 g_gridDim;
-    dim3 g_blockDim;
-
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    // cout << m_bc_index[m_topLev][i] << endl;
     
-    // TODO: CHECK: this is a bit shaky
-    // TODO: think it's a bit overkill to use a lot of cuda threads here
-    //// apply boundary conditions to global stiffness matrix
-    // global stiffness matrix
-    calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
-    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-        applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
+//     // assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
+//     cudaDeviceSynchronize();
+    
 
-        // NOTE: optional?
-//     // // prolongation matrix
-//     // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
+//     //// filling in the top level global stiffness matrix
+//     // CUDA block size for assembling the global stiffness matrix
+//     dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
+
+//     // filling in from each element
+//     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+//         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+
+// // // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+
+//     // calculating the needed cuda 2D grid size for the global assembly
+//     dim3 g_gridDim;
+//     dim3 g_blockDim;
+
 //     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-//     //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
-
-
-
-
-    //// obtaining the coarse stiffness matrices of each lower grid level
-    // // TODO: use optimized matrix multiplication
-    dim3 temp_gridDim;
-    dim3 temp_blockDim;
+//     // cout << m_bc_index[m_topLev][i] << endl;
     
-    // A_coarse = R * A_fine * P
-    for ( int lev = m_topLev ; lev != 0 ; lev--)
-    {
-        calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
-        setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
-        RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
-    }
+//     // TODO: CHECK: this is a bit shaky
+//     // TODO: think it's a bit overkill to use a lot of cuda threads here
+//     //// apply boundary conditions to global stiffness matrix
+//     // global stiffness matrix
+//     calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
+//     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+//         applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
+
+//         // NOTE: optional?
+// //     // // prolongation matrix
+// //     // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
+// //     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+// //     //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
+
+
+
+
+//     //// obtaining the coarse stiffness matrices of each lower grid level
+//     // // TODO: use optimized matrix multiplication
+//     dim3 temp_gridDim;
+//     dim3 temp_blockDim;
+    
+//     // A_coarse = R * A_fine * P
+//     for ( int lev = m_topLev ; lev != 0 ; lev--)
+//     {
+//         calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
+//         setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
+//         RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
+//     }
 
 
 
@@ -517,27 +548,6 @@ bool Assembler::assembleLocal()
                         A_[i][j] += E[i][k] * B[k][j];
                 }
             }
-
-            // for ( int i = 0 ; i < 1 ; i++ )
-            // {
-            //     for( int j = 0 ; j < 1 ; j++ )
-            //     {
-            //         for ( int k = 0 ; k < 3 ; k++)
-            //             printf("%f\n", E[i][k]);
-            //             // A_[i][j] += E[i][k] * B[k][j];
-            //     }
-            // }
-            
-            // cout << A_[0][0] << endl;
-
-            // for ( int i = 0 ; i < 3 ; i++ )
-            // {
-            //     for ( int j = 0 ; j < 8 ; j++ )
-            //         cout << A_[i][j] << " ";
-
-            //         cout << "\n";
-            // }
-            //         cout << "\n";
             
             // A_local = B^T * A_ * det(J)
             for ( int i = 0 ; i < 8 ; i++ )
@@ -550,9 +560,7 @@ bool Assembler::assembleLocal()
                     }
                 }
             }
-
         }
-
     }
 
     if ( m_dim == 3 )
@@ -763,155 +771,203 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
                 m_P[lev][j].resize(m_num_rows[lev]);
     }
 
+    
     // resizing the prolongation matrices according to the number of grid-levels for cuda
     d_p_value.resize( m_numLevels - 1 );
     d_p_index.resize( m_numLevels - 1 );
-
-    // filling in the CPU prolongation matrix
-    for ( int k = lev ; k != 0 ; k-- )
+    
+    if ( m_dim == 2)
     {
-        for ( int i = 0 ; i < m_numNodes[k-1] ; i++ )
+        // filling in the CPU prolongation matrix
+        for ( int k = lev ; k != 0 ; k-- )
         {
-            for ( int j = 0 ; j < m_dim ; j++ )
+            for ( int i = 0 ; i < m_numNodes[k-1] ; i++ )
             {
+                for ( int j = 0 ; j < m_dim ; j++ )
+                {
 
-            // same node
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j ][m_dim*i+j] = 1;
+                // same node
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j ][m_dim*i+j] = 1;
 
-            // east node
-            if ( i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim ][m_dim*i+j] += 0.5;
-            
-            // north node
-            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.5;
+                // east node
+                if ( i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim ][m_dim*i+j] += 0.5;
+                
+                // north node
+                if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.5;
 
-            // west node
-            if ( i % (m_N[k-1][0] + 1) != 0 )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim ][m_dim*i+j] += 0.5;
+                // west node
+                if ( i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim ][m_dim*i+j] += 0.5;
 
-            // south node
-            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.5;
+                // south node
+                if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.5;
 
-            // north-east node
-            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] = 0.25;
+                // north-east node
+                if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] = 0.25;
 
-            // north-west node
-            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
+                // north-west node
+                if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
 
-            // south-east node
-            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.25;
+                // south-east node
+                if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.25;
 
-            // south-west node
-            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0 )
-                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
+                // south-west node
+                if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
 
-            if ( m_dim == 3 )
-            {
-                //// previous layer
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) ][m_dim*i+j] += 0.5;
-
-                // previous layer-east node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + m_dim ][m_dim*i+j] += 0.25;
-
-                // previous layer-north node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
-
-                // previous layer-west node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % (m_N[k-1][0] + 1) != 0 )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - m_dim ][m_dim*i+j] += 0.25;
-
-                // previous layer-south node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
-
-                // previous-north-east node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
-
-                // previous-north-west node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
-
-                // previous-south-east node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
-
-                // previous-south-west node
-                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
-
-
-                //// next layer
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) ][m_dim*i+j] += 0.5;
-
-                // next layer-east node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + m_dim ][m_dim*i+j] += 0.25;
-
-                // next layer-north node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
-
-                // next layer-west node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % (m_N[k-1][0] + 1) != 0 )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - m_dim ][m_dim*i+j] += 0.25;
-
-                // next layer-south node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.25;
-
-                // next-north-east node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
-
-                // next-north-west node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
-
-                // next-south-east node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
-
-                // next-south-west node
-                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
-                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
-
-            }
-
-
+                }
             }
         }
     }
- 
-        
-    
-    // applying BC to relevant DOFs
-    for ( int k = lev ; k != 0 ; k-- )
-    {
-        // loop through each element in bc_index vector
-        for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
-        {
-            size_t j = m_bc_index[k-1][bc];
-            size_t node_index = j / m_dim;
 
-            // clear columns of the bc indices 
-            for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
-                    m_P[k-1][i][j] = 0;
+    else
+    {
+
+        // filling in the CPU prolongation matrix
+        for ( int k = lev ; k != 0 ; k-- )
+        {
+            for ( int i = 0 ; i < m_numNodes[k-1] ; i++ )
+            {
+                for ( int j = 0 ; j < m_dim ; j++ )
+                {
+                    // same node
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j ][m_dim*i+j] = 1;
+
+                    // east node
+                    if ( i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim ][m_dim*i+j] += 0.5;
+                    
+                    // north node
+                    if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.5;
+
+                    // west node
+                    if ( i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim ][m_dim*i+j] += 0.5;
+
+                    // south node
+                    if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.5;
+
+                    // north-east node
+                    if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] = 0.25;
+
+                    // north-west node
+                    if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
+
+                    // south-east node
+                    if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.25;
+
+                    // south-west node
+                    if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
+
+                    //// previous layer
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) ][m_dim*i+j] += 0.5;
+
+                    // previous layer-east node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + m_dim ][m_dim*i+j] += 0.25;
+
+                    // previous layer-north node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
+
+                    // previous layer-west node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - m_dim ][m_dim*i+j] += 0.25;
+
+                    // previous layer-south node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
+
+                    // previous-north-east node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                    // previous-north-west node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+                    // previous-south-east node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                    // previous-south-west node
+                    if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+
+                    //// next layer
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) ][m_dim*i+j] += 0.5;
+
+                    // next layer-east node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + m_dim ][m_dim*i+j] += 0.25;
+
+                    // next layer-north node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
+
+                    // next layer-west node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - m_dim ][m_dim*i+j] += 0.25;
+
+                    // next layer-south node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.25;
+
+                    // next-north-east node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                    // next-north-west node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+                    // next-south-east node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                    // next-south-west node
+                    if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
+                        m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+                }
+            }
+        }
+    }
+
+
+    // // applying BC to relevant DOFs
+    // for ( int k = lev ; k != 0 ; k-- )
+    // {
+    //     // loop through each element in bc_index vector
+    //     for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
+    //     {
+    //         size_t j = m_bc_index[k-1][bc];
+    //         size_t node_index = j / m_dim;
+
+    //         // clear columns of the bc indices 
+    //         for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
+    //                 m_P[k-1][i][j] = 0;
                     
 
-            m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
+    //         m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
                 
-        }
-    }
+    //     }
+    // }
 
     // resizing the vectors
     m_p_value_g.resize( m_numLevels - 1 );
@@ -934,6 +990,9 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
         CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * m_p_max_row_size[lev] * m_num_rows[lev+1], cudaMemcpyHostToDevice) );
         CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * m_p_max_row_size[lev] * m_num_rows[lev+1], cudaMemcpyHostToDevice) );
     }
+
+
+    // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
 
     return true;
 }
@@ -1129,22 +1188,45 @@ bool Assembler::assembleRestMatrix_GPU(
     dim3 gridDim;
     dim3 blockDim;
 
-    // fill in restriction matrix's ELLPACK index vector
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    if ( m_dim == 2)
     {
-        calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
-        fillIndexVectorRest_GPU<<<gridDim,blockDim>>>(d_r_index[lev], m_N[lev][0], m_N[lev][1], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        // fill in restriction matrix's ELLPACK index vector
+        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        {
+            calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
+            fillIndexVectorRest2D_GPU<<<gridDim,blockDim>>>(d_r_index[lev], m_N[lev][0], m_N[lev][1], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        }
+
+        // fill in restriction matrix's values, taken from prolongation matrix
+        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        {
+            calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
+            fillRestMatrix<<<gridDim, blockDim>>>(d_r_value[lev], d_r_index[lev], m_r_max_row_size[lev], d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        }
     }
 
-    
-    // fill in restriction matrix's values, taken from prolongation matrix
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    else
     {
-        calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
-        fillRestMatrix<<<gridDim, blockDim>>>(d_r_value[lev], d_r_index[lev], m_r_max_row_size[lev], d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        // fill in restriction matrix's ELLPACK index vector
+        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        {
+            calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
+            fillIndexVectorRest3D_GPU<<<gridDim,blockDim>>>(d_r_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        }
+
+
+
+
+
+
     }
     
     cudaDeviceSynchronize();
+
+    // printLinearVector( d_r_index[0], m_num_rows[0], m_r_max_row_size[0]);
+    // printELLrow(0, d_r_value[0], d_r_index[0], m_r_max_row_size[0], m_num_rows[0], m_num_rows[1]);
+
+
     
     return true;
 }
