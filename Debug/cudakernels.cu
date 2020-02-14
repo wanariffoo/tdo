@@ -1621,30 +1621,22 @@ void calcChiTrial(
 )
 {
     unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
-    
-    __shared__ double del_chi[1024];
-
 
     if ( id < numElements )
     {
-		// printf("%d : %e \n", id, del_chi[id]);
-		// printf("%e \n", *eta);
+		double del_chi;
+		
+        del_chi = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, Nx, Ny, Nz ) ) );
 
-		//TODO:DEBUG:
-        del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, Nx, Ny, Nz ) ) );
-        // del_chi[id] = ( del_t / *eta ) * ( df[id] - *lambda_trial );
-        
-
-        if ( del_chi[id] + chi[id] > 1 )
+        if ( del_chi + chi[id] > 1 )
         chi_trial[id] = 1;
         
-        else if ( del_chi[id] + chi[id] < 1e-9 )
+        else if ( del_chi + chi[id] < 1e-9 )
         chi_trial[id] = 1e-9;
         
         else
-        chi_trial[id] = del_chi[id] + chi[id];
+        chi_trial[id] = del_chi + chi[id];
         
-        // printf("%d %f \n", id, chi_trial[id]);
     }
 }
 
