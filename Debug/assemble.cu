@@ -122,7 +122,7 @@ bool Assembler::init_GPU(
 {
 
    
-
+    
 
     // TODO: CHECK:
     m_d_A_local = d_A_local;
@@ -170,9 +170,7 @@ bool Assembler::init_GPU(
     {
         if ( m_dim == 2 )
         {
-
             // calculating the max row sizes of the global stiffness, prolongation and restriction matrices
-            
             if (m_N[0][0] == 1 && m_N[0][1] == 1)
             {
                 max_row_size[0] = 8;
@@ -217,7 +215,6 @@ bool Assembler::init_GPU(
     }
     
     
-
     // number of nodes per grid-level
     m_numNodes.resize(m_numLevels, 1);
     // m_numNodes = 1;
@@ -250,9 +247,7 @@ bool Assembler::init_GPU(
     m_max_row_size = max_row_size;
     m_r_max_row_size = r_max_row_size;
     m_p_max_row_size = p_max_row_size;
-    
-    cout << m_r_max_row_size[m_topLev] << endl;
-    
+
 
 
     // DEBUG:
@@ -276,7 +271,11 @@ bool Assembler::init_GPU(
                 m_P[lev][j].resize(num_rows[lev]);
     }
     
-    assembleProlMatrix(m_topLev);
+    // assembleProlMatrix(m_topLev);
+    assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
+
+
+    // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
 
     // TODO:
     // assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
@@ -294,8 +293,11 @@ bool Assembler::init_GPU(
 //                 m_R[lev][j].resize(num_rows[lev+1]);
 //     }
 
+
+
+
 //     assembleRestMatrix(m_topLev);
-    assembleRestMatrix_GPU(d_r_value, d_r_index, m_topLev);
+    assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
 
 //     //// obtaining the ELLPACK value and index vectors from the global stiffness matrix
@@ -854,6 +856,178 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
     d_p_value.resize( m_numLevels - 1 );
     d_p_index.resize( m_numLevels - 1 );
 
+
+    for ( int k = lev ; k != 0 ; k-- )
+    {
+        for ( int i = 0 ; i < m_numNodes[k-1] ; i++ )
+        {
+            for ( int j = 0 ; j < m_dim ; j++ )
+            {
+
+            // same node
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j ][m_dim*i+j] = 1;
+
+            // east node
+            if ( i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim ][m_dim*i+j] += 0.5;
+            
+            // north node
+            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.5;
+
+            // west node
+            if ( i % (m_N[k-1][0] + 1) != 0 )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim ][m_dim*i+j] += 0.5;
+
+            // south node
+            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.5;
+
+            // north-east node
+            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] = 0.25;
+
+            // north-west node
+            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
+
+            // south-east node
+            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.25;
+
+            // south-west node
+            if ( i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0 )
+                m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.25;
+
+            if ( m_dim == 3 )
+            {
+                //// previous layer
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) ][m_dim*i+j] += 0.5;
+
+                // previous layer-east node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + m_dim ][m_dim*i+j] += 0.25;
+
+                // previous layer-north node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
+
+                // previous layer-west node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - m_dim ][m_dim*i+j] += 0.25;
+
+                // previous layer-south node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
+
+                // previous-north-east node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                // previous-north-west node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+                // previous-south-east node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                // previous-south-west node
+                if ( i >= (m_N[k-1][0]+1)*(m_N[k-1][1]+1) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j - m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+
+                //// next layer
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) ][m_dim*i+j] += 0.5;
+
+                // next layer-east node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + m_dim ][m_dim*i+j] += 0.25;
+
+                // next layer-north node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 ][m_dim*i+j] += 0.25;
+
+                // next layer-west node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - m_dim ][m_dim*i+j] += 0.25;
+
+                // next layer-south node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1)
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2][m_dim*i+j] += 0.25;
+
+                // next-north-east node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                // next-north-west node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) < (m_N[k-1][0] + 1)*(m_N[k-1][1]) && i % (m_N[k-1][0] + 1) != 0 )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) + (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+                // next-south-east node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != m_N[k-1][0] )
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 + m_dim ][m_dim*i+j] += 0.125;
+
+                // next-south-west node
+                if ( i < (m_N[k-1][0]+1)*(m_N[k-1][1]+1)*(m_N[k-1][2]) && i % ((m_N[k-1][0]+1)*(m_N[k-1][1]+1)) >= m_N[k-1][0] + 1 && i % (m_N[k-1][0] + 1) != 0)
+                    m_P[k-1][ m_dim*getFineNode(i, m_N[k-1], m_dim) + j + m_dim*(m_N[k][0]+1)*(m_N[k][1]+1) - (m_dim*( 2*(m_N[k][0] + 1) ))/2 - m_dim ][m_dim*i+j] += 0.125;
+
+            }
+
+
+            }
+        }
+    }
+ 
+        
+    // // DEBUG:CHECK: have to loop through the fine DOFs?
+    // // applying BC to relevant DOFs
+    for ( int k = lev ; k != 0 ; k-- )
+    {
+        // loop through each element in bc_index vector
+        for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
+        {
+            size_t j = m_bc_index[k-1][bc];
+            size_t node_index = j / m_dim;
+
+            // clear columns of the bc indices 
+            for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
+                    m_P[k-1][i][j] = 0;
+                    
+
+            m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
+                
+        }
+    }
+
+    // resizing the vectors
+    m_p_value_g.resize( m_numLevels - 1 );
+    m_p_index_g.resize( m_numLevels - 1 );
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        transformToELL(m_P[lev], m_p_value_g[lev], m_p_index_g[lev], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev] );    
+
+    
+
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * m_p_max_row_size[lev] * m_num_rows[lev+1] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * m_p_max_row_size[lev] * m_num_rows[lev+1] ) );
+    }
+
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMemcpy(d_p_value[lev], &m_p_value_g[lev][0], sizeof(double) * m_p_max_row_size[lev] * m_num_rows[lev+1], cudaMemcpyHostToDevice) );
+        CUDA_CALL( cudaMemcpy(d_p_index[lev], &m_p_index_g[lev][0], sizeof(size_t) * m_p_max_row_size[lev] * m_num_rows[lev+1], cudaMemcpyHostToDevice) );
+    }
+
+
+    
+
+
     // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
     // {
     //     // number of columns in each level
@@ -1040,16 +1214,48 @@ bool Assembler::assembleRestMatrix(size_t lev)
 
     return true;
 }
-bool Assembler::assembleRestMatrix_GPU(vector<double*> &d_r_value, vector<size_t*> &d_r_index, size_t lev)
+
+bool Assembler::assembleRestMatrix_GPU(
+    vector<double*> &d_r_value, 
+    vector<size_t*> &d_r_index, 
+    vector<double*> &d_p_value, 
+    vector<size_t*> &d_p_index)
 {
     // resizing the restriction matrices according to the number of grid-levels
     d_r_value.resize( m_numLevels - 1 );
     d_r_index.resize( m_numLevels - 1 );
 
-    // obtaining the max_row_size
-    cout << m_r_max_row_size[m_topLev] << endl;
-    // TODO: fix member variables
+    // memcpy to device
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        CUDA_CALL( cudaMalloc((void**)&d_r_value[lev], sizeof(double) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
+        CUDA_CALL( cudaMemset( d_r_value[lev], 0, sizeof(double) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
+        CUDA_CALL( cudaMalloc((void**)&d_r_index[lev], sizeof(size_t) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
+        CUDA_CALL( cudaMemset( d_r_index[lev], 0, sizeof(size_t) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
+    }
 
+    dim3 gridDim;
+    dim3 blockDim;
+
+    int lev = 0;
+    calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
+    fillIndexVectorRest_GPU<<<gridDim,blockDim>>>(d_r_index[lev], m_N[lev][0], m_N[lev][1], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+
+    
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        // calculate required cuda 2D blocks for filling in the restriction matrix
+        calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
+        
+        fillRestMatrix<<<gridDim, blockDim>>>(d_r_value[lev], d_r_index[lev], m_r_max_row_size[lev], d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+    }
+    
+    cudaDeviceSynchronize();
+    // printVector_GPU<<<1,4>>>( d_r_value[0], 4 );
+    // printLinearVector( d_r_index[0], m_num_rows[0], m_r_max_row_size[0]);
+    // printLinearVector( d_r_value[0], m_num_rows[0], m_r_max_row_size[0]);
+    // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
+    // printELLrow(0, d_r_value[0], d_r_index[0], m_r_max_row_size[0], m_num_rows[0], m_num_rows[1]);
 
     return true;
 }

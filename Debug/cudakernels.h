@@ -42,6 +42,8 @@ __device__ void addAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_
 // sets the value of an ELLPack matrix A at (x,y)
 __device__ void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value );
 
+__device__ void setAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols, size_t max_row_size, double value );
+
 __global__ void setToZero(double* a, size_t num_rows);
 
 // norm = x.norm()
@@ -156,6 +158,12 @@ __global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_s
 __global__ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
 __host__ size_t getFineNode(size_t coarse_index, vector<size_t> N, size_t dim);
+
+__device__ size_t getFineNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim);
+
+__global__ void fillIndexVectorRest_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t r_max_row_size, size_t num_rows, size_t num_cols);
+
+__global__ void fillRestMatrix(double* r_value, size_t* r_index, size_t r_max_row_size, double* p_value, size_t* p_index, size_t p_max_row_size, size_t num_rows, size_t num_cols);
 
 ////////////////////////////////////////////
 // SMOOTHERS

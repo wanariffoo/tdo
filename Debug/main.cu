@@ -24,7 +24,7 @@ using namespace std;
 // TODO: store local k matrix in constant memory
 // TODO: ApplyTranspose(prol) --> Apply(rest)
 // TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
-
+// TODO: __device__ valueAt() has x and y mixed up
 
 // 3D
 // TODO: local stiffness
@@ -137,60 +137,60 @@ int main()
     cout << "Number of Elements = " << Assembly.getNumElements() << endl;
     cout << "Assembly ... DONE" << endl;
   
-    // // vector u, b
-    // vector<double> b(num_rows[numLevels - 1], 0);
-    // double force = -1;
+    // vector u, b
+    vector<double> b(num_rows[numLevels - 1], 0);
+    double force = -1;
     
-    // applyLoad(b, N, numLevels, 0, dim, force);
+    applyLoad(b, N, numLevels, 0, dim, force);
 
 
 
-    // double* d_u;
-    // double* d_b;
-    // // TODO: optimizable: malloc while program is assembling
-    // CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
-    // CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
+    double* d_u;
+    double* d_b;
+    // TODO: optimizable: malloc while program is assembling
+    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
+    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
-    // CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
-    // CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
-
-
+    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
+    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
 
-//     /*
-//     ##################################################################
-//     #                           SOLVER                               #
-//     ##################################################################
-//     */
 
-//     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+
+    /*
+    ##################################################################
+    #                           SOLVER                               #
+    ##################################################################
+    */
+
+    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
-//     // TODO: repair these three, it's a bit messed up
-//     GMG.set_convergence_params(100, 1e-99, 1e-15);
-//     GMG.set_bs_convergence_params(20, 1e-99, 1e-15);
-//     GMG.set_steps(100, 20); 
+    // // TODO: repair these three, it's a bit messed up
+    // GMG.set_convergence_params(100, 1e-99, 1e-15);
+    // GMG.set_bs_convergence_params(20, 1e-99, 1e-15);
+    // GMG.set_steps(100, 20); 
     
 
-//     GMG.init();
-//     GMG.set_verbose(0, 0);
-//     GMG.set_num_prepostsmooth(3,3);
-//     GMG.set_cycle('V');
+    // GMG.init();
+    // GMG.set_verbose(0, 0);
+    // GMG.set_num_prepostsmooth(3,3);
+    // GMG.set_cycle('V');
     
-//     GMG.solve(d_u, d_b, d_value);
-//     cudaDeviceSynchronize();
+    // GMG.solve(d_u, d_b, d_value);
+    // cudaDeviceSynchronize();
 
-//     cout << "Solver   ... DONE" << endl;
+    // cout << "Solver   ... DONE" << endl;
 
 
-// //     // // // DEBUG:CHECK:
-// //     // // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-//     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-// //     // printVector_GPU<<<1,10>>>( d_u, 10);
+//     // // // DEBUG:CHECK:
+//     // // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+//     // printVector_GPU<<<1,10>>>( d_u, 10);
     
     
-// //     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-//     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-//     // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+    // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 
 
 //     /*
