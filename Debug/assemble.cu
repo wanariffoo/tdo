@@ -221,6 +221,8 @@ bool Assembler::init_GPU(
                 throw(runtime_error("TODO: not done"));
             }
 
+
+            // TODO: CHECK: is the number correct?
             // loop through each level (stiffness matrix)
             for (int lev = m_topLev ; lev != 0 ; --lev)
                 max_row_size[lev] = 27*3;
@@ -229,7 +231,7 @@ bool Assembler::init_GPU(
             for (int lev = m_topLev - 1; lev != 0 ; --lev)
             {
                 p_max_row_size[lev] = 8;
-                r_max_row_size[lev] = 27;
+                r_max_row_size[lev] = 18;
             }
             
         }
@@ -290,13 +292,12 @@ bool Assembler::init_GPU(
 
     // TODO: assemble in GPU, currently it's assembling in CPU
     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
-    
 
     assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
-    // // allocating temp matrix to be used in RAP
-    // CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
-    // CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    // allocating temp matrix to be used in RAP
+    CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
     
 
 
@@ -1214,16 +1215,21 @@ bool Assembler::assembleRestMatrix_GPU(
             fillIndexVectorRest3D_GPU<<<gridDim,blockDim>>>(d_r_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
         }
 
-
-
-
+        // fill in restriction matrix's values, taken from prolongation matrix
+        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        {
+            calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
+            fillRestMatrix<<<gridDim, blockDim>>>(d_r_value[lev], d_r_index[lev], m_r_max_row_size[lev], d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        }
 
 
     }
     
     cudaDeviceSynchronize();
 
-    printLinearVector( d_r_index[0], m_num_rows[0], m_r_max_row_size[0]);
+    // printLinearVector( d_r_index[0], m_num_rows[0], m_r_max_row_size[0]);
+    // printLinearVector( d_r_index[1], m_num_rows[1], m_r_max_row_size[1]);
+    // printLinearVector( d_r_value[0], m_num_rows[0], m_r_max_row_size[0]);
     // printELLrow(0, d_r_value[0], d_r_index[0], m_r_max_row_size[0], m_num_rows[0], m_num_rows[1]);
 
 
