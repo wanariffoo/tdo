@@ -2101,7 +2101,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	size_t gridsize_2D = (Nx+1)*(Ny+1)*dim;
 
 	bool prev_layer = (id >= (Nx+1)*(Ny+1)*dim);
-	bool next_layer = (id < (Nx+1)*(Ny+1)*(Nz)*dim && (id));
+	bool next_layer = (id < (Nx+1)*(Ny+1)*(Nz)*dim);
 	bool south = ((id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim);
 	bool north = ((id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim);
 	bool west = ((id) % ((Nx + 1)*dim) >= dim);
@@ -2116,8 +2116,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 		
 		// south-west
-		if ( prev_layer && south && west )
 		// if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( prev_layer && south && west )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2127,7 +2127,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// south
-		if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim )
+		// if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim )
+		if ( prev_layer && south )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2138,7 +2139,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// south-east
-		if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( prev_layer && south && east )
 		{	
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2149,7 +2151,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// west
-		if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( prev_layer && west )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2161,7 +2164,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// origin
-		if ( id >= (Nx+1)*(Ny+1)*dim )
+		// if ( id >= (Nx+1)*(Ny+1)*dim )
+		if ( prev_layer )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2174,7 +2178,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 		// east
-		if ( (base_id == 0 && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 ) || id >= (Nx+1)*(Ny+1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0)
+		// if ( (base_id == 0 && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 ) || id >= (Nx+1)*(Ny+1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0)
+		if ( prev_layer && east )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2188,7 +2193,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 		// north-west
-		if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( prev_layer && north && west )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2199,7 +2205,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// north
-		if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim )
+		// if ( id >= (Nx+1)*(Ny+1)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim )
+		if ( prev_layer && north )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2210,8 +2217,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// north-east
-
-		if ( ((id) % ((Nx + 1)*(Ny + 1)*dim) && base_id == 0 && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 ) || ( (id) % ((Nx + 1)*(Ny + 1)*dim) && id >= (Nx+1)*(Ny+1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0) )
+		// if ( ((id) % ((Nx + 1)*(Ny + 1)*dim) && base_id == 0 && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 ) || ( (id) % ((Nx + 1)*(Ny + 1)*dim) && id >= (Nx+1)*(Ny+1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0) )
+		if ( prev_layer && north && east )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2233,7 +2240,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	//// current layer
 		
 		// south-west
-		if ( (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( south && west )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2244,7 +2252,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// south
-		if ( (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim )
+		// if ( (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim )
+		if ( south )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2255,7 +2264,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// south-east
-		if ( (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// if ( (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( south && east )
 		{	
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2266,7 +2276,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// west
-		if ( (id) % ((Nx + 1)*dim) >= dim )
+		// if ( (id) % ((Nx + 1)*dim) >= dim )
+		if ( west )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2287,7 +2298,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 		// east
-		if ( base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// if ( base_id == 0 || (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( base_id == 0 || east )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2301,7 +2313,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 		// north-west
-		if ( (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( north && west )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2312,7 +2325,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// north
-		if ( (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim )
+		// if ( (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim )
+		if ( north )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2323,7 +2337,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// north-east
-		if ( (base_id == 0 ) || ( (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 ) )
+		// if ( (base_id == 0 ) || ( (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 ) )
+		if ( base_id == 0 || (north && east ) )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2337,7 +2352,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	//// next layer
 	
 		// south-west
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( next_layer && south && west )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2347,7 +2363,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// south
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim )
+		if ( next_layer && south )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2358,7 +2375,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// south-east
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 )
+		if ( next_layer && south && east )
 		{	
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2369,7 +2387,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// west
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( next_layer && west )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2380,8 +2399,11 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 		}
 
+	
+
 		// origin
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim )
+		if ( next_layer )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2393,7 +2415,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 		// east
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 || base_id == 0 )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 || base_id == 0 )
+		if ( base_id == 0 || ( next_layer && east ) )
 		{
 
 			for(int i = 0 ; i < dim ; i++)
@@ -2407,7 +2430,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 		// north-west
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (id) % ((Nx + 1)*dim) >= dim )
+		if ( next_layer && north && west )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2418,7 +2442,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// north
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim )
+		if ( next_layer && north )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2429,7 +2454,8 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 
 		// north-east
-		if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 || base_id == 0 )
+		// if ( id < (Nx+1)*(Ny+1)*(Nz)*dim && (id) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim && (base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0 || base_id == 0 )
+		if ( base_id == 0 || (next_layer && north && east ) )
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
@@ -2460,13 +2486,13 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 
-	if ( id == 3 )
-	{
-		for ( int i = 0 ; i < max_row_size ; i++ )
-			printf( "%lu ", index[i + id*max_row_size] );
+	// if ( id == 0 )
+	// {
+	// 	for ( int i = 0 ; i < max_row_size ; i++ )
+	// 		printf( "%lu ", index[i + id*max_row_size] );
 
-		printf("\n");
-	}
+	// 	printf("\n");
+	// }
 
 
 

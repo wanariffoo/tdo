@@ -429,7 +429,7 @@ bool Assembler::init_GPU(
         }
     }
 
-    // printLinearVector( d_index[1], m_num_rows[1], m_max_row_size[1]);
+    printLinearVector( d_index[1], m_num_rows[1], m_max_row_size[1]);
 
     
     // // assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
