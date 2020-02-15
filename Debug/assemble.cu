@@ -205,15 +205,17 @@ bool Assembler::init_GPU(
             if (m_N[0][0] == 1 && m_N[0][1] == 1 && m_N[0][2] == 1)
             {
                 max_row_size[0] = 24;
+                p_max_row_size[0] = 8; // CHECK: not sure
+                r_max_row_size[0] = 8;
                 
-                throw(runtime_error("TODO: N={1,1,1) is not done yet"));
+                
             }
 
             else if (m_N[0][0] == 3 && m_N[0][1] == 1 && m_N[0][2] == 1 )
             {
                 max_row_size[0] = 36;
                 p_max_row_size[0] = 8;
-                r_max_row_size[0] = 18;
+                r_max_row_size[0] = 12;
             }
 
             else
@@ -428,44 +430,41 @@ bool Assembler::init_GPU(
             fillIndexVector3D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], max_row_size[lev], num_rows[lev]);
         }
     }
-
-    printLinearVector( d_index[1], m_num_rows[1], m_max_row_size[1]);
-
     
-    // // assembleGlobal_GPU<<<1,num_rows[m_topLev-1]>>>(d_index[m_topLev-1], m_N[m_topLev-1][0], m_N[m_topLev-1][1], max_row_size[m_topLev-1], num_rows[m_topLev-1]);
-    // cudaDeviceSynchronize();
     
 
-//     //// filling in the top level global stiffness matrix
-//     // CUDA block size for assembling the global stiffness matrix
-//     dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
+    //// filling in the top level global stiffness matrix
+    // CUDA block size for assembling the global stiffness matrix
+    dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
 
-//     // filling in from each element
-//     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-//         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+    // filling in from each element
+    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
 
-// // // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    cudaDeviceSynchronize();
 
-//     // calculating the needed cuda 2D grid size for the global assembly
-//     dim3 g_gridDim;
-//     dim3 g_blockDim;
+// printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
 
+    // calculating the needed cuda 2D grid size for the global assembly
+    dim3 g_gridDim;
+    dim3 g_blockDim;
+
+    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    // cout << m_bc_index[m_topLev][i] << endl;
+    
+    // TODO: CHECK: this is a bit shaky
+    // TODO: think it's a bit overkill to use a lot of cuda threads here
+    //// apply boundary conditions to global stiffness matrix
+    // global stiffness matrix
+    // calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
+    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
+
+        // NOTE: optional?
+//     // // prolongation matrix
+//     // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
 //     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-//     // cout << m_bc_index[m_topLev][i] << endl;
-    
-//     // TODO: CHECK: this is a bit shaky
-//     // TODO: think it's a bit overkill to use a lot of cuda threads here
-//     //// apply boundary conditions to global stiffness matrix
-//     // global stiffness matrix
-//     calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
-//     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-//         applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
-
-//         // NOTE: optional?
-// //     // // prolongation matrix
-// //     // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
-// //     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-// //     //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
+//     //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
 
 
 

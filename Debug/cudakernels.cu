@@ -794,7 +794,11 @@ void assembleGrid2D_GPU(
     int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
 	if ( idx < num_rows && idy < num_rows )
-    	addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*chi,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
+	{
+		size_t local_num_cols = pow(2,dim) * dim;
+    	addAt( dim*node_index[ idx/dim ] + ( idx % dim ), dim*node_index[idy/dim] + ( idy % dim ), value, index, max_row_size, pow(*chi,p)*A_local[ ( idx + idy*local_num_cols ) ]  );
+	}
+    	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*chi,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
 
     	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
 
