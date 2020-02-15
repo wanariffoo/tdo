@@ -301,42 +301,59 @@ bool Assembler::init_GPU(
     
 
 
-    // //// adding nodes and elements to the top-level global grid
-    // for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
-    //     m_node.push_back(Node(i));
+    //// adding nodes and elements to the top-level global grid
+    for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
+        m_node.push_back(Node(i));
 
-    // for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-    //     m_element.push_back(Element(i));
+    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+        m_element.push_back(Element(i));
 
-    // size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
+    size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
 
 
-    // // assigning the nodes to each element
-    // if ( m_dim == 2)
-    // {
-    //     for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-    //     {
-    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
-    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
-    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
-    //         m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
-    //     }
-    // }
+    // assigning the nodes to each element
+    if ( m_dim == 2)
+    {
+        for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+        {
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
+            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
+        }
+    }
 
-//     // m_dim == 3
-//     else    
-//     {
-//         throw(runtime_error("3D not done yet!"));
-//     }
+    // m_dim == 3
+    else    
+    {
+        for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+        {
+            size_t elemcount_2D = (m_N[m_topLev][0])*(m_N[m_topLev][1]); 
+            size_t gridsize_2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
+            size_t multiplier = i / elemcount_2D;
+            size_t base_id = i % elemcount_2D;
 
-//     m_node_index.resize(m_numElements[m_topLev]);
-//     d_node_index.resize(m_numElements[m_topLev]);
-//     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-//     {
-//         for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
-//             m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
-//     }
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D ]);   // lower left node
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + 1]);   // lower right node
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 1]);   // upper left node
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 2]);   // upper right node
+            
+            // next layer
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + gridsize_2D]);   // lower left node
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + 1 + gridsize_2D]);   // lower right node
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 1 + gridsize_2D]);   // upper left node
+            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 2 + gridsize_2D]);   // upper right node
 
+        }
+    }
+
+    m_node_index.resize(m_numElements[m_topLev]);
+    d_node_index.resize(m_numElements[m_topLev]);
+    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+    {
+        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+    }
 
 //     // allocating and copying the design variable to device
 //     // design variable currently has initial values of rho
