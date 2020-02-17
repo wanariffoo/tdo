@@ -763,13 +763,14 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 	index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
 	
 	b[index] = force;
-
+	
 	if ( dim == 3 )
 	{
 		for ( int i = 1 ; i < nodesPerDim[2] ; i++ )
 		{
 			index = index + (nodesPerDim[0]*nodesPerDim[1])*dim;
 			b[index] = force;
+			
 		}
 	}
 

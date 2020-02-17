@@ -353,10 +353,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     else
     {
-
-    
-
-    
+   
     addStep<<<1,1>>>(m_d_bs_step);
 
     // TODO: add this before foo loop
@@ -387,10 +384,11 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // z = r
     vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
 
-    // if ( bs_step == 4 )
+    // if ( bs_step == 1 )
     // {
-    //     // print_GPU<<<1,1>>>( m_d_bs_res );
-    //     printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_z, m_num_rows[0] );
+    //     print_GPU<<<1,1>>>( m_d_bs_res );
+    //     // printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_z, m_num_rows[0] );
+    //     // printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_r, m_num_rows[0] );
     //     cudaDeviceSynchronize();
     // }
     
@@ -404,7 +402,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     // rho = < z, r >
     dotProduct(m_d_bs_rho, m_d_bs_r, m_d_bs_z, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
     
-    // if ( bs_step == 4 )
+    // if ( bs_step == 1 )
     // {
     //     print_GPU<<<1,1>>>( m_d_bs_rho );
     //     // printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_z, m_num_rows[0] );
@@ -424,9 +422,10 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
     
         
-    // if ( bs_step == 4 )
+    // if ( bs_step == 1 )
     // {
     //     // print_GPU<<<1,1>>>( m_d_bs_rho );
+    //     // printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_z, m_num_rows[0] );
     //     printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_p, m_num_rows[0] );
     //     cudaDeviceSynchronize();
     // }
@@ -442,10 +441,10 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     Apply_GPU<<<m_gridDim[0],m_blockDim[0]>>>( m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], m_d_bs_p, m_d_bs_z );
 
       
-    // if ( bs_step == 4 )
+    // if ( bs_step == 1 )
     // {
     //     // print_GPU<<<1,1>>>( m_d_bs_rho );
-    //     // printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_z, m_num_rows[0] );
+    //     printVector_GPU<<<1,m_num_rows[0]>>>( m_d_bs_z, m_num_rows[0] );
     //     cudaDeviceSynchronize();
     // }
     
@@ -588,8 +587,8 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 
     // // DEBUG:
     //     cudaDeviceSynchronize();
-    //     printVector_GPU<<<1,8>>>( m_d_ctmp[lev], 8 );
-    //     cudaDeviceSynchronize();
+        // printVector_GPU<<<1,8>>>( m_d_ctmp[lev], 8 );
+        // cudaDeviceSynchronize();
         
 
         // c += ctmp;

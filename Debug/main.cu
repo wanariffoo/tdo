@@ -71,7 +71,7 @@ int main()
     // smoother (jacobi damping parameter)
     double damp = 2.0/3.0;
 
-    size_t local_num_rows = 4 * dim;
+    size_t local_num_rows = pow(2,dim)*dim;
 
     // TDO
     double rho = 0.3;
@@ -129,27 +129,26 @@ int main()
     Assembly.setBC(bc_index);
     Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
     
-    // cout << "Top-level number of rows = " << num_rows[numLevels - 1] << endl;
-    // cout << "Number of Elements = " << Assembly.getNumElements() << endl;
-    // cout << "Assembly ... DONE" << endl;
+    cout << "Top-level number of rows = " << num_rows[numLevels - 1] << endl;
+    cout << "Number of Elements = " << Assembly.getNumElements() << endl;
+    cout << "Assembly ... DONE" << endl;
   
-    // // vector u, b
-    // vector<double> b(num_rows[numLevels - 1], 0);
-    // double force = -1;
+    // vector u, b
+    vector<double> b(num_rows[numLevels - 1], 0);
+    double force = -1;
     
-    // applyLoad(b, N, numLevels, 0, dim, force);
+    applyLoad(b, N, numLevels, 0, dim, force);
 
 
 
-    // double* d_u;
-    // double* d_b;
-    // // TODO: optimizable: malloc while program is assembling
-    // CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
-    // CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
+    double* d_u;
+    double* d_b;
+    // TODO: optimizable: malloc while program is assembling
+    CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
+    CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
-    // CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
-    // CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
-
+    CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
+    CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
 
 
@@ -157,23 +156,23 @@ int main()
     // #                           SOLVER                                  #
     // ###################################################################*/
 
-    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
-    // // TODO: repair these three, it's a bit messed up
-    // GMG.set_convergence_params(100, 1e-99, 1e-15);
-    // GMG.set_bs_convergence_params(20, 1e-99, 1e-15);
-    // GMG.set_steps(100, 20); 
+    // TODO: repair these three, it's a bit messed up
+    GMG.set_convergence_params(100, 1e-99, 1e-15);
+    GMG.set_bs_convergence_params(100, 1e-99, 1e-15);
+    GMG.set_steps(100, 100); 
     
 
-    // GMG.init();
-    // GMG.set_verbose(0, 0);
-    // GMG.set_num_prepostsmooth(3,3);
-    // GMG.set_cycle('V');
+    GMG.init();
+    GMG.set_verbose(1, 0);
+    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_cycle('V');
     
-    // GMG.solve(d_u, d_b, d_value);
-    // cudaDeviceSynchronize();
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
 
-    // cout << "Solver   ... DONE" << endl;
+    cout << "Solver   ... DONE" << endl;
 
 
     // /* ##################################################################

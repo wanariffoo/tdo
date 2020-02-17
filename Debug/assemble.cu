@@ -423,8 +423,7 @@ bool Assembler::init_GPU(
 
     else
     {   
-        // for (int lev = m_topLev ; lev >= 0 ; --lev )
-        int lev = m_topLev;
+        for (int lev = m_topLev ; lev >= 0 ; --lev )
         {
             calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
             fillIndexVector3D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], max_row_size[lev], num_rows[lev]);
@@ -456,31 +455,31 @@ bool Assembler::init_GPU(
     // TODO: think it's a bit overkill to use a lot of cuda threads here
     //// apply boundary conditions to global stiffness matrix
     // global stiffness matrix
-    // calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
+    calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
+    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+        applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
 
         // NOTE: optional?
-//     // // prolongation matrix
-//     // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
-//     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-//     //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
+    // prolongation matrix
+    // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
+    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
 
 
 
 
-//     //// obtaining the coarse stiffness matrices of each lower grid level
-//     // // TODO: use optimized matrix multiplication
-//     dim3 temp_gridDim;
-//     dim3 temp_blockDim;
+    //// obtaining the coarse stiffness matrices of each lower grid level
+    // // TODO: use optimized matrix multiplication
+    dim3 temp_gridDim;
+    dim3 temp_blockDim;
     
-//     // A_coarse = R * A_fine * P
-//     for ( int lev = m_topLev ; lev != 0 ; lev--)
-//     {
-//         calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
-//         setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
-//         RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
-//     }
+    // A_coarse = R * A_fine * P
+    for ( int lev = m_topLev ; lev != 0 ; lev--)
+    {
+        calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
+        setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
+        RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
+    }
 
 
 
@@ -499,7 +498,7 @@ bool Assembler::init_GPU(
     // printLinearVector( d_index[1], num_rows[1], max_row_size[1]);
     // printLinearVector( d_index[2], num_rows[2], max_row_size[2]);
     // printLinearVector( d_A_local, 8, 8);
-    // printLinearVector( d_temp_matrix, 16, 42);
+    // printLinearVector( m_d_temp_matrix, num_rows[1], num_rows[2]);
     cudaDeviceSynchronize();
 
     return true;
