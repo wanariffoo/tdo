@@ -1300,9 +1300,9 @@ void UpdateDrivingForce(double *df, double* uTau, double p, double *chi, double 
 
 // x[] = u[]^T * A * u[]
 __global__
-void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim)
+void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume)
 {
-	double temp[24];
+	double temp[24]; //CHECK:
 
 	*x = 0;
 	for ( int n = 0; n < num_rows; n++ )
@@ -1330,7 +1330,12 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 		
 	}
 	
-	*x *= 0.5 * p * pow(*chi, p-1);
+	*x *= 0.5 * p * pow(*chi, p-1) / local_volume;
+
+
+	// TODO: add volume 
+
+	
 
 			// if(n==2)
 			// printf("%e = %e x %e\n", *x, temp[n], u[global_col]);
@@ -1368,13 +1373,15 @@ void calcDrivingForce(
     dim3 gridDim,           	// grid and 
     dim3 blockDim,
 	const size_t dim,
-	size_t numElements)         // block sizes needed for running CUDA kernels
+	size_t numElements,			// block sizes needed for running CUDA kernels
+	double local_volume
+	)         
 {
 	// calculate the driving force in each element ( 1 element per thread )
     // df[] = 0.5 * p * pow(chi,p-1) - u[]^T * A * u[]
 	
 	for ( int i = 0 ; i < numElements; i++ )
-	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim);
+	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim, local_volume);
 
     cudaDeviceSynchronize();
 	// printVector_GPU<<<1,numElements>>>( df, numElements);
@@ -1487,46 +1494,46 @@ void calcDrivingForce_(
 }
 
 __device__
-double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz )
+double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz, double h )
 {
-    double value = 4.0 * array[ind];
+    
+	// TODO: add h
+	double value = 4.0 * array[ind];
 
-	// if ( ind == 0 )
-	// {
-	// 	printf("%f\n", *array);
-	// 	printf("%lu\n", N);
-	// }
+	bool east = ( (ind + 1) % Nx != 0 );
+	bool north = ( ind + Nx < Nx*Ny );
+	bool west = ( ind % Nx != 0 );
+	bool south = ( ind >= Nx );
 	
     // east element
-    if ( (ind + 1) % Nx != 0 )
+    if ( east )
         value += -1.0 * array[ind + 1];
 	else
 		value += -1.0 * array[ind];
     
     // north element
-    if ( ind + Nx < Nx*Ny )
+    if ( north )
         value += -1.0 * array[ind + Nx];
 	else
 		value += -1.0 * array[ind];
-	
 
     // west element
-    if ( ind % Nx != 0 )
+    if ( west )
         value += -1.0 * array[ind - 1];
 	else
 		value += -1.0 * array[ind];
 
     // south element
-    if ( ind >= Nx )
+    if ( south )
         value += -1.0 * array[ind - Nx];
 	else
 		value += -1.0 * array[ind];
 
-    return value;
+    return value/(h*h);
 }
 
 __global__ 
-void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements)
+void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements, double h)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1541,9 +1548,9 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 	while(index + offset < numElements){
         
 		//TODO:DEBUG:
-        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz ) ) + *eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz, h ) ) + *eta ) );
         // temp = fmaxf(temp, ( df_array[index + offset] + *eta ) );
-         
+        
 		offset += stride;
 	}
     
@@ -1570,7 +1577,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 
 
 __global__ 
-void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements)
+void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements, double h)
 {
 	unsigned int index = threadIdx.x + blockIdx.x*blockDim.x;
 	unsigned int stride = gridDim.x*blockDim.x;
@@ -1587,7 +1594,7 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
 
 		while(index + offset < numElements){
 			
-			temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz ) ) - *eta ) );
+			temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz, h ) ) - *eta ) );
 			// temp = fminf(temp, ( df_array[index + offset] - *eta ) );
 			offset += stride;
 		}
@@ -1628,7 +1635,8 @@ void calcChiTrial(
     size_t Nx,
     size_t Ny,
     size_t Nz,
-    size_t numElements
+    size_t numElements,
+	double h
 )
 {
     unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
@@ -1637,7 +1645,7 @@ void calcChiTrial(
     {
 		double del_chi;
 		
-        del_chi = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, Nx, Ny, Nz ) ) );
+        del_chi = ( del_t / *eta ) * ( df[id] - *lambda_trial + (*beta)*( laplacian_GPU( chi, id, Nx, Ny, Nz, h ) ) );
 
         if ( del_chi + chi[id] > 1 )
         chi_trial[id] = 1;
@@ -1841,7 +1849,7 @@ __global__ void RA(
 		
 		for ( int j = 0 ; j < num_cols ; ++j )
 			temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(j, idx, value, index, max_row_size);
-		
+											//TODO: R matrix, no need valueAt, direct lookup
 	}
 
 }
@@ -1971,21 +1979,6 @@ __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)
 }
 
 
-// TODO: to delete
-__global__
-void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size)
-{
-    for(size_t k = 0; k < max_row_size; ++k)
-    {
-        if(vIndex[x * max_row_size + k] == y)
-		{
-            printf("%e\n", vValue[x * max_row_size + k]);
-
-		}
-    }
-
-
-}
 
 __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows)
 {
@@ -2876,5 +2869,48 @@ __global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny,
 
 
 
+
+}
+
+
+// DEBUG:
+__global__ void checkMassConservation(double* chi, double local_volume, size_t numElements)
+{
+    unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+    __shared__ double temp[1024];
+	
+    
+    if ( id < numElements)
+    {
+        // sum of chi * local_volume
+        temp[id] = chi[id] * local_volume;
+    }
+	__syncthreads();
+
+    if ( id == 0 )
+    {
+        for ( int i = 1 ; i < numElements ; i++ )
+        {
+            temp[0] += temp[i];
+        }
+
+		// total volume
+		double vol = local_volume * numElements;
+
+        printf("chi_trial %f\n", temp[0] / vol);
+    }
+}
+
+
+
+// // TODO: to delete
+__global__
+void bar(double* chi)
+{
+	// laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz )
+
+	for ( int i = 0 ; i < 192 ; ++i )
+		printf("%d %e\n", i, laplacian_GPU( chi, i, 24, 8, 0, 0.125 ));
 
 }

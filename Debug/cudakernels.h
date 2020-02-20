@@ -220,9 +220,9 @@ __global__ void axpy_neg_GPU(double* d_x, double* d_alpha, double* d_p, size_t n
 
 __global__ void UpdateDrivingForce(double *df, double* uTau, double p, double *chi, double local_volume, size_t N);
 
-__global__ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim);
+__global__ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume);
 
-__host__ void calcDrivingForce(double *df, double *chi, double p, double *temp, double *u, vector<size_t*> node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim, size_t dim, size_t numElements);
+__host__ void calcDrivingForce(double *df, double *chi, double p, double *temp, double *u, vector<size_t*> node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim, size_t dim, size_t numElements, double local_volume);
 
 //TODO: delete
 __host__ void TestcalcDrivingForce(double *df, double *chi, double p, double *u, size_t* node_index, double* d_A_local, size_t num_rows, dim3 gridDim, dim3 blockDim, size_t numElements);
@@ -232,13 +232,13 @@ __global__ void calcDrivingForce_(double *df, double *chi, double p, double *tem
 
 __global__ void sumOfVector_GPU(double* sum, double* x, size_t n);
 
-__device__ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz );
+__device__ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz, double h );
 
-__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements);
+__global__ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements, double h);
 
-__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements);
+__global__ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, double *chi, double* eta, int Nx, int Ny, int Nz, unsigned int numElements, double h);
 
-__global__ void calcChiTrial( double *chi, double *df, double *lambda_trial, double del_t, double* eta, double* beta, double* chi_trial, size_t Nx, size_t Ny, size_t Nz, size_t numElements);
+__global__ void calcChiTrial( double *chi, double *df, double *lambda_trial, double del_t, double* eta, double* beta, double* chi_trial, size_t Nx, size_t Ny, size_t Nz, size_t numElements, double h);
 
 __global__ void calcLambdaTrial(double *rho_trial, double rho, double *lambda_l, double *lambda_u, double *lambda_trial);
 
@@ -266,9 +266,12 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 					size_t lev);
 
 // DEBUG: TEMP:
-__global__ void bar(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size);
+__global__ void bar( double* chi );
 
 
+
+// DEBUG:
+__global__ void checkMassConservation(double* chi, double local_volume, size_t numElements);
 
 
 #endif // CUDAKERNELS_H

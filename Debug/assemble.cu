@@ -288,7 +288,7 @@ bool Assembler::init_GPU(
     // TODO: 3D doesn't work yet
     // assembling the local stiffness matrix
     assembleLocal();
-    
+ 
     //// assembling prolongation & restriction matrices
 
     // TODO: assemble in GPU, currently it's assembling in CPU
@@ -604,6 +604,8 @@ bool Assembler::assembleLocal()
                 }
             }
         }
+
+
     }
 
     if ( m_dim == 3 )

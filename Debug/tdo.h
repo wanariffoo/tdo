@@ -11,8 +11,6 @@ public:
     bool innerloop(double* &d_u, double* &d_chi);
     void set_verbose(bool verbose);
 
-
-
 private:
 
     bool m_verbose;
@@ -37,6 +35,8 @@ private:
     double m_rho;
     size_t m_p;
 
+    // VTK
+    int m_file_index = 0;
 
     double m_betastar;
     double m_etastar;

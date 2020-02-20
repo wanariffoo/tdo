@@ -5,7 +5,97 @@
 #include "cudakernels.h"
 #include "tdo.h"
 
+#include <fstream>
+#include <stdexcept>
+#include <sstream>
+#include <string>
+
 using namespace std;
+
+void WriteVectorToVTK_(vector<double> &df, vector<double> &u, const std::string& filename, size_t dim, vector<size_t> numNodesPerDim, double h, size_t numElements, size_t numNodes)
+{
+	
+	std::ofstream ofs(filename, std::ios::out);
+	if (ofs.bad())
+	{
+		std::ostringstream oss;
+		oss << "File '" << filename << "' could not be opened for writing.";
+		throw std::runtime_error(oss.str());
+	}
+
+	ofs << "# vtk DataFile Version 2.0" << std::endl;
+	ofs << "Thermodynamics Topology Optimzation" << std::endl;
+	ofs << "ASCII" << std::endl;
+	ofs << endl;
+	ofs << "DATASET STRUCTURED_GRID" << std::endl;
+
+	if ( dim == 2 )
+		numNodesPerDim.push_back(1);
+
+	// specify number of nodes in each dimension
+	ofs << "DIMENSIONS";
+	for (std::size_t i = 0; i < 3; ++i)
+		ofs << " " << numNodesPerDim[i];
+	// for (std::size_t i = dim; i < 3; ++i)
+	// 		ofs << " " << 1;
+	ofs << std::endl;
+
+	// specify the coordinates of all points
+	ofs << "POINTS ";
+	ofs << numNodes << " float" << endl;
+
+	for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
+	{
+		for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+		{
+			for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
+				ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+		}
+	}
+
+	ofs << endl;
+
+	// specifying the design variable in each element
+	ofs << "CELL_DATA " << numElements << endl;
+	ofs << "SCALARS df double" << endl;
+	ofs << "LOOKUP_TABLE default" << endl;
+
+	for (int i = 0 ; i < numElements ; i++)
+		ofs << " " << df[i] << endl;
+
+	ofs << endl;
+
+	// specifying the displacements for all dimensions in each point
+	ofs << "POINT_DATA " << numNodes << std::endl;
+	ofs << "VECTORS displacements double" << std::endl;
+
+	
+	for ( int i = 0 ; i < numNodes ; i++ )
+	{
+		if ( dim == 2 )
+		{
+			for ( int j = 0 ; j < 2 ; j++ )
+				ofs << " " << u[dim*i + j];
+
+			// setting displacement in z-dimension to zero
+			ofs << " 0";
+		}
+
+		else
+		{
+			for ( int j = 0 ; j < dim ; j++ )
+				ofs << " " << u[dim*i + j];
+		}
+
+		ofs << endl;
+	}
+
+
+	
+}
+
+
+
 
 
 TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, double etastar, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p)
@@ -39,8 +129,8 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
     // local volume
     // NOTE: wrong here because you thought m_h here is baselevel's, it's actually the finest level
     m_local_volume = pow(m_h, m_dim); 
-
     
+
     
 }
 
@@ -102,37 +192,37 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     setToTrue<<<1,1>>>( m_d_tdo_foo );
     // setToZero<<<1,1>>>( m_d_uTAu );
 
-
+    // bar<<<1,1>>>( m_d_chi );    
+    
+    // cout << m_local_volume << endl;
     
     // calculating the driving force of each element
-    // df[] = ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) ) * sum( u^T * A_local * u )
-    // df[] = u^T * A_local * u
-    // for ( int i = 0 ; i < m_numElements ; i++ )
-    //     calcDrivingForce ( &m_d_df[i], &m_d_chi[i], m_p, m_d_uTAu, m_d_u, m_d_node_index[i], m_d_A_local, m_num_rows, m_gridDim, m_blockDim );
+    // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
+    calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
+
+
+
+    // getting vtk for driving force
+    vector<size_t> numNodesPerDim(3);
+    numNodesPerDim[0] = m_Nx + 1;
+    numNodesPerDim[1] = m_Ny + 1;
+    numNodesPerDim[2] = m_Nz + 1;
+    size_t numNodes = numNodesPerDim[0] * numNodesPerDim[1] * numNodesPerDim[2];
     
-        // printVector_GPU<<<1, m_num_rows>>>( m_d_u, m_num_rows );
-
-    calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements );
-
-    // if(m_verbose)
-    //     printVector_GPU<<<1,m_numElements>>>( m_d_df, m_numElements);    
-
-    // UpdateDrivingForce<<<m_gridDim,m_blockDim>>>( m_d_df, m_d_uTAu, m_p, m_d_chi, m_local_volume, m_numElements );
-    cudaDeviceSynchronize();
-
-    // printVector_GPU<<<1,20>>>( m_d_u, 20);
-     
-
-    // d_temp = u^T * A * u
-    // vectorEquals_GPU<<<m_gridDim,m_blockDim>>>(m_d_uTAu, m_d_df, m_numElements);
-
-    // NOTE: reduction issue if numElements > blocksize
-    // calcP_w<<<m_gridDim,m_blockDim>>>(m_d_p_w, m_d_df, m_d_uTAu, m_d_chi, m_p, m_local_volume, m_numElements);
-
+    vector<double> df_(m_numElements, 0);
+    vector<double> u(numNodes * m_dim, 0);
+    string fileformat(".vtk");
+    stringstream ss_; 
+    ss_ << "vtk/df";
+    ss_ << m_file_index;
+    ss_ << fileformat;
+    CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * numNodes * m_dim, cudaMemcpyDeviceToHost) );
+    CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) 	);
+    WriteVectorToVTK_(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    ++m_file_index;
     
     calcP_w(m_d_p_w, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements);
     
-
     // // calculate eta and beta
     calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
     cudaDeviceSynchronize();
@@ -150,9 +240,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
     
 
-    // CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
+    
 
-    // NOTE:
+
     //// for loop
     for ( int j = 0 ; j < m_n ; j++ )
     {
@@ -160,17 +250,13 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         // bisection algo: 
      
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
-        calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements);
-        calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements);
+        calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
+        calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
         
-  
         while(m_tdo_foo)
         {
            
-            calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements);
-
-            // printVector_GPU<<<1,4>>>( m_d_chi_tr, 4);
-            // cudaDeviceSynchronize();
+            calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
 
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_chi_tr, m_numElements);
@@ -182,18 +268,21 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
             // cout << "\n";
 
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
-            
+
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
         }
 
+
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
        
-  }
+    }
+
 
         // if(m_verbose)
         // printVector_GPU<<<1,m_numElements>>>( m_d_chi, m_numElements);    
+        // bar<<<1,1>>>( m_d_chi );    
 
     
     return true;
