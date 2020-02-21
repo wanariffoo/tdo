@@ -265,6 +265,12 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 					vector<size_t> num_rows, 
 					size_t lev);
 
+__global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t num_rows,
+						double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, 
+						double* r_value, size_t* r_index, size_t r_max_row_size, 
+						double* p_value, size_t* p_index, size_t p_max_row_size, 
+						size_t lev);
+
 // DEBUG: TEMP:
 __global__ void bar( double* chi );
 

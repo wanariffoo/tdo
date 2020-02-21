@@ -1931,45 +1931,113 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 	// calculateDimensions2D( num_rows[0] * num_rows[0], gridDim, blockDim);
 	AP<<<gridDim,blockDim>>>( value[lev-1], index[lev-1], max_row_size[lev-1], p_value[lev-1], p_index[lev-1], p_max_row_size[lev-1], temp_matrix, num_rows[lev-1], num_rows[lev]);
 	cudaDeviceSynchronize();
+	
+}
 
-	// cout << blockDim.x << endl;
-	// cout << blockDim.y << endl;
-	// cout << blockDim.z << endl;
 
-	// A_coarse = temp_matrix * P
+// A_coarse = R * A_fine * P
+__global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t num_rows,
+						double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, 
+						double* r_value, size_t* r_index, size_t r_max_row_size, 
+						double* p_value, size_t* p_index, size_t p_max_row_size, 
+						size_t lev)
+{
 
-	// printVector_GPU<<<1, 18*50>>>( temp_matrix, 18*50);
+	__shared__ double RAP[32][32];
 
-	// printELL_GPU<<<1, 1>>> (value[2], index[2], max_row_size[2], num_rows[2], num_rows[2]);
-	// printELL_GPU<<<1, 1>>> (r_value[0], r_index[0], r_max_row_size[0], 8, 18);
+	// RAP = R_row_i * A_i_k * P_k_col
 
-	// if ( lev == 1 )
-	// {
+	unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
+	
+	if ( col < num_rows_ && row < num_rows_)
+	{
+
+	RAP[row][col] = 0;
+
+	
+	for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
+	{
+		for ( int j = 0 ; j < num_rows ; j++ )
+		{
+		// k = r_index[k_];
+		// printf("%e\n", valueAt(r_index[i], col, value, index, max_row_size));
+		// printf("%e\n", valueAt(row, col, value, index, max_row_size));
+		// printf("%e\n", R_ik_A_kl[row][col] );
+			// j = index[j]
+			// printf("k=%lu, j=%lu : %e %e %e \n", r_index[k_], j, 
+			// valueAt(row, r_index[k_], r_value, r_index, r_max_row_size), 
+			// valueAt(j, r_index[k_], value, index, max_row_size), 
+			// valueAt(0, col, p_value, p_index, p_max_row_size)  );
+			
+		RAP[row][col] += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
+		// RAP[row][col] += valueAt(row, r_index[k_], r_value, r_index, r_max_row_size) * valueAt(j, r_index[k_], value, index, max_row_size) * valueAt(r_index[k_], col, p_value, p_index, p_max_row_size);
+			
+		}
 		
-	// 	// printELLrow(0, value[0], index[0], max_row_size[0], num_rows[0], num_rows[0]);
-	// 	printLinearVector( temp_matrix, 16, 42);
-	// }
+	}
 
 
-	// for ( int i = 0 ; i < num_rows ; i++ )
+	setAt( row, col, value_, index_, max_row_size_, RAP[row][col] );
+
+	}
+
+	// for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
 	// {
-	// 	for( int j = 0 ; j < num_rows_ ; j++ )
+	// 	// k = r_index[k_];
+	// 	// printf("%e\n", valueAt(r_index[i], col, value, index, max_row_size));
+	// 	// printf("%e\n", valueAt(row, col, value, index, max_row_size));
+	// 	// printf("%e\n", R_ik_A_kl[row][col] );
+	// 	for ( int j = 0 ; j < max_row_size ; j++ )
 	// 	{
-	// 		for ( int k = 0 ; k < num_rows ; k++)
-	// 			foo[i][j] += A[i][k] * P[k][j];
+	// 		// j = index[j]
+	// 		// printf("k=%lu, j=%lu : %e %e %e \n", r_index[k_], index[j + row*max_row_size], valueAt(row, r_index[k_], r_value, r_index, r_max_row_size), valueAt(r_index[k_], index[j], value, index, max_row_size), valueAt(index[j], col, p_value, p_index, p_max_row_size)  );
+	// 		// printf("k=%lu, j=%lu : %e \n", r_index[k_], index[j], valueAt(r_index[k_], index[j], value, index, max_row_size) );
+	// 		RAP[row][col] += valueAt(row, r_index[k_], r_value, r_index, r_max_row_size) * valueAt(r_index[k_], index[j + row*max_row_size], value, index, max_row_size) * valueAt(index[j + row*max_row_size], col, p_value, p_index, p_max_row_size);
+			
+	// 	}
+
+	// // 	// RAP[row][col] = RA[row][col] * valueAt(k, col, p_value, p_index, p_max_row_size);
+		
+	// // }
+	// __syncthreads();
+	// 	printf("RAP[0][0] = %e\n", RAP[row][col]);
+		// printf("%e\n", valueAt(2,2, value, index, max_row_size));
+
+
+	// printf("%lu\n", r_index[0]);
+	// printf("%lu\n", r_index[1]);
+
+	
+
+
+	// for(size_t k = 0; k < P.num_rows(); ++k){
+	// 	for(auto it = P.begin(k); it !=  P.end(k); ++it){
+
+	// 		const size_t i = it.index();
+	// 		const double& P_ki = it.value(); 
+
+	// 		for(auto it = A.begin(k); it !=  A.end(k); ++it){
+
+	// 			const size_t l = it.index();
+	// 			const double& A_kl = it.value();
+
+	// 			const double P_ki_A_kl = P_ki * A_kl;		RA[row][col] = R[row][i] * A[i][k]
+
+	// 			for(auto it = P.begin(l); it !=  P.end(l); ++it){
+
+	// 				const size_t j = it.index();
+	// 				const double& P_lj = it.value();
+
+	// 				const double P_ki_A_kl_P_lj =  P_ki_A_kl * P_lj;
+	// 				if(P_ki_A_kl_P_lj != 0.0)
+	// 					RAP(i,j) += P_ki_A_kl_P_lj;
+	// 			}
+	// 		}
 	// 	}
 	// }
-
-	// // A_ = P^T * foo
-	// for ( int i = 0 ; i < num_rows_ ; i++ )
-    //     {
-    //         for( int j = 0 ; j < num_rows_ ; j++ )
-    //         {
-    //             for ( int k = 0 ; k < num_rows ; k++)
-    //                 A_[i][j] += P[k][i] * foo[k][j];
-    //         }
-    //     }
-
+	
+	
 }
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)

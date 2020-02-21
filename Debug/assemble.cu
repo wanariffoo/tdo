@@ -473,18 +473,22 @@ bool Assembler::init_GPU(
     dim3 temp_gridDim;
     dim3 temp_blockDim;
     
-    // A_coarse = R * A_fine * P
-    for ( int lev = m_topLev ; lev != 0 ; lev--)
-    {
-        calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
-        setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
-        RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
-    }
+    // // A_coarse = R * A_fine * P
+    // for ( int lev = m_topLev ; lev != 0 ; lev--)
+    // {
+    //     calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
+    //     setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
+    //     RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
+    // }
 
 
+    calculateDimensions2D( num_rows[0], num_rows[0], temp_gridDim, temp_blockDim);
+    RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[1], d_index[1], max_row_size[1], num_rows[1], 
+                                            d_value[0], d_index[0], max_row_size[0], num_rows[0], 
+                                            d_r_value[0], d_r_index[0], r_max_row_size[0],
+                                            d_p_value[0], d_p_index[0], p_max_row_size[0], 0);
 
-
-    // cout << "aps" << endl;
+    // cout << "max_row_size[1]" << endl;
     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
