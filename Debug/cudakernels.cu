@@ -1942,102 +1942,24 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 						double* p_value, size_t* p_index, size_t p_max_row_size, 
 						size_t lev)
 {
+		double RAP;
 
-	__shared__ double RAP[32][32];
-
-	// RAP = R_row_i * A_i_k * P_k_col
-
-	unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
-	unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
-	
-	if ( col < num_rows_ && row < num_rows_)
-	{
-
-	RAP[row][col] = 0;
-
-	
-	for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
-	{
-		for ( int j = 0 ; j < num_rows ; j++ )
+		unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
+		unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
+		
+		// RAP = R_row_i * A_i_k * P_k_col
+		if ( col < num_rows_ && row < num_rows_)
 		{
-		// k = r_index[k_];
-		// printf("%e\n", valueAt(r_index[i], col, value, index, max_row_size));
-		// printf("%e\n", valueAt(row, col, value, index, max_row_size));
-		// printf("%e\n", R_ik_A_kl[row][col] );
-			// j = index[j]
-			// printf("k=%lu, j=%lu : %e %e %e \n", r_index[k_], j, 
-			// valueAt(row, r_index[k_], r_value, r_index, r_max_row_size), 
-			// valueAt(j, r_index[k_], value, index, max_row_size), 
-			// valueAt(0, col, p_value, p_index, p_max_row_size)  );
+			RAP = 0;
 			
-		RAP[row][col] += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
-		// RAP[row][col] += valueAt(row, r_index[k_], r_value, r_index, r_max_row_size) * valueAt(j, r_index[k_], value, index, max_row_size) * valueAt(r_index[k_], col, p_value, p_index, p_max_row_size);
-			
+			for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
+			{
+				for ( int j = 0 ; j < num_rows ; j++ )
+					RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
+			}
+
+			setAt( row, col, value_, index_, max_row_size_, RAP );
 		}
-		
-	}
-
-
-	setAt( row, col, value_, index_, max_row_size_, RAP[row][col] );
-
-	}
-
-	// for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
-	// {
-	// 	// k = r_index[k_];
-	// 	// printf("%e\n", valueAt(r_index[i], col, value, index, max_row_size));
-	// 	// printf("%e\n", valueAt(row, col, value, index, max_row_size));
-	// 	// printf("%e\n", R_ik_A_kl[row][col] );
-	// 	for ( int j = 0 ; j < max_row_size ; j++ )
-	// 	{
-	// 		// j = index[j]
-	// 		// printf("k=%lu, j=%lu : %e %e %e \n", r_index[k_], index[j + row*max_row_size], valueAt(row, r_index[k_], r_value, r_index, r_max_row_size), valueAt(r_index[k_], index[j], value, index, max_row_size), valueAt(index[j], col, p_value, p_index, p_max_row_size)  );
-	// 		// printf("k=%lu, j=%lu : %e \n", r_index[k_], index[j], valueAt(r_index[k_], index[j], value, index, max_row_size) );
-	// 		RAP[row][col] += valueAt(row, r_index[k_], r_value, r_index, r_max_row_size) * valueAt(r_index[k_], index[j + row*max_row_size], value, index, max_row_size) * valueAt(index[j + row*max_row_size], col, p_value, p_index, p_max_row_size);
-			
-	// 	}
-
-	// // 	// RAP[row][col] = RA[row][col] * valueAt(k, col, p_value, p_index, p_max_row_size);
-		
-	// // }
-	// __syncthreads();
-	// 	printf("RAP[0][0] = %e\n", RAP[row][col]);
-		// printf("%e\n", valueAt(2,2, value, index, max_row_size));
-
-
-	// printf("%lu\n", r_index[0]);
-	// printf("%lu\n", r_index[1]);
-
-	
-
-
-	// for(size_t k = 0; k < P.num_rows(); ++k){
-	// 	for(auto it = P.begin(k); it !=  P.end(k); ++it){
-
-	// 		const size_t i = it.index();
-	// 		const double& P_ki = it.value(); 
-
-	// 		for(auto it = A.begin(k); it !=  A.end(k); ++it){
-
-	// 			const size_t l = it.index();
-	// 			const double& A_kl = it.value();
-
-	// 			const double P_ki_A_kl = P_ki * A_kl;		RA[row][col] = R[row][i] * A[i][k]
-
-	// 			for(auto it = P.begin(l); it !=  P.end(l); ++it){
-
-	// 				const size_t j = it.index();
-	// 				const double& P_lj = it.value();
-
-	// 				const double P_ki_A_kl_P_lj =  P_ki_A_kl * P_lj;
-	// 				if(P_ki_A_kl_P_lj != 0.0)
-	// 					RAP(i,j) += P_ki_A_kl_P_lj;
-	// 			}
-	// 		}
-	// 	}
-	// }
-	
-	
 }
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)

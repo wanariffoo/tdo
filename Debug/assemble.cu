@@ -473,21 +473,18 @@ bool Assembler::init_GPU(
     dim3 temp_gridDim;
     dim3 temp_blockDim;
     
-    // // A_coarse = R * A_fine * P
-    // for ( int lev = m_topLev ; lev != 0 ; lev--)
-    // {
-    //     calculateDimensions(num_rows[lev] * num_rows[lev-1], temp_gridDim, temp_blockDim);
-    //     setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, num_rows[lev] * num_rows[lev-1]);
-    //     RAP( d_value, d_index, max_row_size, d_r_value, d_r_index, r_max_row_size, d_p_value, d_p_index, p_max_row_size, m_d_temp_matrix, num_rows, lev);
-    // }
+    // A_coarse = R * A_fine * P
+    for ( int lev = m_topLev ; lev != 0 ; lev--)
+    {
+        calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
+        RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
+                                                d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 
+                                                d_r_value[lev-1], d_r_index[lev-1], r_max_row_size[lev-1],
+                                                d_p_value[lev-1], d_p_index[lev-1], p_max_row_size[lev-1], lev-1);
+    }
 
 
-    calculateDimensions2D( num_rows[0], num_rows[0], temp_gridDim, temp_blockDim);
-    RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[1], d_index[1], max_row_size[1], num_rows[1], 
-                                            d_value[0], d_index[0], max_row_size[0], num_rows[0], 
-                                            d_r_value[0], d_r_index[0], r_max_row_size[0],
-                                            d_p_value[0], d_p_index[0], p_max_row_size[0], 0);
-
+    
     // cout << "max_row_size[1]" << endl;
     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
@@ -999,24 +996,24 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
     }
 
 
-    // // applying BC to relevant DOFs
-    // for ( int k = lev ; k != 0 ; k-- )
-    // {
-    //     // loop through each element in bc_index vector
-    //     for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
-    //     {
-    //         size_t j = m_bc_index[k-1][bc];
-    //         size_t node_index = j / m_dim;
+    // applying BC to relevant DOFs
+    for ( int k = lev ; k != 0 ; k-- )
+    {
+        // loop through each element in bc_index vector
+        for ( size_t bc = 0 ; bc < m_bc_index[k-1].size(); ++bc )
+        {
+            size_t j = m_bc_index[k-1][bc];
+            size_t node_index = j / m_dim;
 
-    //         // clear columns of the bc indices 
-    //         for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
-    //                 m_P[k-1][i][j] = 0;
+            // clear columns of the bc indices 
+            for( int i = 0 ; i < m_numNodes[k]*m_dim ; i++ )
+                    m_P[k-1][i][j] = 0;
                     
 
-    //         m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
+            m_P[k-1][ getFineNode(node_index, m_N[k-1], m_dim)*m_dim + (j%m_dim) ][m_dim*node_index + (j%m_dim)] = 1;
                 
-    //     }
-    // }
+        }
+    }
 
     // resizing the vectors
     m_p_value_g.resize( m_numLevels - 1 );
