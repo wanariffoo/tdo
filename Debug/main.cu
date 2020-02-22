@@ -56,7 +56,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 2;
+    size_t numLevels = 8;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);

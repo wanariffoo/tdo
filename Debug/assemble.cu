@@ -283,7 +283,7 @@ bool Assembler::init_GPU(
     m_r_max_row_size = r_max_row_size;
     m_p_max_row_size = p_max_row_size;
 
-
+    
 
     // TODO: 3D doesn't work yet
     // assembling the local stiffness matrix
@@ -821,18 +821,13 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
 
     if ( m_dim == 2)
     {
-        
 
-        // each thread handles one row
-        int lev = 0;
-        fillIndexVectorProl2D_GPU<<<1,1>>>( d_p_index[lev], m_N[lev+1][0], m_N[lev+1][1], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
-
-        // // fill in prolongation matrix's ELLPACK index vector
-        // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        // {
-        //     calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
-        //     fillIndexVectorRest2D_GPU<<<gridDim,blockDim>>>(d_r_index[lev], m_N[lev][0], m_N[lev][1], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
-        // }
+        // fill in prolongation matrix's ELLPACK index vector
+        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        {
+            calculateDimensions(m_num_rows[lev+1], gridDim, blockDim);
+            fillIndexVectorProl2D_GPU<<<gridDim,blockDim>>>( d_p_index[lev], m_N[lev+1][0], m_N[lev+1][1], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
+        }
 
         // // fill in restriction matrix's values, taken from prolongation matrix
         // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
@@ -843,7 +838,21 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
     }
         
         // printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
+        // printLinearVector( d_p_index[1], m_num_rows[2], m_p_max_row_size[1]);
 
+
+     // resizing the prolongation matrix in CPU for each level
+    // m_P.resize( m_numLevels - 1 );
+
+    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++)
+    // {
+    //     // number of columns in each level
+    //     m_P[lev].resize(m_num_rows[lev+1]);
+        
+    //     // number of rows in each level
+    //     for ( int j = 0 ; j < m_num_rows[lev+1] ; j++ )
+    //             m_P[lev][j].resize(m_num_rows[lev]);
+    // }
 
     // if ( m_dim == 2)
     // {
