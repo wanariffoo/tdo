@@ -2491,9 +2491,74 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 }
 
 
+__device__ int getCoarseNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim)
+{
+	// get coarse grid dimensions
+	size_t Nx_ = Nx / 2;
+	size_t Ny_ = Ny / 2;
+	size_t Nz_ = Nz / 2;
+
+	// if node is even numbered
+	bool condition1 = (index % 2 == 0 );
+
+	// if node exists in the coarse grid
+	bool condition2 = ( index % ((Nx+1)*2) < (Nx + 1) );
+
+	// printf("aps = %d\n", ((Nx+1)*2)   );
+
+	if ( condition1 && condition2 )
+	{
+		return index/2 - (index/((Nx+1)*2 ))*(Nx_);
+	}
+
+	else
+		return -1;
+}
 
 
 
+__global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny, size_t p_max_row_size, size_t num_rows, size_t num_cols)
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	int counter = 0;
+	int dim = 2;	
+
+	if ( id < num_rows )
+	{
+		size_t base_id = (id - id%dim);
+		size_t node_index = base_id / dim;
+		int coarse_node_index = getCoarseNode_GPU(node_index, Nx, Ny, 0, dim);
+
+
+		if ( id == 0 )
+		{
+
+			
+		}
+		// bool origin = ( id )
+		
+		// //
+		// if ( id == getFineNode_GPU(id, Nx, Ny, 0, dim) )
+		// {
+		// 	p_index[counter + id*p_max_row_size] = getFineNode_GPU(id, Nx, Ny, 0, dim);
+		// 	counter++;
+		// }
+
+		// else
+		// {
+
+		// }
+
+
+
+		for ( int i = counter ; i < p_max_row_size; i++)
+		{
+			p_index[i + id*p_max_row_size] = num_cols;
+		}
+
+	}
+}
 
 
 
