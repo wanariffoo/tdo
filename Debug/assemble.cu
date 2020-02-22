@@ -821,22 +821,24 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
 
     if ( m_dim == 2)
     {
-
         // fill in prolongation matrix's ELLPACK index vector
         for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
         {
             calculateDimensions(m_num_rows[lev+1], gridDim, blockDim);
-            fillIndexVectorProl2D_GPU<<<gridDim,blockDim>>>( d_p_index[lev], m_N[lev+1][0], m_N[lev+1][1], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
+            fillProlMatrix2D_GPU<<<gridDim,blockDim>>>( d_p_value[lev], d_p_index[lev], m_N[lev+1][0], m_N[lev+1][1], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
         }
 
-        // // fill in restriction matrix's values, taken from prolongation matrix
+        // fill in prolongation matrix's values
         // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        // int lev = 0;
         // {
-        //     calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
-        //     fillRestMatrix<<<gridDim, blockDim>>>(d_r_value[lev], d_r_index[lev], m_r_max_row_size[lev], d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
+        //     calculateDimensions( m_num_rows[lev+1], gridDim, blockDim);
+        //     fillProlMatrix<<<gridDim, blockDim>>>(d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
         // }
     }
         
+        // printLinearVector( d_p_value[0], m_num_rows[1], m_p_max_row_size[0]);
+        // printLinearVector( d_p_value[1], m_num_rows[2], m_p_max_row_size[1]);
         // printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
         // printLinearVector( d_p_index[1], m_num_rows[2], m_p_max_row_size[1]);
 

@@ -901,6 +901,7 @@ size_t getFineNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim
 		return (2 * (index / (Nx + 1)) * (2*Nx + 1) + 2*( index % (Nx+1)) );
 }
 
+
 __global__ void fillRestMatrix(double* r_value, size_t* r_index, size_t r_max_row_size, double* p_value, size_t* p_index, size_t p_max_row_size, size_t num_rows, size_t num_cols)
 {
 	int idx = threadIdx.x + blockIdx.x*blockDim.x;
@@ -2490,35 +2491,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 }
 
-
-__device__ int getCoarseNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim)
-{
-	// get coarse grid dimensions
-	size_t Nx_ = Nx / 2;
-	size_t Ny_ = Ny / 2;
-	size_t Nz_ = Nz / 2;
-
-	// if node is even numbered
-	bool condition1 = (index % 2 == 0 );
-
-	// if node exists in the coarse grid
-	bool condition2 = ( index % ((Nx+1)*2) < (Nx + 1) );
-
-	// printf("aps = %d\n", ((Nx+1)*2)   );
-
-	if ( condition1 && condition2 )
-	{
-		return index/2 - (index/((Nx+1)*2 ))*(Nx_);
-	}
-
-	// -1 means the node in the coarse grid does not exist
-	else
-		return -1;
-}
-
-
-
-__global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny, size_t p_max_row_size, size_t num_rows, size_t num_cols)
+__global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx, size_t Ny, size_t p_max_row_size, size_t num_rows, size_t num_cols)
 {
 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -2551,6 +2524,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 		if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, 0, dim) == node_index )
 		{
 			p_index[counter + id*p_max_row_size] = coarse_node_index*dim + id%dim;
+			p_value[counter + id*p_max_row_size] = 1;
 			counter++;
 		}
 
@@ -2562,6 +2536,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t south_west_fine_node = (node_index - (Nx+1) - 1);
 				size_t south_west_coarse_node = getCoarseNode_GPU(south_west_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = south_west_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
 				counter++;
 			}
 
@@ -2571,6 +2546,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t south_fine_node = (node_index - (Nx+1) );
 				size_t south_coarse_node = getCoarseNode_GPU(south_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = south_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
 				counter++;
 			}
 
@@ -2580,6 +2556,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t south_east_fine_node = (node_index - (Nx+1) + 1);
 				size_t south_east_coarse_node = getCoarseNode_GPU(south_east_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = south_east_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
 				counter++;
 			}
 
@@ -2589,6 +2566,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t west_fine_node = (node_index - 1);
 				size_t west_coarse_node = getCoarseNode_GPU(west_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = west_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
 				counter++;
 			}
 
@@ -2598,6 +2576,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t east_fine_node = (node_index + 1);
 				size_t east_coarse_node = getCoarseNode_GPU(east_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = east_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
 				counter++;
 			}
 
@@ -2607,6 +2586,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t north_west_fine_node = (node_index + (Nx+1) - 1);
 				size_t north_west_coarse_node = getCoarseNode_GPU(north_west_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = north_west_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
 				counter++;
 			}
 
@@ -2616,6 +2596,7 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t north_fine_node = (node_index + (Nx+1) );
 				size_t north_coarse_node = getCoarseNode_GPU(north_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = north_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
 				counter++;
 			}
 
@@ -2625,29 +2606,11 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 				size_t north_east_fine_node = (node_index + (Nx+1) + 1);
 				size_t north_east_coarse_node = getCoarseNode_GPU(north_east_fine_node, Nx, Ny, 0, dim);
 				p_index[counter + id*p_max_row_size] = north_east_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
 				counter++;
 			}
 
 		}
-
-
-		// else if ( coarse_node_index == -1 )
-		// {
-		// 	print
-		// }
-		// bool origin = ( id )
-		
-		// //
-		// if ( id == getFineNode_GPU(id, Nx, Ny, 0, dim) )
-		// {
-		// 	p_index[counter + id*p_max_row_size] = getFineNode_GPU(id, Nx, Ny, 0, dim);
-		// 	counter++;
-		// }
-
-		// else
-		// {
-
-		// }
 
 
 
@@ -2658,6 +2621,174 @@ __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny,
 
 	}
 }
+
+__device__ int getCoarseNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim)
+{
+	// get coarse grid dimensions
+	size_t Nx_ = Nx / 2;
+	size_t Ny_ = Ny / 2;
+	size_t Nz_ = Nz / 2;
+
+	// if node is even numbered
+	bool condition1 = (index % 2 == 0 );
+
+	// if node exists in the coarse grid
+	bool condition2 = ( index % ((Nx+1)*2) < (Nx + 1) );
+
+	// printf("aps = %d\n", ((Nx+1)*2)   );
+
+	if ( condition1 && condition2 )
+	{
+		return index/2 - (index/((Nx+1)*2 ))*(Nx_);
+	}
+
+	// -1 means the node in the coarse grid does not exist
+	else
+		return -1;
+}
+
+
+
+// __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny, size_t p_max_row_size, size_t num_rows, size_t num_cols)
+// {
+// 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+// 	if ( id < num_rows )
+// 	{
+// 		int counter = 0;
+// 		int dim = 2;	
+
+// 		// coarse grid
+// 		size_t Nx_ = Nx / 2;
+// 		size_t Ny_ = Ny / 2;
+
+// 		size_t base_id = (id - id%dim);
+// 		size_t node_index = base_id / dim;
+// 		int coarse_node_index = getCoarseNode_GPU(node_index, Nx, Ny, 0, dim);
+		
+// 		// if node is even numbered
+// 		bool condition1 = (node_index % 2 == 0 );
+
+// 		// if node exists in the coarse grid
+// 		bool condition2 = ( node_index % ((Nx+1)*2) < (Nx + 1) );
+
+// 		bool south = ( id  >= (Nx + 1)*dim );
+// 		bool west  = ( (id) % ((Nx + 1)*dim) >= dim );
+// 		bool east  = ( (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 );
+// 		bool north = ( id < (Nx+1)*(Ny)*dim );
+
+
+// 		// if there exists a coarse node in the same location
+// 		if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, 0, dim) == node_index )
+// 		{
+// 			p_index[counter + id*p_max_row_size] = coarse_node_index*dim + id%dim;
+// 			counter++;
+// 		}
+
+// 		else
+// 		{
+// 			// south-west
+// 			if ( south && condition1 && !condition2 && west ) 
+// 			{
+// 				size_t south_west_fine_node = (node_index - (Nx+1) - 1);
+// 				size_t south_west_coarse_node = getCoarseNode_GPU(south_west_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = south_west_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// south
+// 			if ( south && !condition1 && !condition2 )
+// 			{
+// 				size_t south_fine_node = (node_index - (Nx+1) );
+// 				size_t south_coarse_node = getCoarseNode_GPU(south_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = south_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// south-east
+// 			if ( south && condition1 && !condition2 && east ) 
+// 			{
+// 				size_t south_east_fine_node = (node_index - (Nx+1) + 1);
+// 				size_t south_east_coarse_node = getCoarseNode_GPU(south_east_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = south_east_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// west
+// 			if ( west && condition2 )
+// 			{
+// 				size_t west_fine_node = (node_index - 1);
+// 				size_t west_coarse_node = getCoarseNode_GPU(west_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = west_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// east
+// 			if ( east && condition2 )
+// 			{
+// 				size_t east_fine_node = (node_index + 1);
+// 				size_t east_coarse_node = getCoarseNode_GPU(east_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = east_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// north-west
+// 			if ( north && condition1 && !condition2 && west )
+// 			{
+// 				size_t north_west_fine_node = (node_index + (Nx+1) - 1);
+// 				size_t north_west_coarse_node = getCoarseNode_GPU(north_west_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = north_west_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// north
+// 			if ( north && !condition1 && !condition2 )
+// 			{
+// 				size_t north_fine_node = (node_index + (Nx+1) );
+// 				size_t north_coarse_node = getCoarseNode_GPU(north_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = north_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 			// north-east
+// 			if ( north && condition1 && !condition2 && east ) 
+// 			{
+// 				size_t north_east_fine_node = (node_index + (Nx+1) + 1);
+// 				size_t north_east_coarse_node = getCoarseNode_GPU(north_east_fine_node, Nx, Ny, 0, dim);
+// 				p_index[counter + id*p_max_row_size] = north_east_coarse_node*dim + id%dim ;
+// 				counter++;
+// 			}
+
+// 		}
+
+
+// 		// else if ( coarse_node_index == -1 )
+// 		// {
+// 		// 	print
+// 		// }
+// 		// bool origin = ( id )
+		
+// 		// //
+// 		// if ( id == getFineNode_GPU(id, Nx, Ny, 0, dim) )
+// 		// {
+// 		// 	p_index[counter + id*p_max_row_size] = getFineNode_GPU(id, Nx, Ny, 0, dim);
+// 		// 	counter++;
+// 		// }
+
+// 		// else
+// 		// {
+
+// 		// }
+
+
+
+// 		for ( int i = counter ; i < p_max_row_size; i++)
+// 		{
+// 			p_index[i + id*p_max_row_size] = num_cols;
+// 		}
+
+// 	}
+// }
 
 
 
