@@ -1955,8 +1955,45 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 			
 			for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
 			{
-				for ( int j = 0 ; j < num_rows ; j++ )
-					RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
+				// for ( int j = 0 ; j < max_row_size ; j++ )
+				// {
+				// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size);
+
+				// 	// if ( row == 0 && col == 0 && k_==1)
+				// 	// 	printf("%f\n ", valueAt(row, r_index[j + row*r_max_row_size], r_value, r_index, r_max_row_size) );
+				// }
+				for ( int k = 0 ; k < r_max_row_size ; k++ )
+					RAP += valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) ;
+
+
+
+				if (k_== 1 && row==0 && col==0)
+				{
+				// for ( int k = 0 ; k < r_max_row_size ; k++ )
+				// printf("%f %f %f\n ", valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size), valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) );
+					// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) );
+
+				}
+
+
+
+				// if ( row == 0 && col == 0)
+				// 	printf("%f\n ", RAP );
+
+				// for ( int j = 0 ; j < num_rows ; j++ )
+				// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
+
+				// if ( row == 0 && col == 0 && k_ == 3 )
+				// {
+				// 	for ( int j = 0 ; j < max_row_size ; j++ )
+				// 	printf("%f\n ", valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(index[j + row*max_row_size], col, p_value, p_index, p_max_row_size) );
+				// 	// for ( int j = 0 ; j < max_row_size ; j++ )
+				// 	// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) );
+				// 	// for ( int j = 0 ; j < max_row_size ; j++ )
+				// 	// printf("%lu ", index[j + 2*max_row_size]);
+
+				// 	// printf("\n");
+				// }
 			}
 
 			setAt( row, col, value_, index_, max_row_size_, RAP );

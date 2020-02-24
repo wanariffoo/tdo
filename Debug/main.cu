@@ -56,7 +56,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 3;
+    size_t numLevels = 2;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
@@ -158,9 +158,9 @@ int main()
 
 
 
-    // // /* ##################################################################
-    // // #                           SOLVER                                  #
-    // // ###################################################################*/
+    // /* ##################################################################
+    // #                           SOLVER                                  #
+    // ###################################################################*/
 
     // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
@@ -222,6 +222,12 @@ int main()
         
     //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
     // }
+
+
+    // TODO:
+    // TODO: impose BC on updated matrix ?
+    // TODO:
+    // TODO:
 
     // for ( int i = 1 ; i < 1 ; ++i )
     // {
