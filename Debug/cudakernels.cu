@@ -1313,6 +1313,7 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 		{
 			// converts local node to global node
 			int global_col = ( node_index [ m / dim ] * dim ) + ( m % dim ); 
+			// printf("u[%d] = %f\n", global_col, u[global_col]);
 
 
 			temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
@@ -1332,30 +1333,6 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 	}
 	
 	*x *= 0.5 * p * pow(*chi, p-1) / local_volume;
-
-
-	// TODO: add volume 
-
-	
-
-			// if(n==2)
-			// printf("%e = %e x %e\n", *x, temp[n], u[global_col]);
-			// 	printf("%e = %e x %e\n", temp[n], u[global_col], d_A_local[ n + m*num_rows ]);
-			// if(id==0)
-			// printf("%e\n", temp[n]);
-			// printf("%e\n", u[global_col]);
-			// printf("%d\n", global_col);
-		// if(id==0)
-		// printf("%e\n", x[id]);
-
-				// if(id==0 && n==1 && m==7)
-				// printf("%e = %e x %e\n", u[global_col]*d_A_local[ n + m*num_rows ], u[global_col], d_A_local[ n + m*num_rows ]);
-
-				// if(id==0 && n==1)
-				// printf("%e = %e x %e\n", temp[n], u[global_col], d_A_local[ n + m*num_rows ]);
-							// printf("%e\n", u[global_col]);
-			// printf("%e\n", x[id]);
-			// printf("%d\n", global_col);
     
 }
 
@@ -1376,28 +1353,15 @@ void calcDrivingForce(
 	const size_t dim,
 	size_t numElements,			// block sizes needed for running CUDA kernels
 	double local_volume
-	)         
+	)
 {
 	// calculate the driving force in each element ( 1 element per thread )
-    // df[] = 0.5 * p * pow(chi,p-1) - u[]^T * A * u[]
-	
+    // df[] = (0.5/local_volume) * p * pow(chi,p-1) - u[]^T * A_local * u[]
 	for ( int i = 0 ; i < numElements; i++ )
 	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim, local_volume);
 
     cudaDeviceSynchronize();
-	// printVector_GPU<<<1,numElements>>>( df, numElements);
 
-
-
-
-	// // calculate the driving force in each element
-    // sumOfVector_GPU<<<gridDim, blockDim>>>(df, uTAu, num_rows);
-    // cudaDeviceSynchronize();
-    
-	//TODO: det_J not implemented yet
-	// df[] *= ( 1 / 2*omega ) * ( p * pow(chi[], p - 1 ) * det(J)
-    // UpdateDrivingForce<<<gridDim,blockDim>>>(df, uTAu, p, chi, local_volume, num_rows);
-	
 }
 
 __global__ 
@@ -1470,26 +1434,26 @@ void calcDrivingForce_(
 {
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 
-	__shared__ double uTAu_[1024];
+	double uTAu;
 
     if ( id < num_rows )
     {
-        uTAu_[id] = 0;
+        uTAu = 0;
 
 		// uTAu = uT * A
         for ( int n = 0; n < num_rows; n++ )
 		{
 			// converts local node to global node
             int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim ); 
-            uTAu_[id] += u[global_col] * d_A_local[ id + n*num_rows ];
+            uTAu += u[global_col] * d_A_local[ id + n*num_rows ];
 
         }
 
 		// uTAu *= u
-        uTAu_[id] *= u[ ( node_index [ id / dim ] * dim ) + ( id % dim ) ];
+        uTAu *= u[ ( node_index [ id / dim ] * dim ) + ( id % dim ) ];
 
 
-		df[id] = uTAu_[id] * (p) * pow(chi[id], (p-1));
+		df[id] = uTAu * (p) * pow(chi[id], (p-1));
     }
 	
 }
@@ -1974,115 +1938,12 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 		
 
 		if ( row < num_rows_ && col < num_rows_ )
-		// if ( row == 1 && col == 0 )
 		{
-			// RAP = 0;
-			// printf("%f\n", matMul(row,col, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
-
-
-			// for ( int i = 0 ; i < num_rows ; i++ )
 			for ( int i = 0 ; i < r_max_row_size ; i++ )
-			{
-
-			// // 	// RAP += matMul(row, i, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
-			// // 	// printf("%f %f\n", matMul(row, i, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ), valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size) );
-
-
 				RAP += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
-
-
-
-				// printf("%f\n", matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
-				// printf("%f\n", valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size) );
-
-
-			// // 	printf("%f\n", valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size) );
-
-				// printf("%lu\n", r_index[i+col*r_max_row_size] );
-			}
-
-				// R(r_index[i + col*r_max_row_size]) * A(r_index[i + col*r_max_row_size])
-			// if ( row == 1 && col == 0)
-			// printf("%f\n", matMul(1, 1, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
-			// printf("%f\n", RAP );
 			setAt( col, row, value_, index_, max_row_size_, RAP );
 		}
 
-
-		// r's index		r_index[i + row*r_max_row_size]
-		// p's index		r_index[i + col*r_max_row_size]
-
-
-
-				// R*A
-				// printf("%f\n", matMul(1, 1, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
-
-
-
-				// printf("%f\n", valueAt(r_index[6], 1, p_value, p_index, p_max_row_size) );
-				// printf("%f\n", valueAt(r_index[7], 1, p_value, p_index, p_max_row_size) );
-				// printf("%f\n", valueAt(7, col, r_value, r_index, r_max_row_size) );
-				// printf("%f\n", valueAt(0, 1, p_value, p_index, p_max_row_size) );
-				// printf("%f\n", valueAt(1, 1, p_value, p_index, p_max_row_size) );
-
-				// printf("%f\n", matMul(row, 0, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
-				// printf("%f\n", matMul(row, 2, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
-				// printf("%f\n", valueAt(3, 1, p_value, p_index, p_max_row_size) );
-
-
-
-
-
-		// // RAP = R_row_i * A_i_k * P_k_col
-		// if ( col < num_rows_ && row < num_rows_)
-		// {
-		// 	RAP = 0;
-			
-		// 	for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
-		// 	{
-		// 		// for ( int j = 0 ; j < max_row_size ; j++ )
-		// 		// {
-		// 		// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size);
-
-		// 		// 	// if ( row == 0 && col == 0 && k_==1)
-		// 		// 	// 	printf("%f\n ", valueAt(row, r_index[j + row*r_max_row_size], r_value, r_index, r_max_row_size) );
-		// 		// }
-		// 		for ( int k = 0 ; k < r_max_row_size ; k++ )
-		// 			RAP += valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) ;
-
-
-
-		// 		if (k_== 0 && row==0 && col==1)
-		// 		{
-		// 		for ( int k = 0 ; k < r_max_row_size ; k++ )
-		// 		printf("%f %f %f\n ", valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size), valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) );
-		// 			// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) );
-
-		// 		}
-
-
-
-		// 		// if ( row == 0 && col == 0)
-		// 		// 	printf("%f\n ", RAP );
-
-		// 		// for ( int j = 0 ; j < num_rows ; j++ )
-		// 		// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
-
-		// 		// if ( row == 0 && col == 0 && k_ == 3 )
-		// 		// {
-		// 		// 	for ( int j = 0 ; j < max_row_size ; j++ )
-		// 		// 	printf("%f\n ", valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(index[j + row*max_row_size], col, p_value, p_index, p_max_row_size) );
-		// 		// 	// for ( int j = 0 ; j < max_row_size ; j++ )
-		// 		// 	// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) );
-		// 		// 	// for ( int j = 0 ; j < max_row_size ; j++ )
-		// 		// 	// printf("%lu ", index[j + 2*max_row_size]);
-
-		// 		// 	// printf("\n");
-		// 		// }
-		// 	}
-
-		// 	setAt( row, col, value_, index_, max_row_size_, RAP );
-		// }
 }
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)
@@ -3313,11 +3174,17 @@ __global__ void checkMassConservation(double* chi, double local_volume, size_t n
 
 // // TODO: to delete
 __global__
-void bar(double* chi)
+void checkLaplacian(double* laplacian, double* chi, size_t Nx, size_t Ny, size_t Nz, size_t numElements, double h)
 {
 	// laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz )
-
-	for ( int i = 0 ; i < 192 ; ++i )
-		printf("%d %e\n", i, laplacian_GPU( chi, i, 24, 8, 0, 0.125 ));
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+	if ( id < numElements)
+	{
+		laplacian[id] = laplacian_GPU( chi, id, Nx, Ny, Nz, h );
+	}
+	
+		
 
 }
+
+

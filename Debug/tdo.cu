@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void WriteVectorToVTK_(vector<double> &df, vector<double> &u, const std::string& filename, size_t dim, vector<size_t> numNodesPerDim, double h, size_t numElements, size_t numNodes)
+void WriteVectorToVTK_df(vector<double> &df, vector<double> &u, const std::string& filename, size_t dim, vector<size_t> numNodesPerDim, double h, size_t numElements, size_t numNodes)
 {
 	
 	std::ofstream ofs(filename, std::ios::out);
@@ -95,6 +95,89 @@ void WriteVectorToVTK_(vector<double> &df, vector<double> &u, const std::string&
 }
 
 
+void WriteVectorToVTK_laplacian(vector<double> &laplacian, vector<double> &u, const std::string& filename, size_t dim, vector<size_t> numNodesPerDim, double h, size_t numElements, size_t numNodes)
+{
+	
+	std::ofstream ofs(filename, std::ios::out);
+	if (ofs.bad())
+	{
+		std::ostringstream oss;
+		oss << "File '" << filename << "' could not be opened for writing.";
+		throw std::runtime_error(oss.str());
+	}
+
+	ofs << "# vtk DataFile Version 2.0" << std::endl;
+	ofs << "Thermodynamics Topology Optimzation" << std::endl;
+	ofs << "ASCII" << std::endl;
+	ofs << endl;
+	ofs << "DATASET STRUCTURED_GRID" << std::endl;
+
+	if ( dim == 2 )
+		numNodesPerDim.push_back(1);
+
+	// specify number of nodes in each dimension
+	ofs << "DIMENSIONS";
+	for (std::size_t i = 0; i < 3; ++i)
+		ofs << " " << numNodesPerDim[i];
+	// for (std::size_t i = dim; i < 3; ++i)
+	// 		ofs << " " << 1;
+	ofs << std::endl;
+
+	// specify the coordinates of all points
+	ofs << "POINTS ";
+	ofs << numNodes << " float" << endl;
+
+	for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
+	{
+		for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+		{
+			for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
+				ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+		}
+	}
+
+	ofs << endl;
+
+    // specifying the laplacian in each element
+    ofs << "CELL_DATA " << numElements << endl;
+	ofs << "SCALARS lp double" << endl;
+	ofs << "LOOKUP_TABLE default" << endl;
+
+	for (int i = 0 ; i < numElements ; i++)
+		ofs << " " << laplacian[i] << endl;
+
+	ofs << endl;
+
+	// specifying the displacements for all dimensions in each point
+	ofs << "POINT_DATA " << numNodes << std::endl;
+	ofs << "VECTORS displacements double" << std::endl;
+
+	
+	for ( int i = 0 ; i < numNodes ; i++ )
+	{
+		if ( dim == 2 )
+		{
+			for ( int j = 0 ; j < 2 ; j++ )
+				ofs << " " << u[dim*i + j];
+
+			// setting displacement in z-dimension to zero
+			ofs << " 0";
+		}
+
+		else
+		{
+			for ( int j = 0 ; j < dim ; j++ )
+				ofs << " " << u[dim*i + j];
+		}
+
+		ofs << endl;
+	}
+
+
+	
+}
+
+
 
 
 
@@ -130,7 +213,6 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
     // NOTE: wrong here because you thought m_h here is baselevel's, it's actually the finest level
     m_local_volume = pow(m_h, m_dim); 
     
-
     
 }
 
@@ -178,6 +260,15 @@ bool TDO::init()
     CUDA_CALL( cudaMemcpy( m_d_tdo_foo, &m_tdo_foo, sizeof(bool), cudaMemcpyHostToDevice) );
     
 
+
+    // DEBUG: temporary
+    CUDA_CALL( cudaMalloc( (void**)&d_laplacian, sizeof(double) * m_numElements) );
+    CUDA_CALL( cudaMemset( d_laplacian, 0, sizeof(double) * m_numElements) );
+
+
+
+
+
     return true;
 }
 
@@ -190,15 +281,21 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     m_d_chi = d_chi;
     m_tdo_foo = true;
     setToTrue<<<1,1>>>( m_d_tdo_foo );
-    // setToZero<<<1,1>>>( m_d_uTAu );
-
-    // bar<<<1,1>>>( m_d_chi );    
-    
-    // cout << m_local_volume << endl;
+    laplacian.resize(m_numElements);
+    setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
     
     // calculating the driving force of each element
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
     calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
+
+   
+
+    // DEBUG:
+    checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
+
+    // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_df, m_numElements);
+    // print_GPU<<<1,1>>>( &m_d_df[168] );
+    cudaDeviceSynchronize();
 
 
 
@@ -216,9 +313,17 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     ss_ << "vtk/df";
     ss_ << m_file_index;
     ss_ << fileformat;
+    stringstream ss__; 
+    ss__ << "vtk/laplacian";
+    ss__ << m_file_index;
+    ss__ << fileformat;
     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * numNodes * m_dim, cudaMemcpyDeviceToHost) );
-    CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) 	);
-    WriteVectorToVTK_(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
+    CUDA_CALL( cudaMemcpy( &laplacian[0], d_laplacian, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
+
+    
+    WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
     ++m_file_index;
     
     calcP_w(m_d_p_w, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements);
@@ -237,8 +342,6 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_tdo_foo );
     // cudaDeviceSynchronize();
-
-    
 
     
 

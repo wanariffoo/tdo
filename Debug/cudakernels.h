@@ -283,7 +283,7 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 						size_t lev);
 
 // DEBUG: TEMP:
-__global__ void bar( double* chi );
+__global__ void checkLaplacian(double* laplacian, double* chi, size_t Nx, size_t Ny, size_t Nz, size_t numElements, double h);
 
 
 

@@ -502,7 +502,7 @@ bool Assembler::init_GPU(
 //     // printLinearVector( d_index[0], num_rows[0], max_row_size[0]);
     // printLinearVector( d_index[1], num_rows[1], max_row_size[1]);
 //     // printLinearVector( d_index[2], num_rows[2], max_row_size[2]);
-//     // printLinearVector( d_A_local, 8, 8);
+    // printLinearVector( d_A_local, 8, 8);
 //     // printLinearVector( m_d_temp_matrix, num_rows[1], num_rows[2]);
     cudaDeviceSynchronize();
 

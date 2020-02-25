@@ -58,6 +58,7 @@ int main()
 
     //// model set-up
     size_t numLevels = 4;
+    size_t topLev = numLevels - 1;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
@@ -182,6 +183,15 @@ int main()
     cout << "Solver   ... DONE" << endl;
 
 
+    // // DEBUG:
+    // dim3 maingridDim;
+    // dim3 mainblockDim;
+    // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
+    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
+    
+	
+
+
     /* ##################################################################
     #                           TDO                                     #
     ###################################################################*/
@@ -230,7 +240,7 @@ int main()
     // TODO:
     // TODO:
 
-    for ( int i = 1 ; i < 10 ; ++i )
+    for ( int i = 1 ; i < 5 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
@@ -244,6 +254,7 @@ int main()
         // GMG.set_steps(5, 2);
         GMG.solve(d_u, d_b, d_value);
         cudaDeviceSynchronize();
+        
 
         // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
         // print_GPU<<<1,1>>>( &d_u[128]);
@@ -288,3 +299,27 @@ int main()
     // https://www.quantstart.com/articles/Matrix-Matrix-Multiplication-on-the-GPU-with-Nvidia-CUDA/
 
 // print_GPU<<<1,1>>> ( d_res0 );
+
+
+
+// DEBUG:
+/// verify u-vector
+// A*u = r_
+// norm(r_) should be == norm(b)
+// double* d_r_;
+// double* d_r_norm;
+// CUDA_CALL( cudaMalloc((void**)&d_r_norm, sizeof(double)) );
+// CUDA_CALL( cudaMalloc((void**)&d_r_, sizeof(double) * num_rows[numLevels - 1] ) );
+// CUDA_CALL( cudaMemset(d_r_norm, 0, sizeof(double)) );
+// CUDA_CALL( cudaMemset(d_r_, 0, sizeof(double) * num_rows[numLevels - 1]) );
+
+// dim3 maingridDim;
+// dim3 mainblockDim;
+// calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
+// Apply_GPU<<<maingridDim, mainblockDim>>>(num_rows[topLev], max_row_size[topLev], d_value[topLev], d_index[topLev], d_u, d_r_);
+// cudaDeviceSynchronize();
+// norm_GPU<<<maingridDim, mainblockDim>>>(d_r_norm, d_r_, num_rows[topLev]);
+// setToZero<<<maingridDim, mainblockDim>>>( d_r_, num_rows[topLev]);
+// cudaDeviceSynchronize();
+// print_GPU<<<1,1>>>( d_r_norm );
+// cudaDeviceSynchronize();

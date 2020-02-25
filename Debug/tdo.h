@@ -10,6 +10,7 @@ public:
     bool init();
     bool innerloop(double* &d_u, double* &d_chi);
     void set_verbose(bool verbose);
+    
 
 private:
 
@@ -84,6 +85,11 @@ private:
     // convergence check
     bool m_tdo_foo = true;
     bool* m_d_tdo_foo;
+
+    // DEBUG: temporary
+    vector<double> laplacian;
+    double* d_laplacian;
+
     
 
 };
