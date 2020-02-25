@@ -1935,6 +1935,30 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 	
 }
 
+// TODO: CHECK:
+// returns value at (row, col) of matrix multiplication A*B
+__device__ double matMul(size_t row, size_t col, 
+						 double* A_value, size_t* A_index, size_t A_max_row_size, size_t A_num_rows,
+						 double* B_value, size_t* B_index, size_t B_max_row_size, size_t b_num_rows	)
+{
+	__shared__ double value;
+
+	value = 0;
+
+	for(int i = 0 ; i < A_max_row_size ; i++ )
+	{
+		value += valueAt(row, A_index[i+A_max_row_size*row], A_value, A_index, A_max_row_size) * valueAt(A_index[i+A_max_row_size*row], col, B_value, B_index, B_max_row_size);
+
+		// printf("%f %f\n ", valueAt(row, A_index[i], A_value, A_index, A_max_row_size), valueAt(A_index[i], col, B_value, B_index, B_max_row_size)  );
+			// printf("%f\n ", valueAt(B_index[i], col, B_value, B_index, B_max_row_size) );
+	}
+
+	// printf("%f\n ", value );
+	return value;
+
+
+}
+
 
 // A_coarse = R * A_fine * P
 __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t num_rows,
@@ -1943,61 +1967,122 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 						double* p_value, size_t* p_index, size_t p_max_row_size, 
 						size_t lev)
 {
-		double RAP;
+		double RAP = 0;
 
 		unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
 		unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
 		
-		// RAP = R_row_i * A_i_k * P_k_col
-		if ( col < num_rows_ && row < num_rows_)
+
+		if ( row < num_rows_ && col < num_rows_ )
+		// if ( row == 1 && col == 0 )
 		{
-			RAP = 0;
-			
-			for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
+			// RAP = 0;
+			// printf("%f\n", matMul(row,col, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
+
+
+			// for ( int i = 0 ; i < num_rows ; i++ )
+			for ( int i = 0 ; i < r_max_row_size ; i++ )
 			{
-				// for ( int j = 0 ; j < max_row_size ; j++ )
-				// {
-				// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size);
 
-				// 	// if ( row == 0 && col == 0 && k_==1)
-				// 	// 	printf("%f\n ", valueAt(row, r_index[j + row*r_max_row_size], r_value, r_index, r_max_row_size) );
-				// }
-				for ( int k = 0 ; k < r_max_row_size ; k++ )
-					RAP += valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) ;
+			// // 	// RAP += matMul(row, i, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
+			// // 	// printf("%f %f\n", matMul(row, i, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ), valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size) );
+
+
+				RAP += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
 
 
 
-				if (k_== 1 && row==0 && col==0)
-				{
-				// for ( int k = 0 ; k < r_max_row_size ; k++ )
-				// printf("%f %f %f\n ", valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size), valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) );
-					// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) );
-
-				}
+				// printf("%f\n", matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
+				// printf("%f\n", valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size) );
 
 
+			// // 	printf("%f\n", valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size) );
 
-				// if ( row == 0 && col == 0)
-				// 	printf("%f\n ", RAP );
-
-				// for ( int j = 0 ; j < num_rows ; j++ )
-				// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
-
-				// if ( row == 0 && col == 0 && k_ == 3 )
-				// {
-				// 	for ( int j = 0 ; j < max_row_size ; j++ )
-				// 	printf("%f\n ", valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(index[j + row*max_row_size], col, p_value, p_index, p_max_row_size) );
-				// 	// for ( int j = 0 ; j < max_row_size ; j++ )
-				// 	// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) );
-				// 	// for ( int j = 0 ; j < max_row_size ; j++ )
-				// 	// printf("%lu ", index[j + 2*max_row_size]);
-
-				// 	// printf("\n");
-				// }
+				// printf("%lu\n", r_index[i+col*r_max_row_size] );
 			}
 
-			setAt( row, col, value_, index_, max_row_size_, RAP );
+				// R(r_index[i + col*r_max_row_size]) * A(r_index[i + col*r_max_row_size])
+			// if ( row == 1 && col == 0)
+			// printf("%f\n", matMul(1, 1, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
+			// printf("%f\n", RAP );
+			setAt( col, row, value_, index_, max_row_size_, RAP );
 		}
+
+
+		// r's index		r_index[i + row*r_max_row_size]
+		// p's index		r_index[i + col*r_max_row_size]
+
+
+
+				// R*A
+				// printf("%f\n", matMul(1, 1, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
+
+
+
+				// printf("%f\n", valueAt(r_index[6], 1, p_value, p_index, p_max_row_size) );
+				// printf("%f\n", valueAt(r_index[7], 1, p_value, p_index, p_max_row_size) );
+				// printf("%f\n", valueAt(7, col, r_value, r_index, r_max_row_size) );
+				// printf("%f\n", valueAt(0, 1, p_value, p_index, p_max_row_size) );
+				// printf("%f\n", valueAt(1, 1, p_value, p_index, p_max_row_size) );
+
+				// printf("%f\n", matMul(row, 0, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
+				// printf("%f\n", matMul(row, 2, r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) );
+				// printf("%f\n", valueAt(3, 1, p_value, p_index, p_max_row_size) );
+
+
+
+
+
+		// // RAP = R_row_i * A_i_k * P_k_col
+		// if ( col < num_rows_ && row < num_rows_)
+		// {
+		// 	RAP = 0;
+			
+		// 	for ( int k_ = 0 ; k_ < r_max_row_size ; k_++ ) //r_max_row_size
+		// 	{
+		// 		// for ( int j = 0 ; j < max_row_size ; j++ )
+		// 		// {
+		// 		// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size);
+
+		// 		// 	// if ( row == 0 && col == 0 && k_==1)
+		// 		// 	// 	printf("%f\n ", valueAt(row, r_index[j + row*r_max_row_size], r_value, r_index, r_max_row_size) );
+		// 		// }
+		// 		for ( int k = 0 ; k < r_max_row_size ; k++ )
+		// 			RAP += valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) ;
+
+
+
+		// 		if (k_== 0 && row==0 && col==1)
+		// 		{
+		// 		for ( int k = 0 ; k < r_max_row_size ; k++ )
+		// 		printf("%f %f %f\n ", valueAt(row, r_index[k + row*r_max_row_size], r_value, r_index, r_max_row_size), valueAt(r_index[k + row*r_max_row_size], r_index[k_ + row*r_max_row_size], value, index, max_row_size) );
+		// 			// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], col, p_value, p_index, p_max_row_size) );
+
+		// 		}
+
+
+
+		// 		// if ( row == 0 && col == 0)
+		// 		// 	printf("%f\n ", RAP );
+
+		// 		// for ( int j = 0 ; j < num_rows ; j++ )
+		// 		// 	RAP += valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], j, value, index, max_row_size) * valueAt(j, col, p_value, p_index, p_max_row_size);
+
+		// 		// if ( row == 0 && col == 0 && k_ == 3 )
+		// 		// {
+		// 		// 	for ( int j = 0 ; j < max_row_size ; j++ )
+		// 		// 	printf("%f\n ", valueAt(row, r_index[k_ + row*r_max_row_size], r_value, r_index, r_max_row_size) * valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) * valueAt(index[j + row*max_row_size], col, p_value, p_index, p_max_row_size) );
+		// 		// 	// for ( int j = 0 ; j < max_row_size ; j++ )
+		// 		// 	// printf("%f\n ", valueAt(r_index[k_ + row*r_max_row_size], index[j + row*max_row_size], value, index, max_row_size) );
+		// 		// 	// for ( int j = 0 ; j < max_row_size ; j++ )
+		// 		// 	// printf("%lu ", index[j + 2*max_row_size]);
+
+		// 		// 	// printf("\n");
+		// 		// }
+		// 	}
+
+		// 	setAt( row, col, value_, index_, max_row_size_, RAP );
+		// }
 }
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)

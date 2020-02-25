@@ -26,6 +26,7 @@ using namespace std;
 // TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
 // TODO: __device__ valueAt() has x and y mixed up
 // NOTE:CHECK: when using shared memory, more than one block, get this error : CUDA error for cudaMemcpy( ...)
+// TODO: check that all kernels have (row, col) formats
 
 // 3D
 // TODO: local stiffness
@@ -158,27 +159,27 @@ int main()
 
 
 
-    // /* ##################################################################
-    // #                           SOLVER                                  #
-    // ###################################################################*/
+    /* ##################################################################
+    #                           SOLVER                                  #
+    ###################################################################*/
 
-    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
-    // // TODO: repair these three, it's a bit messed up
-    // GMG.set_convergence_params(500, 1e-99, 1e-15);
-    // GMG.set_bs_convergence_params(100, 1e-99, 1e-15);
-    // GMG.set_steps(500, 100); 
+    // TODO: repair these three, it's a bit messed up
+    GMG.set_convergence_params(500, 1e-99, 1e-15);
+    GMG.set_bs_convergence_params(100, 1e-99, 1e-15);
+    GMG.set_steps(500, 100); 
     
 
-    // GMG.init();
-    // GMG.set_verbose(0, 0);
-    // GMG.set_num_prepostsmooth(3,3);
-    // GMG.set_cycle('V');
+    GMG.init();
+    GMG.set_verbose(0, 0);
+    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_cycle('V');
     
-    // GMG.solve(d_u, d_b, d_value);
-    // cudaDeviceSynchronize();
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
 
-    // cout << "Solver   ... DONE" << endl;
+    cout << "Solver   ... DONE" << endl;
 
 
     // /* ##################################################################

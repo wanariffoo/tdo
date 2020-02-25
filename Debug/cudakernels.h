@@ -142,6 +142,12 @@ __host__ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector
 __global__ void vectorEquals_GPU(double* a, double* b, size_t num_rows);
 
 
+
+__device__ double matMul(size_t row, size_t col, 
+						 double* A_value, size_t* A_index, size_t A_max_row_size, size_t A_num_rows,
+						 double* B_value, size_t* B_index, size_t B_max_row_size, size_t b_num_rows	);
+
+
 ////////////////////////////////////////////
 // ASSEMBLER
 ////////////////////////////////////////////

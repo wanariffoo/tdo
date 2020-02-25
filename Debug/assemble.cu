@@ -474,6 +474,7 @@ bool Assembler::init_GPU(
     // // TODO: use optimized matrix multiplication
     dim3 temp_gridDim;
     dim3 temp_blockDim;
+
     
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
@@ -490,7 +491,7 @@ bool Assembler::init_GPU(
     
 //     // cout << "max_row_size[1]" << endl;
     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
     // printELLrow(0, d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
 //     // printELLrow(1, d_r_value[1], d_r_index[1], r_max_row_size[1], num_rows[1], num_rows[2]);
