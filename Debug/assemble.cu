@@ -1716,18 +1716,30 @@ bool Assembler::UpdateGlobalStiffness(
     // CUDA_CALL( cudaMemset( d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
     
 
+
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
     {
-        calculateDimensions(m_num_rows[lev] * m_num_rows[lev-1], temp_gridDim, temp_blockDim);
-        setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, m_num_rows[lev] * m_num_rows[lev-1]);
-        RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, m_d_temp_matrix, m_num_rows, lev);
+        calculateDimensions2D( m_num_rows[lev-1], m_num_rows[lev-1], temp_gridDim, temp_blockDim);
+        RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], m_max_row_size[lev], m_num_rows[lev], 
+                                                d_value[lev-1], d_index[lev-1], m_max_row_size[lev-1], m_num_rows[lev-1], 
+                                                d_r_value[lev-1], d_r_index[lev-1], m_r_max_row_size[lev-1],
+                                                d_p_value[lev-1], d_p_index[lev-1], m_p_max_row_size[lev-1], lev-1);
+        cudaDeviceSynchronize();
     }
 
 
 
 
 
+
+    // // A_coarse = R * A_fine * P
+    // for ( int lev = m_topLev ; lev != 0 ; lev--)
+    // {
+    //     calculateDimensions(m_num_rows[lev] * m_num_rows[lev-1], temp_gridDim, temp_blockDim);
+    //     setToZero<<<temp_gridDim, temp_blockDim>>>( m_d_temp_matrix, m_num_rows[lev] * m_num_rows[lev-1]);
+    //     RAP( d_value, d_index, m_max_row_size, d_r_value, d_r_index, m_r_max_row_size, d_p_value, d_p_index, m_p_max_row_size, m_d_temp_matrix, m_num_rows, lev);
+    // }
 
     // // // // DEBUG: temp :
     // // // vector<vector<size_t>> temp_bc_index(2);
