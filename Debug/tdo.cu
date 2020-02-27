@@ -265,6 +265,9 @@ bool TDO::init()
     CUDA_CALL( cudaMalloc( (void**)&d_laplacian, sizeof(double) * m_numElements) );
     CUDA_CALL( cudaMemset( d_laplacian, 0, sizeof(double) * m_numElements) );
 
+    CUDA_CALL( cudaMalloc( (void**)&m_d_sum_g, sizeof(double) ) );
+    CUDA_CALL( cudaMalloc( (void**)&m_d_sum_df_g, sizeof(double) ) );
+
 
 
 
@@ -283,6 +286,8 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     setToTrue<<<1,1>>>( m_d_tdo_foo );
     laplacian.resize(m_numElements);
     setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
+    setToZero<<<1,1>>>( m_d_sum_g, 1 );
+    setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
     
     // calculating the driving force of each element
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
@@ -294,6 +299,8 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
 
     // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_df, m_numElements);
+    // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_numElements);
+    
     // print_GPU<<<1,1>>>( &m_d_df[168] );
     cudaDeviceSynchronize();
 
@@ -326,22 +333,26 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
     ++m_file_index;
     
-    calcP_w(m_d_p_w, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements);
-    
-    // // calculate eta and beta
+    calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);
+
+
+    // calculate eta and beta
     calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
     cudaDeviceSynchronize();
 
-    // cout << "aps" << endl;
-    // cout << m_etastar << endl;
-    // cout << m_betastar << endl;
+    // // cout << "aps" << endl;
+    // // cout << m_etastar << endl;
+    // // cout << m_betastar << endl;
 
+    // print_GPU<<<1,1>>>( m_d_p_w );
+    // // cout << "sum_g" << endl;
+    // cudaDeviceSynchronize();
+    // // print_GPU<<<1,1>>>( m_d_temp );
+    // cudaDeviceSynchronize();
     // print_GPU<<<1,1>>>( m_d_beta );
-    // cudaDeviceSynchronize();
-    // print_GPU<<<1,1>>>( m_d_eta );
-    // cudaDeviceSynchronize();
-    // print_GPU<<<1,1>>>( m_d_tdo_foo );
-    // cudaDeviceSynchronize();
+    // // cudaDeviceSynchronize();
+    // // print_GPU<<<1,1>>>( m_d_tdo_foo );
+    // // cudaDeviceSynchronize();
 
     
 
@@ -351,7 +362,6 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     {
 
         // bisection algo: 
-     
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
         calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);

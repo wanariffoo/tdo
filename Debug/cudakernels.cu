@@ -1403,24 +1403,6 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 }
 
 
-__host__ 
-void TestcalcDrivingForce(
-	double *df, 
-	double *chi, 
-	double p,
-	double *u, 
-	size_t* node_index, 
-	double* d_A_local, 
-	size_t num_rows, 
-	dim3 gridDim, 
-	dim3 blockDim,
-	size_t numElements)
-{
-
-
-
-}
-
 __global__ 
 void calcDrivingForce_(
     double *df,             // driving force
@@ -1461,8 +1443,7 @@ void calcDrivingForce_(
 __device__
 double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz, double h )
 {
-    
-	// TODO: add h
+
 	double value = 4.0 * array[ind];
 
 	bool east = ( (ind + 1) % Nx != 0 );
@@ -1708,19 +1689,23 @@ void calcP_w_GPU(double* p_w, double* df, double* uTAu, double* chi, int p, doub
 }
 
 __global__ 
-void calc_g_GPU(double*g, double* chi, size_t numElements)
+void calc_g_GPU(double*g, double* chi, size_t numElements, double local_volume)
 {
 	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
 
 	if (id < numElements)
 	{
-		g[id] = (chi[id] - 1e-9)*(1-chi[id]);
+		g[id] = (chi[id] - 1e-9)*(1-chi[id]) * local_volume;
+
+		// if ( id == 0 )
+		// printf("%f\n", g[id]);
 	}
 }
 
 
+// sum = sum ( df * g * local_volume)
 __global__ 
-void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t n)
+void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t numElements)
 {
     int id = blockDim.x * blockIdx.x + threadIdx.x;
 	int stride = blockDim.x*gridDim.x;
@@ -1732,9 +1717,9 @@ void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t n)
     cache[threadIdx.x] = 0;
     
 	double temp = 0.0;
-	while(id < n)
+	while(id < numElements)
 	{
-		temp += df[id]*g[id];
+		temp += df[id]*g[id];	// local volume is already included in g, i.e. g = g*local_volume
 		id += stride;
 	}
 	
@@ -1758,25 +1743,26 @@ void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t n)
 }
 
 
+
 __host__
-void calcP_w(double* p_w, double* df, double* chi, double* g, double* df_g, size_t numElements)
+void calcP_w(double* p_w, double* sum_g, double* sum_df_g, double* df, double* chi, double* g, double* df_g, size_t numElements, double local_volume)
 {	
 	dim3 gridDim;
 	dim3 blockDim;
 
 	calculateDimensions(numElements, gridDim, blockDim);
-	calc_g_GPU<<<gridDim, blockDim>>>(g, chi, numElements);
 
-
-	// calculate p_w = sum(g)
-	// using p_w as a temp
-	sumOfVector_GPU<<<gridDim, blockDim>>>(df_g, g, numElements);
-	calcSum_df_g_GPU<<<gridDim, blockDim>>>(p_w, df, g, numElements);
+	// calculate g of each element * local_volume
+	calc_g_GPU<<<gridDim, blockDim>>>(g, chi, numElements, local_volume);
 	
-	divide_GPU<<<1,1>>>(p_w, p_w, df_g);
-	// cudaDeviceSynchronize();
-	// printVector_GPU<<<gridDim,blockDim>>>( df, numElements );
+	// calculate sum_g = sum(g)
+	sumOfVector_GPU<<<gridDim, blockDim>>>(sum_g, g, numElements);
 
+	// sum_df_g = sum( g[i]*df[i]*local_volume )
+	calcSum_df_g_GPU<<<gridDim, blockDim>>>(sum_df_g, df, g, numElements);
+
+	// p_w = sum_df_g / sum_g
+	divide_GPU<<<1,1>>>(p_w, sum_df_g, sum_g);
 
 
 }

@@ -90,6 +90,10 @@ private:
     vector<double> laplacian;
     double* d_laplacian;
 
+    double* m_d_sum_df_g;
+    double* m_d_sum_g;
+
+
     
 
 };

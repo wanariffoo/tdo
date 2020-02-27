@@ -68,7 +68,6 @@ int main()
     // local element mesh size on coarsest grid
     double h_coarse = 1;
 
-
     size_t dim = N.size();
     bc_index = applyBC(N, numLevels, 0, dim);
     
@@ -184,9 +183,9 @@ int main()
 
 
     // // DEBUG:
-    // dim3 maingridDim;
-    // dim3 mainblockDim;
-    // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
+    dim3 maingridDim;
+    dim3 mainblockDim;
+    calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
     // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
     
 	
@@ -204,7 +203,7 @@ int main()
     
 
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    // cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 
     // TODO: create a VTK class, write a function for this to make it neater
     // vtk stuff
@@ -240,7 +239,7 @@ int main()
     // TODO:
     // TODO:
 
-    for ( int i = 1 ; i < 5 ; ++i )
+    for ( int i = 1 ; i < 30 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);

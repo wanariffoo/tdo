@@ -257,7 +257,9 @@ __global__ void int_g_p(double* d_temp, double* d_df, double local_volume, size_
 
 __global__ void calcP_w_GPU(double* p_w, double* df, double* uTAu, double* chi, int p, double local_volume, size_t numElements);
 
-__host__ void calcP_w(double* p_w, double* df, double* chi, double* g, double* df_g, size_t numElements);
+__host__ void calcP_w(double* p_w, double* sum_g, double* sum_df_g, double* df, double* chi, double* g, double* df_g, size_t numElements, double local_volume);
+
+__global__ void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t numElements);
 
 __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double betastar, double* p_w );
 
