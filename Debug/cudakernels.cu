@@ -2612,12 +2612,9 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 		bool west  = ( (id) % ((Nx + 1)*dim) >= dim );
 		bool east  = ( (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 );
 		bool north = ( id < (Nx+1)*(Ny)*dim );
+		bool previous = ( coarse_node_index >= (Nx_+1)*(Ny_+1) );
+		bool next = ( coarse_node_index + (Nx+1)*(Ny+1) <= (Nx+1)*(Ny+1) );
 
-		if ( id == 0 )
-		{
-			// printf("%d\n",coarse_node_index );
-			printf("%d\n",getFineNode_GPU(coarse_node_index, Nx_, Ny_, Nz_, dim) );
-		}
 
 		// if there exists a coarse node in the same location
 		if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, Nz_, dim) == node_index )
@@ -2627,10 +2624,10 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			counter++;
 		}
 
-		// else
-		// {
-			// // south-west
-			// if ( south && condition1 && !condition2 && west ) 
+		else
+		{
+			// next-south-west
+			// if ( next && south && condition1 && !condition2 && west ) 
 			// {
 			// 	size_t south_west_fine_node = (node_index - (Nx+1) - 1);
 			// 	size_t south_west_coarse_node = getCoarseNode_GPU(south_west_fine_node, Nx, Ny, 0, dim);
@@ -2639,77 +2636,91 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			// 	counter++;
 			// }
 
-			// // south
-			// if ( south && !condition1 && !condition2 )
-			// {
-			// 	size_t south_fine_node = (node_index - (Nx+1) );
-			// 	size_t south_coarse_node = getCoarseNode_GPU(south_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = south_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.5 ;
-			// 	counter++;
-			// }
 
-			// // south-east
-			// if ( south && condition1 && !condition2 && east ) 
-			// {
-			// 	size_t south_east_fine_node = (node_index - (Nx+1) + 1);
-			// 	size_t south_east_coarse_node = getCoarseNode_GPU(south_east_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = south_east_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.25 ;
-			// 	counter++;
-			// }
 
-			// // west
-			// if ( west && condition2 )
-			// {
-			// 	size_t west_fine_node = (node_index - 1);
-			// 	size_t west_coarse_node = getCoarseNode_GPU(west_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = west_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.5 ;
-			// 	counter++;
-			// }
 
-			// // east
-			// if ( east && condition2 )
-			// {
-			// 	size_t east_fine_node = (node_index + 1);
-			// 	size_t east_coarse_node = getCoarseNode_GPU(east_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = east_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.5 ;
-			// 	counter++;
-			// }
 
-			// // north-west
-			// if ( north && condition1 && !condition2 && west )
-			// {
-			// 	size_t north_west_fine_node = (node_index + (Nx+1) - 1);
-			// 	size_t north_west_coarse_node = getCoarseNode_GPU(north_west_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = north_west_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.25 ;
-			// 	counter++;
-			// }
+			// south-west
+			if ( south && condition1 && !condition2 && west ) 
+			{
+				size_t south_west_fine_node = (node_index - (Nx+1) - 1);
+				size_t south_west_coarse_node = getCoarseNode_GPU(south_west_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = south_west_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
+				counter++;
+			}
 
-			// // north
-			// if ( north && !condition1 && !condition2 )
-			// {
-			// 	size_t north_fine_node = (node_index + (Nx+1) );
-			// 	size_t north_coarse_node = getCoarseNode_GPU(north_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = north_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.5 ;
-			// 	counter++;
-			// }
+			// south
+			if ( south && !condition1 && !condition2 )
+			{
+				size_t south_fine_node = (node_index - (Nx+1) );
+				size_t south_coarse_node = getCoarseNode_GPU(south_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = south_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
+				counter++;
+			}
 
-			// // north-east
-			// if ( north && condition1 && !condition2 && east ) 
-			// {
-			// 	size_t north_east_fine_node = (node_index + (Nx+1) + 1);
-			// 	size_t north_east_coarse_node = getCoarseNode_GPU(north_east_fine_node, Nx, Ny, 0, dim);
-			// 	p_index[counter + id*p_max_row_size] = north_east_coarse_node*dim + id%dim ;
-			// 	p_value[counter + id*p_max_row_size] = 0.25 ;
-			// 	counter++;
-			// }
+			// south-east
+			if ( south && condition1 && !condition2 && east ) 
+			{
+				size_t south_east_fine_node = (node_index - (Nx+1) + 1);
+				size_t south_east_coarse_node = getCoarseNode_GPU(south_east_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = south_east_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
+				counter++;
+			}
 
-		// }
+			// west
+			if ( west && condition2 )
+			{
+				size_t west_fine_node = (node_index - 1);
+				size_t west_coarse_node = getCoarseNode_GPU(west_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = west_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
+				counter++;
+			}
+
+			// east
+			if ( east && condition2 )
+			{
+				size_t east_fine_node = (node_index + 1);
+				size_t east_coarse_node = getCoarseNode_GPU(east_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = east_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
+				counter++;
+			}
+
+			// north-west
+			if ( north && condition1 && !condition2 && west )
+			{
+				size_t north_west_fine_node = (node_index + (Nx+1) - 1);
+				size_t north_west_coarse_node = getCoarseNode_GPU(north_west_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = north_west_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
+				counter++;
+			}
+
+			// north
+			if ( north && !condition1 && !condition2 )
+			{
+				size_t north_fine_node = (node_index + (Nx+1) );
+				size_t north_coarse_node = getCoarseNode_GPU(north_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = north_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
+				counter++;
+			}
+
+			// north-east
+			if ( north && condition1 && !condition2 && east ) 
+			{
+				size_t north_east_fine_node = (node_index + (Nx+1) + 1);
+				size_t north_east_coarse_node = getCoarseNode_GPU(north_east_fine_node, Nx, Ny, 0, dim);
+				p_index[counter + id*p_max_row_size] = north_east_coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.25 ;
+				counter++;
+			}
+
+		}
 
 
 
