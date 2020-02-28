@@ -509,6 +509,18 @@ void divide_GPU(double *x, double *y, double *z)
 	*x = *y / *z;
 }
  
+// x += y
+__global__ void add_GPU(double *x, double *y)
+{
+	*x += *y;
+}
+
+// x -= y
+__global__ void minus_GPU(double *x, double *y)
+{
+	*x -= *y;
+}
+
 
 // x += c
 __global__
@@ -1444,36 +1456,36 @@ __device__
 double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz, double h )
 {
 
-	double value = 4.0 * array[ind];
-
 	bool east = ( (ind + 1) % Nx != 0 );
 	bool north = ( ind + Nx < Nx*Ny );
 	bool west = ( ind % Nx != 0 );
 	bool south = ( ind >= Nx );
 	
+	double value = -4.0 * array[ind];
+
     // east element
     if ( east )
-        value += -1.0 * array[ind + 1];
+        value += 1.0 * array[ind + 1];
 	else
-		value += -1.0 * array[ind];
+		value += 1.0 * array[ind];
     
     // north element
     if ( north )
-        value += -1.0 * array[ind + Nx];
+        value += 1.0 * array[ind + Nx];
 	else
-		value += -1.0 * array[ind];
+		value += 1.0 * array[ind];
 
     // west element
     if ( west )
-        value += -1.0 * array[ind - 1];
+        value += 1.0 * array[ind - 1];
 	else
-		value += -1.0 * array[ind];
+		value += 1.0 * array[ind];
 
     // south element
     if ( south )
-        value += -1.0 * array[ind - Nx];
+        value += 1.0 * array[ind - Nx];
 	else
-		value += -1.0 * array[ind];
+		value += 1.0 * array[ind];
 
     return value/(h*h);
 }
@@ -1494,7 +1506,7 @@ void calcLambdaUpper(double *df_array, double *max, int *mutex, double* beta, do
 	while(index + offset < numElements){
         
 		//TODO:DEBUG:
-        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz, h ) ) + *eta ) );
+        temp = fmaxf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz, h ) ) ) );
         // temp = fmaxf(temp, ( df_array[index + offset] + *eta ) );
         
 		offset += stride;
@@ -1540,7 +1552,7 @@ void calcLambdaLower(double *df_array, double *min, int *mutex, double* beta, do
 
 		while(index + offset < numElements){
 			
-			temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz, h ) ) - *eta ) );
+			temp = fminf(temp, ( df_array[index + offset] + ( *beta * laplacian_GPU( chi, index, Nx, Ny, Nz, h ) ) ) );
 			// temp = fminf(temp, ( df_array[index + offset] - *eta ) );
 			offset += stride;
 		}

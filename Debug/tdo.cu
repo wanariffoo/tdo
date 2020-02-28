@@ -280,6 +280,7 @@ void TDO::set_verbose(bool verbose) { m_verbose = verbose; }
 bool TDO::innerloop(double* &d_u, double* &d_chi)
 {
     
+    
     m_d_u = d_u;
     m_d_chi = d_chi;
     m_tdo_foo = true;
@@ -288,6 +289,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
     setToZero<<<1,1>>>( m_d_sum_g, 1 );
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
+    
     
     // calculating the driving force of each element
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
@@ -298,8 +300,10 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // DEBUG:
     checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
 
+    // if(m_verbose)
     // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_df, m_numElements);
     // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_numElements);
+    // printVector_GPU<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements);
     
     // print_GPU<<<1,1>>>( &m_d_df[168] );
     cudaDeviceSynchronize();
@@ -340,6 +344,8 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
     cudaDeviceSynchronize();
 
+
+    
     // // cout << "aps" << endl;
     // // cout << m_etastar << endl;
     // // cout << m_betastar << endl;
@@ -366,26 +372,50 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
         calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
         
+
+        minus_GPU<<<1,1>>>( m_d_lambda_l, m_d_eta);
+        add_GPU<<<1,1>>>( m_d_lambda_u, m_d_eta);
+
+            // print_GPU<<<1,1>>>( m_d_lambda_l );
+            // cudaDeviceSynchronize();
+            // print_GPU<<<1,1>>>( m_d_lambda_u );
+            // cudaDeviceSynchronize();
+
+        int counter = 0;
         while(m_tdo_foo)
         {
-           
+            
             calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
+
+            // print_GPU<<<1,1>>>( &m_d_chi_tr[0] );
+            // print_GPU<<<1,1>>>( &m_d_chi_tr[0] );
+            cudaDeviceSynchronize();
+            // print_GPU<<<1,1>>>( &m_d_chi_tr[168] );
+            // print_GPU<<<1,1>>>( &m_d_chi_tr[168] );
+            cudaDeviceSynchronize();
 
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_chi_tr, m_numElements);
             calcRhoTrial<<<1,1>>>(m_d_rho_tr, m_local_volume, m_numElements);
 
-            // // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi_tr, m_numElements);
+            if ( counter == 0 )
+            {
+            // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi_tr, m_numElements);
             // print_GPU<<<1,1>>>( m_d_rho_tr );
-            // cudaDeviceSynchronize();
+
+            }
+            cudaDeviceSynchronize();
             // cout << "\n";
 
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
 
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
+
+            // cout << "counter " << ++counter << endl;
         }
 
+        // printVector_GPU<<<1,10>>>(m_d_chi_tr, 10);
 
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
@@ -394,7 +424,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
 
         // if(m_verbose)
-        // printVector_GPU<<<1,m_numElements>>>( m_d_chi, m_numElements);    
+        // printVector_GPU<<<1,m_numElements>>>( m_d_chi, m_numElements);   
         // bar<<<1,1>>>( m_d_chi );    
 
     

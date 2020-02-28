@@ -115,7 +115,12 @@ __host__ void dotProduct(double* dot, double* a, double* b, size_t N, dim3 gridD
 
 // x = y / z
 __global__ void divide_GPU(double *x, double *y, double *z);
- 
+
+// x += y
+__global__ void add_GPU(double *x, double *y);
+
+// x -= y
+__global__ void minus_GPU(double *x, double *y);
 
 
 // x += c

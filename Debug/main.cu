@@ -57,7 +57,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 4;
+    size_t numLevels = 5;
     size_t topLev = numLevels - 1;
     
     vector<size_t> N;
@@ -239,7 +239,7 @@ int main()
     // TODO:
     // TODO:
 
-    for ( int i = 1 ; i < 30 ; ++i )
+    for ( int i = 1 ; i < 200 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
@@ -261,7 +261,7 @@ int main()
         // if (result)
 
 
-        // tdo.set_verbose(1);
+        tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi);
         
         // cudaDeviceSynchronize();
