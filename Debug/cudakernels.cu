@@ -2597,32 +2597,35 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 		size_t node_index = base_id / dim;
 		int coarse_node_index = getCoarseNode3D_GPU(node_index, Nx, Ny, Nz);
 
-		// if ( id == 126 )
+
+		// if node is even numbered
+		bool condition1 = ( node_index % 2 == 0 );
+
+		// if node exists in the coarse grid (x-y-plane)
+		bool condition2 = ( node_index % ((Nx+1)*2) < (Nx + 1) );
+
+		// if node exists in the coarse grid (y-z-plane)
+		bool condition3 = ( node_index % ((Nx+1)*(Ny+1)*2) < (Nx+1)*(Ny+1) );
+
+
+		bool south = ( id >= (Nx + 1)*dim );
+		bool west  = ( (id) % ((Nx + 1)*dim) >= dim );
+		bool east  = ( (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 );
+		bool north = ( id < (Nx+1)*(Ny)*dim );
+
+		if ( id == 0 )
 		{
-
-			// printf("%lu\n", node_index);
-			printf("%d %d\n", id, coarse_node_index);
+			// printf("%d\n",coarse_node_index );
+			printf("%d\n",getFineNode_GPU(coarse_node_index, Nx_, Ny_, Nz_, dim) );
 		}
-		
-		// // if node is even numbered
-		// bool condition1 = (node_index % 2 == 0 );
 
-		// // if node exists in the coarse grid
-		// bool condition2 = ( node_index % ((Nx+1)*2) < (Nx + 1) );
-
-		// bool south = ( id >= (Nx + 1)*dim );
-		// bool west  = ( (id) % ((Nx + 1)*dim) >= dim );
-		// bool east  = ( (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 );
-		// bool north = ( id < (Nx+1)*(Ny)*dim );
-
-
-		// // if there exists a coarse node in the same location
-		// if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, 0, dim) == node_index )
-		// {
-		// 	p_index[counter + id*p_max_row_size] = coarse_node_index*dim + id%dim;
-		// 	p_value[counter + id*p_max_row_size] = 1;
-		// 	counter++;
-		// }
+		// if there exists a coarse node in the same location
+		if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, Nz_, dim) == node_index )
+		{
+			p_index[counter + id*p_max_row_size] = coarse_node_index*dim + id%dim;
+			p_value[counter + id*p_max_row_size] = 1;
+			counter++;
+		}
 
 		// else
 		// {
@@ -2710,9 +2713,17 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 
 
 
-		// for ( int i = counter ; i < p_max_row_size; i++)
+		for ( int i = counter ; i < p_max_row_size; i++)
+		{
+			p_index[i + id*p_max_row_size] = num_cols;
+		}
+
+		// if (id == 0)
 		// {
-		// 	p_index[i + id*p_max_row_size] = num_cols;
+		// 	for ( int i = 0 ; i < p_max_row_size; i++)
+		// 		printf("%lu ", p_index[i + id*p_max_row_size]);
+
+		// 	printf("\n");
 		// }
 
 	}

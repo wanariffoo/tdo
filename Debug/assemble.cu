@@ -703,7 +703,7 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
            
 
 
-
+    printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
     // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
 
     return true;
