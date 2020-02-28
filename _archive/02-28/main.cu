@@ -17,7 +17,7 @@
 using namespace std;
 
 // DONE: bc cases
-// DONE: matrix assembly 2D
+// DONE: matrix assembly 2D 3D
 // DONE: fix prolongation assembly - has something to do with bc initialization
     // DONE: 2D assembly not symmetric
 
@@ -27,8 +27,6 @@ using namespace std;
 // TODO: __device__ valueAt() has x and y mixed up
 // NOTE:CHECK: when using shared memory, more than one block, get this error : CUDA error for cudaMemcpy( ...)
 // TODO: check that all kernels have (row, col) formats
-// TODO: getCoarseNode() : change to getCoarseNode2D, because you've separately made a 3D 
-
 
 // 3D
 // TODO: local stiffness
