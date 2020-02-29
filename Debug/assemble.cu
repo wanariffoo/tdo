@@ -698,15 +698,17 @@ bool Assembler::assembleProlMatrix_GPU(
     // m_dim = 3
     else
     {
-            int lev = 0;
+        // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+        int lev = 1;
+        {
             calculateDimensions(m_num_rows[lev+1], gridDim, blockDim);
             fillProlMatrix3D_GPU<<<gridDim,blockDim>>>( d_p_value[lev], d_p_index[lev], m_N[lev+1][0], m_N[lev+1][1], m_N[lev+1][2], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
-
+        }
     }
            
 
-
-    printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
+    // printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
+    // printLinearVector( d_p_index[1], m_num_rows[2], m_p_max_row_size[1]);
     // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
 
     return true;
