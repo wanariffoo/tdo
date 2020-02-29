@@ -294,8 +294,8 @@ bool Assembler::init_GPU(
     cout << "Assembling prol matrix ..." << endl;
     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
 
-    // cout << "Assembling rest matrix ..." << endl;
-    // assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
+    cout << "Assembling rest matrix ..." << endl;
+    assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
 //     // allocating temp matrix to be used in RAP
 //     CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
@@ -665,7 +665,10 @@ double Assembler::valueAt(size_t row, size_t col)
 }
 
 
-bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t*> &d_p_index, size_t lev)
+bool Assembler::assembleProlMatrix_GPU(
+    vector<double*> &d_p_value, 
+    vector<size_t*> &d_p_index, 
+    size_t lev)
 {
     // resizing the prolongation matrices according to the number of grid-levels for cuda
     d_p_value.resize( m_numLevels - 1 );
@@ -703,7 +706,7 @@ bool Assembler::assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t
            
 
 
-    printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
+    // printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
     // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
 
     return true;
