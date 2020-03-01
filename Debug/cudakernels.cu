@@ -1460,6 +1460,8 @@ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz
 	bool north = ( ind + Nx < Nx*Ny );
 	bool west = ( ind % Nx != 0 );
 	bool south = ( ind >= Nx );
+	bool previous_layer = (ind >= Nx*Ny);
+	bool next_layer = (ind < Nx*Ny*(Nz-1));
 	
 	double value = -4.0 * array[ind];
 
@@ -1486,6 +1488,25 @@ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz
         value += 1.0 * array[ind - Nx];
 	else
 		value += 1.0 * array[ind];
+
+	// if 3D
+	if (Nz > 0)
+	{
+		value -= 2.0 * array[ind];
+
+		// previous layer's element
+
+		if ( previous_layer )
+			value += 1.0 * array[ind - (Nx*Ny)];
+		else
+			value += 1.0 * array[ind];
+
+		if ( next_layer )
+			value += 1.0 * array[ind + (Nx*Ny)];
+		else
+			value += 1.0 * array[ind];
+
+	}
 
     return value/(h*h);
 }
@@ -3839,6 +3860,13 @@ void checkLaplacian(double* laplacian, double* chi, size_t Nx, size_t Ny, size_t
 	
 		
 
+}
+
+__global__ void bar(double* x)
+{
+	
+	for ( int i = 0 ; i < 24 ; i++)
+		printf("%.2f\n", laplacian_GPU( x, i, 6, 2, 2, 0.5) );
 }
 
 

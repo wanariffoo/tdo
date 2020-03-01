@@ -49,7 +49,7 @@ void WriteVectorToVTK_df(vector<double> &df, vector<double> &u, const std::strin
 		for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
 		{
 			for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
-				ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+				ofs << " " << h*x << " " << h*z << " " << h*y << endl;
 		}
 	}
 
@@ -132,7 +132,7 @@ void WriteVectorToVTK_laplacian(vector<double> &laplacian, vector<double> &u, co
 		for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
 		{
 			for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
-				ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+				ofs << " " << h*x << " " << h*z << " " << h*y << endl;
 		}
 	}
 

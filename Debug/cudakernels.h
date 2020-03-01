@@ -300,5 +300,7 @@ __global__ void checkLaplacian(double* laplacian, double* chi, size_t Nx, size_t
 __global__ void checkMassConservation(double* chi, double local_volume, size_t numElements);
 
 
+__global__ void bar(double* x);
+
 #endif // CUDAKERNELS_H
 

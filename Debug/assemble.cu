@@ -282,15 +282,15 @@ bool Assembler::init_GPU(
     m_r_max_row_size = r_max_row_size;
     m_p_max_row_size = p_max_row_size;
 
-    
+
 
     // TODO: 3D doesn't work yet
     // assembling the local stiffness matrix
     assembleLocal();
  
-    //// assembling prolongation & restriction matrices
 
-    // TODO: assemble in GPU, currently it's assembling in CPU
+    
+    //// assembling prolongation & restriction matrices
     cout << "Assembling prol matrix ..." << endl;
     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
 
@@ -348,6 +348,7 @@ bool Assembler::init_GPU(
 
         }
     }
+
 
     // // DEBUG:
     //     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
