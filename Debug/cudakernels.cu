@@ -402,7 +402,7 @@ __global__
 void printELLrow_GPU(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
 		for ( int j = 0 ; j < num_cols ; j++)
-			printf("%f ", valueAt(row, j, value, index, max_row_size) );
+			printf("%.2f ", valueAt(row, j, value, index, max_row_size) );
 
 		printf("\n");
 	
@@ -2714,13 +2714,139 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			counter++; 
 		}
 
-		
+		// diagonals on x-z plane
+		else if ( condition1 && condition5 && !condition6 )
+		{
+			size_t fine_node;
+			size_t coarse_node;
+
+			// previous-west
+			fine_node = (node_index - (Nx+1)*(Ny+1) - 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// previous-east
+			fine_node = (node_index - (Nx+1)*(Ny+1) + 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// next-west
+			fine_node = (node_index + (Nx+1)*(Ny+1) - 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// next-east
+			fine_node = (node_index + (Nx+1)*(Ny+1) + 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+		}
+
+		// diagonals in x-y plane
+		else if ( condition1 && !condition5 && condition6 )
+		{
+			size_t fine_node;
+			size_t coarse_node;
+
+			// south-west
+			fine_node = (node_index - (Nx+1) - 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// south-east
+			fine_node = (node_index - (Nx+1) + 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// north-east
+			fine_node = (node_index + (Nx+1) - 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// north-east
+			fine_node = (node_index + (Nx+1) + 1);
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+		}
+
+		// diagonals in y-z plane
+		else if ( condition1 && !condition5 && !condition6 )
+		{
+			size_t fine_node;
+			size_t coarse_node;
+
+			// previous-south
+			fine_node = (node_index - (Nx+1)*(Ny+1) - (Nx+1) );
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// previous-north
+			fine_node = (node_index - (Nx+1)*(Ny+1) + (Nx+1) );
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// next-south
+			fine_node = (node_index + (Nx+1)*(Ny+1) - (Nx+1) );
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+
+			// next-north
+			fine_node = (node_index + (Nx+1)*(Ny+1) + (Nx+1) );
+			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+			p_value[counter + id*p_max_row_size] = 0.25 ;
+			counter++;
+		}
 
 		else
-		{
-		
+		{		
 			// if ( id == 171 )
 			// 	printf("%d\n", condition5 );
+
+			// DONE:
+			// previous-origin
+			if ( !condition1 && condition5 && !condition6 )
+			{
+				// printf("%lu\n", node_index*dim );
+				size_t fine_node = (node_index - (Nx+1)*(Ny+1));
+				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
+				counter++;
+			}
+
+			// DONE:
+			// next-origin
+			if ( !condition1 && condition5 && !condition6 )
+			{
+				// printf("%lu\n", node_index*dim );
+				size_t fine_node = (node_index + (Nx+1)*(Ny+1));
+				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
+				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
+				p_value[counter + id*p_max_row_size] = 0.5 ;
+				counter++;
+			}
 
 			// DONE:
 			// south
@@ -2778,18 +2904,18 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				p_index[i + id*p_max_row_size] = num_cols;
 			}
 
-		if (id == 237)
-		{
-			for ( int i = 0 ; i < p_max_row_size; i++)
-				printf("%lu ", p_index[i + id*p_max_row_size]);
+		// if (id == 84)
+		// {
+		// 	for ( int i = 0 ; i < p_max_row_size; i++)
+		// 		printf("%lu ", p_index[i + id*p_max_row_size]);
 
-			printf("\n");
+		// 	printf("\n");
 
-			for ( int i = 0 ; i < p_max_row_size; i++)
-				printf("%g ", p_value[i + id*p_max_row_size]);
+		// 	for ( int i = 0 ; i < p_max_row_size; i++)
+		// 		printf("%g ", p_value[i + id*p_max_row_size]);
 
-			printf("\n");
-		}
+		// 	printf("\n");
+		// }
 
 
 
