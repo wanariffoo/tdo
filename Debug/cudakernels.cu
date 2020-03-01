@@ -1464,12 +1464,13 @@ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz
 	bool next_layer = (ind < Nx*Ny*(Nz-1));
 	
 	double value = -4.0 * array[ind];
-
+	
     // east element
     if ( east )
         value += 1.0 * array[ind + 1];
 	else
 		value += 1.0 * array[ind];
+	
     
     // north element
     if ( north )
@@ -1494,17 +1495,19 @@ double laplacian_GPU( double *array, size_t ind, size_t Nx, size_t Ny, size_t Nz
 	{
 		value -= 2.0 * array[ind];
 
-		// previous layer's element
 
+		// previous layer's element
 		if ( previous_layer )
 			value += 1.0 * array[ind - (Nx*Ny)];
 		else
 			value += 1.0 * array[ind];
+		
 
 		if ( next_layer )
 			value += 1.0 * array[ind + (Nx*Ny)];
 		else
 			value += 1.0 * array[ind];
+		
 
 	}
 
@@ -3865,8 +3868,10 @@ void checkLaplacian(double* laplacian, double* chi, size_t Nx, size_t Ny, size_t
 __global__ void bar(double* x)
 {
 	
-	for ( int i = 0 ; i < 24 ; i++)
-		printf("%.2f\n", laplacian_GPU( x, i, 6, 2, 2, 0.5) );
+	// for ( int i = 0 ; i < 24 ; i++)
+	int i = 0;
+		printf("%.5f\n", laplacian_GPU( x, i, 6, 2, 2, 0.5) );
+		// laplacian_GPU( x, i, 6, 2, 2, 0.5);
 }
 
 
