@@ -290,202 +290,202 @@ bool Assembler::init_GPU(
  
 
     
-    //// assembling prolongation & restriction matrices
-    cout << "Assembling prol matrix ..." << endl;
-    assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
+//     //// assembling prolongation & restriction matrices
+//     cout << "Assembling prol matrix ..." << endl;
+//     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
 
-    cout << "Assembling rest matrix ..." << endl;
-    assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
+//     cout << "Assembling rest matrix ..." << endl;
+//     assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
-    // allocating temp matrix to be used in RAP
-    CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
-    CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+//     // allocating temp matrix to be used in RAP
+//     CUDA_CALL( cudaMalloc((void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+//     CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
     
 
 
-    //// adding nodes and elements to the top-level global grid
-    for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
-        m_node.push_back(Node(i));
+//     //// adding nodes and elements to the top-level global grid
+//     for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
+//         m_node.push_back(Node(i));
 
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-        m_element.push_back(Element(i));
+//     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+//         m_element.push_back(Element(i));
 
-    size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
+//     size_t numNodesIn2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
 
 
-    // assigning the nodes to each element
-    if ( m_dim == 2)
-    {
-        for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-        {
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
-            m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
-        }
-    }
+//     // assigning the nodes to each element
+//     if ( m_dim == 2)
+//     {
+//         for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+//         {
+//             m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] ]);   // lower left node
+//             m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + 1]);   // lower right node
+//             m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 1]);   // upper left node
+//             m_element[i].addNode(&m_node[ i + i/m_N[m_topLev][0] + m_N[m_topLev][0] + 2]);   // upper right node
+//         }
+//     }
 
-    // m_dim == 3
-    else    
-    {
-        for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-        {
-            size_t elemcount_2D = (m_N[m_topLev][0])*(m_N[m_topLev][1]); 
-            size_t gridsize_2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
-            size_t multiplier = i / elemcount_2D;
-            size_t base_id = i % elemcount_2D;
+//     // m_dim == 3
+//     else    
+//     {
+//         for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+//         {
+//             size_t elemcount_2D = (m_N[m_topLev][0])*(m_N[m_topLev][1]); 
+//             size_t gridsize_2D = (m_N[m_topLev][0]+1)*(m_N[m_topLev][1]+1);
+//             size_t multiplier = i / elemcount_2D;
+//             size_t base_id = i % elemcount_2D;
 
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D ]);   // lower left node
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + 1]);   // lower right node
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 1]);   // upper left node
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 2]);   // upper right node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D ]);   // lower left node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + 1]);   // lower right node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 1]);   // upper left node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 2]);   // upper right node
             
-            // next layer
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + gridsize_2D]);   // lower left node
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + 1 + gridsize_2D]);   // lower right node
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 1 + gridsize_2D]);   // upper left node
-            m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 2 + gridsize_2D]);   // upper right node
+//             // next layer
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + gridsize_2D]);   // lower left node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + 1 + gridsize_2D]);   // lower right node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 1 + gridsize_2D]);   // upper left node
+//             m_element[i].addNode(&m_node[ base_id + base_id/m_N[m_topLev][0] + multiplier*gridsize_2D + m_N[m_topLev][0] + 2 + gridsize_2D]);   // upper right node
 
-        }
-    }
-
-
-    // // DEBUG:
-    //     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    //     {
-    //         cout << "Element " << elem << " ";
-    //         for ( int i = 0 ; i < 8 ; ++i )
-    //         {
-    //             cout << m_element[elem].nodeIndex(i) << " ";
-    //         }
-    //         cout << "\n";
-    //     }
+//         }
+//     }
 
 
-    m_node_index.resize(m_numElements[m_topLev]);
-    d_node_index.resize(m_numElements[m_topLev]);
-    for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    {
-        for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
-            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
-    }
-
-    // allocating and copying the design variable to device
-    // design variable currently has initial values of rho
-    CUDA_CALL( cudaMalloc((void**)&d_chi, sizeof(double) * m_numElements[m_topLev] ) );
-    CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
-
-    // allocating and copying the (linear vector) local stiffness matrix to device
-    CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
-    CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
-
-    
-    // calculating the number of nodes in a local element
-    size_t numNodes_local = pow(2,m_dim);
-
-    // copying the node index vector to device
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-    {
-        CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * numNodes_local) );
-        CUDA_CALL( cudaMemcpy( d_node_index[i], &m_node_index[i][0], sizeof(size_t) * numNodes_local, cudaMemcpyHostToDevice) );
-    }
-
-    m_d_node_index = d_node_index;
-
-    //// allocating the global matrices of each level to device
-    // matrices are empty for now, will be filled in later
-
-    // resizing global matrices for each grid-level
-    d_value.resize( m_numLevels );
-    d_index.resize( m_numLevels );
-
-    for ( int lev = 0 ; lev < m_numLevels ; lev++ )
-    {
-        CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
-        CUDA_CALL( cudaMemset( d_value[lev], 0, sizeof(double) * num_rows[lev]*max_row_size[lev] ) );
-        CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
-        CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
-    }
-    
+//     // // DEBUG:
+//     //     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+//     //     {
+//     //         cout << "Element " << elem << " ";
+//     //         for ( int i = 0 ; i < 8 ; ++i )
+//     //         {
+//     //             cout << m_element[elem].nodeIndex(i) << " ";
+//     //         }
+//     //         cout << "\n";
+//     //     }
 
 
-    // TODO: parallelizable
-    // filling in global stiffness matrix's ELLPACK index vector for all levels
-    dim3 index_gridDim;
-    dim3 index_blockDim;
+//     m_node_index.resize(m_numElements[m_topLev]);
+//     d_node_index.resize(m_numElements[m_topLev]);
+//     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+//     {
+//         for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+//             m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+//     }
 
-    if ( m_dim == 2)
-    {
-        for (int lev = m_topLev ; lev >= 0 ; --lev )
-        {
-            calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
-            fillIndexVector2D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
-        }
-    }
+//     // allocating and copying the design variable to device
+//     // design variable currently has initial values of rho
+//     CUDA_CALL( cudaMalloc((void**)&d_chi, sizeof(double) * m_numElements[m_topLev] ) );
+//     CUDA_CALL( cudaMemcpy(d_chi, &m_chi[0], sizeof(double) * m_numElements[m_topLev], cudaMemcpyHostToDevice) );
 
-    else
-    {   
-        for (int lev = m_topLev ; lev >= 0 ; --lev )
-        {
-            calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
-            fillIndexVector3D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], max_row_size[lev], num_rows[lev]);
-        }
-    }
-    
-    
-
-    //// filling in the top level global stiffness matrix
-    // CUDA block size for assembling the global stiffness matrix
-    dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
-
-    // filling in from each element
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
-
-    cudaDeviceSynchronize();
-
-// printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-
-    // calculating the needed cuda 2D grid size for the global assembly
-    dim3 g_gridDim;
-    dim3 g_blockDim;
-
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    // cout << m_bc_index[m_topLev][i] << endl;
-    
-    // TODO: CHECK: this is a bit shaky
-    // TODO: think it's a bit overkill to use a lot of cuda threads here
-    //// apply boundary conditions to global stiffness matrix
-    // global stiffness matrix
-    calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
-    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-        applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
-
-        // NOTE: optional?
-    // prolongation matrix
-    // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
-
-
-
-
-    //// obtaining the coarse stiffness matrices of each lower grid level
-    // // TODO: use optimized matrix multiplication
-    dim3 temp_gridDim;
-    dim3 temp_blockDim;
+//     // allocating and copying the (linear vector) local stiffness matrix to device
+//     CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
+//     CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
 
     
-    // A_coarse = R * A_fine * P
-    for ( int lev = m_topLev ; lev != 0 ; lev--)
-    {
-        calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
-        RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
-                                                d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 
-                                                d_r_value[lev-1], d_r_index[lev-1], r_max_row_size[lev-1],
-                                                d_p_value[lev-1], d_p_index[lev-1], p_max_row_size[lev-1], lev-1);
-        cudaDeviceSynchronize();
-    }
+//     // calculating the number of nodes in a local element
+//     size_t numNodes_local = pow(2,m_dim);
+
+//     // copying the node index vector to device
+//     for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
+//     {
+//         CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * numNodes_local) );
+//         CUDA_CALL( cudaMemcpy( d_node_index[i], &m_node_index[i][0], sizeof(size_t) * numNodes_local, cudaMemcpyHostToDevice) );
+//     }
+
+//     m_d_node_index = d_node_index;
+
+//     //// allocating the global matrices of each level to device
+//     // matrices are empty for now, will be filled in later
+
+//     // resizing global matrices for each grid-level
+//     d_value.resize( m_numLevels );
+//     d_index.resize( m_numLevels );
+
+//     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
+//     {
+//         CUDA_CALL( cudaMalloc((void**)&d_value[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
+//         CUDA_CALL( cudaMemset( d_value[lev], 0, sizeof(double) * num_rows[lev]*max_row_size[lev] ) );
+//         CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
+//         CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
+//     }
+    
+
+
+//     // TODO: parallelizable
+//     // filling in global stiffness matrix's ELLPACK index vector for all levels
+//     dim3 index_gridDim;
+//     dim3 index_blockDim;
+
+//     if ( m_dim == 2)
+//     {
+//         for (int lev = m_topLev ; lev >= 0 ; --lev )
+//         {
+//             calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
+//             fillIndexVector2D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
+//         }
+//     }
+
+//     else
+//     {   
+//         for (int lev = m_topLev ; lev >= 0 ; --lev )
+//         {
+//             calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
+//             fillIndexVector3D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], max_row_size[lev], num_rows[lev]);
+//         }
+//     }
+    
+    
+
+//     //// filling in the top level global stiffness matrix
+//     // CUDA block size for assembling the global stiffness matrix
+//     dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
+
+//     // filling in from each element
+//     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
+//         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+
+//     cudaDeviceSynchronize();
+
+// // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
+
+//     // calculating the needed cuda 2D grid size for the global assembly
+//     dim3 g_gridDim;
+//     dim3 g_blockDim;
+
+//     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+//     // cout << m_bc_index[m_topLev][i] << endl;
+    
+//     // TODO: CHECK: this is a bit shaky
+//     // TODO: think it's a bit overkill to use a lot of cuda threads here
+//     //// apply boundary conditions to global stiffness matrix
+//     // global stiffness matrix
+//     calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
+//     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+//         applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
+
+//         // NOTE: optional?
+//     // prolongation matrix
+//     // calculateDimensions2D( num_rows[m_topLev-1], num_rows[m_topLev], g_gridDim, g_blockDim);
+//     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+//     //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_p_value[m_topLev-1][0], &d_p_index[m_topLev-1][0], p_max_row_size[m_topLev-1], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev-1] );
+
+
+
+
+//     //// obtaining the coarse stiffness matrices of each lower grid level
+//     // // TODO: use optimized matrix multiplication
+//     dim3 temp_gridDim;
+//     dim3 temp_blockDim;
+
+    
+//     // A_coarse = R * A_fine * P
+//     for ( int lev = m_topLev ; lev != 0 ; lev--)
+//     {
+//         calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
+//         RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
+//                                                 d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 
+//                                                 d_r_value[lev-1], d_r_index[lev-1], r_max_row_size[lev-1],
+//                                                 d_p_value[lev-1], d_p_index[lev-1], p_max_row_size[lev-1], lev-1);
+//         cudaDeviceSynchronize();
+//     }
 
 
     
@@ -544,7 +544,8 @@ bool Assembler::assembleLocal()
 
         foo = m_h / 2 ;
         det_jacobi = pow(m_h/2, m_dim);
-        inv_jacobi = 1 / det_jacobi;
+        inv_jacobi = 1 / (m_h/2);
+        // inv_jacobi = 1 / det_jacobi; // CHECK:
         
         
         // loop through each set of gauss points
@@ -555,6 +556,7 @@ bool Assembler::assembleLocal()
             A_.clear();
             A_.resize(3, vector<double>(8));
 
+            // CHECK: is N really used here?
             // bilinear element 
             N = {   { -(1-GP[i][1]),  (1-GP[i][1]), (1+GP[i][1]), -(1+GP[i][1]) } , 
                     { -(1-GP[i][0]), -(1+GP[i][0]), (1+GP[i][0]),  (1-GP[i][0]) } };
@@ -611,53 +613,212 @@ bool Assembler::assembleLocal()
             }
         }
 
-
     }
 
     if ( m_dim == 3 )
     {
-    // TODO: create function for this
     
+        // isotropic linear elastic tensor
+        double lambda = (m_youngMod * m_poisson) / ((1+m_poisson)*(1-2*m_poisson));
+        double mu = m_youngMod / ( 2 * (1+m_poisson) );
 
-    // isotropic linear elastic tensor
-    double lambda = (m_youngMod * m_poisson) / ((1+m_poisson)*(1-2*m_poisson));
-    double mu = m_youngMod / ( 2 * (1+m_poisson) );
+        vector<vector<double>> E (6, vector <double> (6, 0.0));
+        vector<vector<double>> A_ (6, vector <double> (24, 0.0));
 
-    vector<vector<double>> E (6, vector <double> (6, 0.0));
+        E[0][0] = E[1][1] = E[2][2] = lambda + 2*mu;
+        E[1][0] = E[2][0] = E[0][1] = E[0][2] = E[1][2] = E[2][1] = lambda;
+        E[3][3] = E[4][4] = E[5][5] = mu;
 
-    E[0][0] = E[1][1] = E[2][2] = lambda + 2*mu;
-    E[1][0] = E[2][0] = E[0][1] = E[0][2] = E[1][2] = E[2][1] = lambda;
-    E[3][3] = E[4][4] = E[5][5] = mu;
+        // jacobi
+        vector<vector<double>> J (3, vector <double> (3, 0.0));
+        J[0][0] = m_h / 2;
+        J[1][1] = m_h / 2;
+        J[2][2] = m_h / 2;
+        
+        det_jacobi = pow(m_h/2, m_dim);
+        inv_jacobi = 1 / (m_h/2);
 
-    m_A_local = {   
-                37064000000,	10736000000,	10736000000,	-14314000000,	-639420000,	-639420000,	7157100000,	639420000,	5367800000,	-12845000000,	-10736000000,	-319710000,	7157100000,	5367800000,	639420000,	-12845000000,	-319710000,	-10736000000,	-2109000000,	319710000,	319710000,	-9266000000,	-5367800000,	-5367800000,
-                10736000000,	37064000000,	10736000000,	639420000,	7157100000,	5367800000,	-639420000,	-14314000000,	-639420000,	-10736000000,	-12845000000,	-319710000,	5367800000,	7157100000,	639420000,	319710000,	-2109000000,	319710000,	-319710000,	-12845000000,	-10736000000,	-5367800000,	-9266000000,	-5367800000,
-                10736000000,	10736000000,	37064000000,	639420000,	5367800000,	7157100000,	5367800000,	639420000,	7157100000,	319710000,	319710000,	-2109000000,	-639420000,	-639420000,	-14314000000,	-10736000000,	-319710000,	-12845000000,	-319710000,	-10736000000,	-12845000000,	-5367800000,	-5367800000,	-9266000000,
-                -14314000000,	639420000,	639420000,	37064000000,	-10736000000,	-10736000000,	-12845000000,	10736000000,	319710000,	7157100000,	-639420000,	-5367800000,	-12845000000,	319710000,	10736000000,	7157100000,	-5367800000,	-639420000,	-9266000000,	5367800000,	5367800000,	-2109000000,	-319710000,	-319710000,
-                -639420000,	7157100000,	5367800000,	-10736000000,	37064000000,	10736000000,	10736000000,	-12845000000,	-319710000,	639420000,	-14314000000,	-639420000,	-319710000,	-2109000000,	319710000,	-5367800000,	7157100000,	639420000,	5367800000,	-9266000000,	-5367800000,	319710000,	-12845000000,	-10736000000,
-                -639420000,	5367800000,	7157100000,	-10736000000,	10736000000,	37064000000,	-319710000,	319710000,	-2109000000,	-5367800000,	639420000,	7157100000,	10736000000,	-319710000,	-12845000000,	639420000,	-639420000,	-14314000000,	5367800000,	-5367800000,	-9266000000,	319710000,	-10736000000,	-12845000000,
-                7157100000,	-639420000,	5367800000,	-12845000000,	10736000000,	-319710000,	37064000000,	-10736000000,	10736000000,	-14314000000,	639420000,	-639420000,	-2109000000,	-319710000,	319710000,	-9266000000,	5367800000,	-5367800000,	7157100000,	-5367800000,	639420000,	-12845000000,	319710000,	-10736000000,
-                639420000,	-14314000000,	639420000,	10736000000,	-12845000000,	319710000,	-10736000000,	37064000000,	-10736000000,	-639420000,	7157100000,	-5367800000,	319710000,	-12845000000,	10736000000,	5367800000,	-9266000000,	5367800000,	-5367800000,	7157100000,	-639420000,	-319710000,	-2109000000,	-319710000,
-                5367800000,	-639420000,	7157100000,	319710000,	-319710000,	-2109000000,	10736000000,	-10736000000,	37064000000,	639420000,	-5367800000,	7157100000,	-319710000,	10736000000,	-12845000000,	-5367800000,	5367800000,	-9266000000,	-639420000,	639420000,	-14314000000,	-10736000000,	319710000,	-12845000000,
-                -12845000000,	-10736000000,	319710000,	7157100000,	639420000,	-5367800000,	-14314000000,	-639420000,	639420000,	37064000000,	10736000000,	-10736000000,	-9266000000,	-5367800000,	5367800000,	-2109000000,	319710000,	-319710000,	-12845000000,	-319710000,	10736000000,	7157100000,	5367800000,	-639420000,
-                -10736000000,	-12845000000,	319710000,	-639420000,	-14314000000,	639420000,	639420000,	7157100000,	-5367800000,	10736000000,	37064000000,	-10736000000,	-5367800000,	-9266000000,	5367800000,	-319710000,	-12845000000,	10736000000,	319710000,	-2109000000,	-319710000,	5367800000,	7157100000,	-639420000,
-                -319710000,	-319710000,	-2109000000,	-5367800000,	-639420000,	7157100000,	-639420000,	-5367800000,	7157100000,	-10736000000,	-10736000000,	37064000000,	5367800000,	5367800000,	-9266000000,	319710000,	10736000000,	-12845000000,	10736000000,	319710000,	-12845000000,	639420000,	639420000,	-14314000000,
-                7157100000,	5367800000,	-639420000,	-12845000000,	-319710000,	10736000000,	-2109000000,	319710000,	-319710000,	-9266000000,	-5367800000,	5367800000,	37064000000,	10736000000,	-10736000000,	-14314000000,	-639420000,	639420000,	7157100000,	639420000,	-5367800000,	-12845000000,	-10736000000,	319710000,
-                5367800000,	7157100000,	-639420000,	319710000,	-2109000000,	-319710000,	-319710000,	-12845000000,	10736000000,	-5367800000,	-9266000000,	5367800000,	10736000000,	37064000000,	-10736000000,	639420000,	7157100000,	-5367800000,	-639420000,	-14314000000,	639420000,	-10736000000,	-12845000000,	319710000,
-                639420000,	639420000,	-14314000000,	10736000000,	319710000,	-12845000000,	319710000,	10736000000,	-12845000000,	5367800000,	5367800000,	-9266000000,	-10736000000,	-10736000000,	37064000000,	-639420000,	-5367800000,	7157100000,	-5367800000,	-639420000,	7157100000,	-319710000,	-319710000,	-2109000000,
-                -12845000000,	319710000,	-10736000000,	7157100000,	-5367800000,	639420000,	-9266000000,	5367800000,	-5367800000,	-2109000000,	-319710000,	319710000,	-14314000000,	639420000,	-639420000,	37064000000,	-10736000000,	10736000000,	-12845000000,	10736000000,	-319710000,	7157100000,	-639420000,	5367800000,
-                -319710000,	-2109000000,	-319710000,	-5367800000,	7157100000,	-639420000,	5367800000,	-9266000000,	5367800000,	319710000,	-12845000000,	10736000000,	-639420000,	7157100000,	-5367800000,	-10736000000,	37064000000,	-10736000000,	10736000000,	-12845000000,	319710000,	639420000,	-14314000000,	639420000,
-                -10736000000,	319710000,	-12845000000,	-639420000,	639420000,	-14314000000,	-5367800000,	5367800000,	-9266000000,	-319710000,	10736000000,	-12845000000,	639420000,	-5367800000,	7157100000,	10736000000,	-10736000000,	37064000000,	319710000,	-319710000,	-2109000000,	5367800000,	-639420000,	7157100000,
-                -2109000000,	-319710000,	-319710000,	-9266000000,	5367800000,	5367800000,	7157100000,	-5367800000,	-639420000,	-12845000000,	319710000,	10736000000,	7157100000,	-639420000,	-5367800000,	-12845000000,	10736000000,	319710000,	37064000000,	-10736000000,	-10736000000,	-14314000000,	639420000,	639420000,
-                319710000,	-12845000000,	-10736000000,	5367800000,	-9266000000,	-5367800000,	-5367800000,	7157100000,	639420000,	-319710000,	-2109000000,	319710000,	639420000,	-14314000000,	-639420000,	10736000000,	-12845000000,	-319710000,	-10736000000,	37064000000,	10736000000,	-639420000,	7157100000,	5367800000,
-                319710000,	-10736000000,	-12845000000,	5367800000,	-5367800000,	-9266000000,	639420000,	-639420000,	-14314000000,	10736000000,	-319710000,	-12845000000,	-5367800000,	639420000,	7157100000,	-319710000,	319710000,	-2109000000,	-10736000000,	10736000000,	37064000000,	-639420000,	5367800000,	7157100000,
-                -9266000000,	-5367800000,	-5367800000,	-2109000000,	319710000,	319710000,	-12845000000,	-319710000,	-10736000000,	7157100000,	5367800000,	639420000,	-12845000000,	-10736000000,	-319710000,	7157100000,	639420000,	5367800000,	-14314000000,	-639420000,	-639420000,	37064000000,	10736000000,	10736000000,
-                -5367800000,	-9266000000,	-5367800000,	-319710000,	-12845000000,	-10736000000,	319710000,	-2109000000,	319710000,	5367800000,	7157100000,	639420000,	-10736000000,	-12845000000,	-319710000,	-639420000,	-14314000000,	-639420000,	639420000,	7157100000,	5367800000,	10736000000,	37064000000,	10736000000,
-                -5367800000,	-5367800000,	-9266000000,	-319710000,	-10736000000,	-12845000000,	-10736000000,	-319710000,	-12845000000,	-639420000,	-639420000,	-14314000000,	319710000,	319710000,	-2109000000,	5367800000,	639420000,	7157100000,	639420000,	5367800000,	7157100000,	10736000000,	10736000000,	37064000000
-                };
+        // 8 gauss points
+        vector<double> r_ = {-(1/sqrt(3)), (1/sqrt(3))};
+        vector<double> s_ = {-(1/sqrt(3)), (1/sqrt(3))};
+        vector<double> t_ = {-(1/sqrt(3)), (1/sqrt(3))};
+
+        // B-matrix
+        vector<vector<double>> B(6, vector <double> (24, 0));
+        
+
+        // loop through each gauss points
+        
+        A_.clear();
+        A_.resize(6, vector<double>(24));
+
+        // nodes' natural coordinates
+        vector<double> r = {-1, 1};
+        vector<double> s = {-1, 1};
+        vector<double> t = {-1, 1};
+
+        // TODO: create a loop for below operations
+
+        for ( int _t = 1 ; _t < 2 ; _t++ )
+        {
+            for ( int _s = 1 ; _s < 2 ; _s++ )
+            {
+                for ( int _r = 0 ; _r < 2 ; _r++ )
+                {
+
+                    int i;
+                    // node 0
+                    i=0;
+                    B[0][i*3]   = (inv_jacobi/8) * r[0] * ( 1 + (s[0]*s_[_s]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[0] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[0] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (s[0]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 1
+                    i=1;
+                    B[0][i*3]   = (inv_jacobi/8) * r[1] * ( 1 + (s[0]*s_[_s]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[0] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[0] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (s[0]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 2
+                    i=2;
+                    B[0][i*3]   = (inv_jacobi/8) * r[0] * ( 1 + (s[1]*s_[_s]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[1] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[0] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (s[1]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 3
+                    i=3;
+                    B[0][i*3]   = (inv_jacobi/8) * r[1] * ( 1 + (s[1]*s_[_s]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[1] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (t[0]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[0] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (s[1]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 4
+                    i=4;
+                    B[0][i*3]   = (inv_jacobi/8) * r[0] * ( 1 + (s[0]*s_[_s]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[0] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[1] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (s[0]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 5
+                    i=5;
+                    B[0][i*3]   = (inv_jacobi/8) * r[1] * ( 1 + (s[0]*s_[_s]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[0] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[1] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (s[0]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 6
+                    i=6;
+                    B[0][i*3]   = (inv_jacobi/8) * r[0] * ( 1 + (s[1]*s_[_s]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[1] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[1] * ( 1 + (r[0]*r_[_r]) ) * ( 1 + (s[1]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+                    // node 7
+                    i=7;
+                    B[0][i*3]   = (inv_jacobi/8) * r[1] * ( 1 + (s[1]*s_[_s]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[1][i*3+1] = (inv_jacobi/8) * s[1] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (t[1]*t_[_t]) );
+                    B[2][i*3+2] = (inv_jacobi/8) * t[1] * ( 1 + (r[1]*r_[_r]) ) * ( 1 + (s[1]*s_[_s]) );
+                    B[3][i*3]   = B[1][i*3+1];
+                    B[3][i*3+1] = B[0][i*3];
+                    B[4][i*3+1] = B[2][i*3+2];
+                    B[4][i*3+2] = B[1][i*3+1];
+                    B[5][i*3]   = B[2][i*3+2];
+                    B[5][i*3+2] = B[0][i*3];
+
+
+                    //// A_local = B^T * E * B * det(J)
+                    
+                    // A_ = E * B
+                    for ( int i = 0 ; i < 6 ; i++ )
+                    {
+                        for( int j = 0 ; j < 24 ; j++ )
+                        {
+                            for ( int k = 0 ; k < 6 ; k++)
+                                A_[i][j] += E[i][k] * B[k][j];
+                        }
+                    }
+                    
+                    // A_local = B^T * A_ * det(J)
+                    for ( int i = 0 ; i < 24 ; i++ )
+                    {
+                        for( int j = 0 ; j < 24 ; j++ )
+                        {
+                            for ( int k = 0 ; k < 6 ; k++){
+                                
+                                m_A_local[j + i*m_num_rows_l] += B[k][i] * A_[k][j] * det_jacobi;  
+                            }
+                        }
+                    }
+            }
+        }
     }
 
-    return true;
+
+        // for ( int i = 0 ; i < 6 ; ++i )
+        // {
+        //     for ( int j = 0 ; j < 6 ; ++j )
+        //         cout << E[i][j] << " ";
+
+        //     cout << endl;
+        // }
+        for ( int i = 0 ; i < 24 ; ++i )
+        {
+            for ( int j = 0 ; j < 24 ; ++j )
+                cout << m_A_local[j + i*m_num_rows_l] << " ";
+
+            cout << endl;
+        }
+        // for ( int i = 0 ; i < 6 ; ++i )
+        // {
+        //     for ( int j = 0 ; j < 24 ; ++j )
+        //         cout << B[i][j] << " ";
+
+        //     cout << endl;
+        // }
+        
+        
+
+        }
+
+        return true;
 }
 
 double Assembler::valueAt(size_t row, size_t col)
