@@ -48,6 +48,7 @@ using namespace std;
 // TODO: VTK class
 // TODO: RA and AP's valueAt(indices) are a bit messed up and confusing
 // TODO: enum : bc case 
+// TODO: 3d assembly, add for loop
     
 
 int main()

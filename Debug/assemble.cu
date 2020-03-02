@@ -645,28 +645,26 @@ bool Assembler::assembleLocal()
 
         // B-matrix
         vector<vector<double>> B(6, vector <double> (24, 0));
-        
 
-        // loop through each gauss points
         
-        A_.clear();
-        A_.resize(6, vector<double>(24));
-
+        //// loop through each gauss points
         // nodes' natural coordinates
         vector<double> r = {-1, 1};
         vector<double> s = {-1, 1};
         vector<double> t = {-1, 1};
 
-        // TODO: create a loop for below operations
+        
 
-        for ( int _t = 1 ; _t < 2 ; _t++ )
+        for ( int _t = 0 ; _t < 1 ; _t++ )
         {
-            for ( int _s = 1 ; _s < 2 ; _s++ )
+            for ( int _s = 0 ; _s < 1 ; _s++ )
             {
                 for ( int _r = 0 ; _r < 2 ; _r++ )
                 {
-
+                    A_.clear();
+                    A_.resize(6, vector<double>(24));   
                     int i;
+
                     // node 0
                     i=0;
                     B[0][i*3]   = (inv_jacobi/8) * r[0] * ( 1 + (s[0]*s_[_s]) ) * ( 1 + (t[0]*t_[_t]) );
@@ -765,7 +763,7 @@ bool Assembler::assembleLocal()
 
 
                     //// A_local = B^T * E * B * det(J)
-                    
+
                     // A_ = E * B
                     for ( int i = 0 ; i < 6 ; i++ )
                     {
@@ -787,32 +785,11 @@ bool Assembler::assembleLocal()
                             }
                         }
                     }
+                }
             }
         }
-    }
 
 
-        // for ( int i = 0 ; i < 6 ; ++i )
-        // {
-        //     for ( int j = 0 ; j < 6 ; ++j )
-        //         cout << E[i][j] << " ";
-
-        //     cout << endl;
-        // }
-        for ( int i = 0 ; i < 24 ; ++i )
-        {
-            for ( int j = 0 ; j < 24 ; ++j )
-                cout << m_A_local[j + i*m_num_rows_l] << " ";
-
-            cout << endl;
-        }
-        // for ( int i = 0 ; i < 6 ; ++i )
-        // {
-        //     for ( int j = 0 ; j < 24 ; ++j )
-        //         cout << B[i][j] << " ";
-
-        //     cout << endl;
-        // }
         
         
 
