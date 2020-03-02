@@ -152,7 +152,6 @@ int main()
     applyLoad(b, N, numLevels, 0, dim, force);
 
 
-
     double* d_u;
     double* d_b;
     // TODO: optimizable: malloc while program is assembling
@@ -171,13 +170,13 @@ int main()
     // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
     // // TODO: repair these three, it's a bit messed up
-    // GMG.set_convergence_params(10000, 1e-99, 1e-15);
-    // GMG.set_bs_convergence_params(100, 1e-99, 1e-15);
-    // GMG.set_steps(10000, 100); 
+    // GMG.set_convergence_params(100000, 1e-99, 1e-15);
+    // GMG.set_bs_convergence_params(500, 1e-99, 1e-15);
+    // GMG.set_steps(100000, 500); 
     
 
     // GMG.init();
-    // GMG.set_verbose(0, 0);
+    // GMG.set_verbose(1, 0);
     // GMG.set_num_prepostsmooth(3,3);
     // GMG.set_cycle('V');
     
@@ -187,11 +186,11 @@ int main()
     // cout << "Solver   ... DONE" << endl;
 
 
-    // // // DEBUG:
+    // // DEBUG:
     // dim3 maingridDim;
     // dim3 mainblockDim;
     // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
-    // // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
+    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_b, num_rows[topLev] );
     // // printLinearVector( d_A_local, local_num_rows, local_num_rows);
     
 	
