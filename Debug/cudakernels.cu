@@ -402,7 +402,7 @@ __global__
 void printELLrow_GPU(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
 		for ( int j = 0 ; j < num_cols ; j++)
-			printf("%.2f ", valueAt(row, j, value, index, max_row_size) );
+			printf("%.3f ", valueAt(row, j, value, index, max_row_size) );
 
 		printf("\n");
 	
@@ -856,6 +856,16 @@ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, s
 	}
 }
 
+__global__
+void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+{
+	for ( int i = 0 ; i < num_rows ; i++ )
+	{
+		if ( valueAt(i, bc_index, value, index, max_row_size) != 1.0 )
+			setAt( bc_index, i, value, index, max_row_size, 0.0 );
+	}
+}
+
 
 // obtain a node's corresponding fine node index
 __host__
@@ -944,24 +954,33 @@ __global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size
 // ////////////////////////////////////////////
 
 __global__ 
-void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t m_maxIter){
-
+void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t m_maxIter)
+{
 	if ( *res > *m_minRes && *res > *m_minRed*(*res0) && (*step) <= m_maxIter )
+	{
+		// printf("%lu : %e (%e), %e (%e)\n", (*step), *res, *m_minRes, (*res)/(*res0), *m_minRed);
 		*foo = true;
 
+	}
+
 	else
-	{
-		// printf("false\n");
-		// printf("res = %f\n",*res);
-		// printf("m_minRes = %f\n",*m_minRes);
-		// printf("m_minRed = %f\n",*m_minRed);
-		// printf("step = %lu\n",(*step));
-
 		*foo = false;
+}
 
+
+__global__ 
+void checkIterationConditionsBS(bool* foo, size_t* step, size_t m_maxIter, double* res, double* m_minRes)
+{
+	// if ( *res > *m_minRes && (*step) <= m_maxIter )
+	if ( *res > 1e-10 && (*step) <= m_maxIter )
+	{
+		// printf("%lu : %e (%e), %e (%e)\n", (*step), *res, *m_minRes, (*res)/(*res0), *m_minRed);
+		*foo = true;
 
 	}
-	
+
+	else
+		*foo = false;
 }
 
 __global__ 

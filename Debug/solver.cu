@@ -21,6 +21,37 @@ void Solver::set_steps(size_t step, size_t bs_step)
 }
 
 
+void Solver::set_num_prepostsmooth(size_t pre_n, size_t post_n)
+{
+    m_numPreSmooth = pre_n;
+    m_numPostSmooth = post_n;
+}
+
+void Solver::set_convergence_params( size_t maxIter, double minRes, double minRed )
+{
+	m_maxIter = maxIter;
+	m_minRes = minRes;
+	m_minRed = minRed;
+}
+
+
+void Solver::set_convergence_params_( size_t maxIter, size_t bs_maxIter, double minRes, double minRed )
+{
+	m_maxIter = maxIter;
+	m_bs_maxIter = bs_maxIter;
+	m_minRes = minRes;
+	m_minRed = minRed;
+}
+
+
+void Solver::set_bs_convergence_params( size_t maxIter, double minRes, double minRed )
+{
+	m_bs_maxIter = maxIter;
+	m_bs_minRes = minRes;
+	m_bs_minRed = minRed;
+}
+
+
 
 // TODO: could try as a destructor
 // void Solver::deallocate()
@@ -52,25 +83,7 @@ Solver::~Solver()
     
 }
 
-void Solver::set_num_prepostsmooth(size_t pre_n, size_t post_n)
-{
-    m_numPreSmooth = pre_n;
-    m_numPostSmooth = post_n;
-}
 
-void Solver::set_convergence_params( size_t maxIter, double minRes, double minRed )
-{
-	m_maxIter = maxIter;
-	m_minRes = minRes;
-	m_minRed = minRed;
-}
-
-void Solver::set_bs_convergence_params( size_t maxIter, double minRes, double minRed )
-{
-	m_bs_maxIter = maxIter;
-	m_bs_minRes = minRes;
-	m_bs_minRed = minRed;
-}
 
 
 void Solver::set_cycle(const char type)
@@ -278,8 +291,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
 // A*c = r ==> A_coarse*d_bs_u = d_bs_b
 bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 {
-    // cout << "CG" << endl;
-    cudaDeviceSynchronize();
+
     // resetting base solver variables to zero
     setToZero<<<1,m_num_rows[0]>>>(m_d_bs_r, m_num_rows[0]);
     setToZero<<<1,m_num_rows[0]>>>(m_d_bs_p, m_num_rows[0]);
@@ -358,16 +370,16 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     // TODO: add this before foo loop
     // checkIterationConditions<<<1,1>>>(d_cg_foo, d_cg_step, d_cg_res, d_cg_res0, d_cg_m_minRes, d_cg_m_minRed, d_cg_m_maxIter);
-   
+    
 
     // foo loop
     int bs_step = 1;
-    // while(m_bs_foo || bs_step < m_bs_step)
+    while(m_bs_foo || bs_step < m_bs_maxIter)
+    {
 
     
     
-    while(bs_step < m_bs_step)
-    {
+    // while(bs_step < m_bs_step)
     // TODO: check
     // smoother( m_d_bs_z, m_d_bs_r, 0);
     
@@ -532,9 +544,12 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     cudaDeviceSynchronize();
     }
     
-   
-
-    checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_bs_maxIter);
+    
+    
+    // checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_bs_minRes, m_d_minRed, m_bs_maxIter);
+    // checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_bs_maxIter);
+    checkIterationConditionsBS<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_bs_maxIter, m_d_bs_res, m_d_minRes);
+    
     CUDA_CALL( cudaMemcpy( &m_bs_foo, m_d_bs_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
     
     // //DEBUG:
@@ -849,6 +864,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     // lastRes = res;
     equals_GPU<<<1,1>>>(m_d_lastRes, m_d_res);
     cudaDeviceSynchronize();
+
     // compute new residuum norm
     // res = r.norm();
     // norm_GPU<<<gridDim,blockDim>>>(d_res, d_r, A.num_rows());

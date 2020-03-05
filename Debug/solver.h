@@ -29,6 +29,7 @@ public:
     void set_num_prepostsmooth(size_t pre_n, size_t post_n);
     void set_convergence_params(size_t maxIter, double minRes, double minRed);
     void set_bs_convergence_params(size_t maxIter, double minRes, double minRed);
+    void set_convergence_params_( size_t maxIter, size_t bs_maxIter, double minRes, double minRed );
 
     bool smoother(double* d_c, double* d_r, int lev);
 

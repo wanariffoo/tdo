@@ -168,6 +168,8 @@ __global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_s
 
 __global__ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
+__global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
+
 __host__ size_t getFineNode(size_t coarse_index, vector<size_t> N, size_t dim);
 
 __device__ size_t getFineNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim);
@@ -200,6 +202,7 @@ __global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size
 ////////////////////////////////////////////
 
 __global__ void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t m_maxIter);
+__global__ void checkIterationConditionsBS(bool* foo, size_t* step, size_t m_maxIter, double* res, double* m_minRes);
 
 __global__ void printInitialResult_GPU(double* res0, double* m_minRes, double* m_minRed);
 

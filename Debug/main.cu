@@ -62,13 +62,13 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 2;
+    size_t numLevels = 4;
     size_t topLev = numLevels - 1;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
     // domain dimensions (x,y,z) on coarsest grid
-    N = {3,1,1};
+    N = {1,1,1};
 
     // local element mesh size on coarsest grid
     double h_coarse = 1;
@@ -80,7 +80,7 @@ int main()
     double h = h_coarse/pow(2,numLevels - 1);
 
     // smoother (jacobi damping parameter)
-    double damp = 2.0/3.0;
+    double damp = 1.0/3.0;
 
     size_t local_num_rows = pow(2,dim)*dim;
 
@@ -167,138 +167,139 @@ int main()
     // #                           SOLVER                                  #
     // ###################################################################*/
 
-    // Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
-    // // TODO: repair these three, it's a bit messed up
-    // GMG.set_convergence_params(100000, 1e-99, 1e-15);
-    // GMG.set_bs_convergence_params(500, 1e-99, 1e-15);
-    // GMG.set_steps(100000, 500); 
     
+    GMG.set_convergence_params(1000, 1e-99, 1e-11);
+    GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
+   
 
-    // GMG.init();
-    // GMG.set_verbose(1, 0);
-    // GMG.set_num_prepostsmooth(3,3);
-    // GMG.set_cycle('V');
+    GMG.init();
+    GMG.set_verbose(1, 0);
+    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_cycle('V');
     
-    // GMG.solve(d_u, d_b, d_value);
-    // cudaDeviceSynchronize();
+    GMG.solve(d_u, d_b, d_value);
+    cudaDeviceSynchronize();
 
-    // cout << "Solver   ... DONE" << endl;
+    cout << "Solver   ... DONE" << endl;
 
 
     // // DEBUG:
-    // dim3 maingridDim;
+    // dim3 maingridDim;    
     // dim3 mainblockDim;
     // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
-    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_b, num_rows[topLev] );
-    // // printLinearVector( d_A_local, local_num_rows, local_num_rows);
+    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
+    // printLinearVector( d_A_local, local_num_rows, local_num_rows);
     
 	
 
-    // /* ##################################################################
-    // #                           TDO                                     #
-    // ###################################################################*/
+    /* ##################################################################
+    #                           TDO                                     #
+    ###################################################################*/
 
 
-    // TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
-    // tdo.init();
-    // tdo.set_verbose(0);
-    // tdo.innerloop(d_u, d_chi);    // get updated d_chi
+    TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
+    tdo.init();
+    tdo.set_verbose(0);
+    tdo.innerloop(d_u, d_chi);    // get updated d_chi
 
 
 
-    // // cout << endl;
-    // // cudaDeviceSynchronize();
-    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    // // bar<<<1,1>>>(d_chi);
+    // cout << endl;
+    // cudaDeviceSynchronize();
+    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // bar<<<1,1>>>(d_chi);
     
 
 
 
     
-    // // cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
 
-    // // TODO: create a VTK class, write a function for this to make it neater
-    // // vtk stuff
-    // vector<double> chi(Assembly.getNumElements(), rho);
-    // vector<double> u(Assembly.getNumNodes() * dim, 0);
-    // string fileformat(".vtk");
-    // int file_index = 0;
-    // stringstream ss; 
-    // ss << "vtk/tdo";
-    // ss << file_index;
-    // ss << fileformat;
+    // TODO: create a VTK class, write a function for this to make it neater
+    // vtk stuff
+    vector<double> chi(Assembly.getNumElements(), rho);
+    vector<double> u(Assembly.getNumNodes() * dim, 0);
+    string fileformat(".vtk");
+    int file_index = 0;
+    stringstream ss; 
+    ss << "vtk/tdo";
+    ss << file_index;
+    ss << fileformat;
 
-    // if ( writeToVTK )
-    // {
-    //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    if ( writeToVTK )
+    {
+        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
         
-    //     CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
-    //     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
+        CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+        CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
 
-    //     file_index++;
-    //     ss.str( string() );
-    //     ss.clear();
-    //     ss << "vtk/tdo";
-    //     ss << file_index;
-    //     ss << fileformat;
+        file_index++;
+        ss.str( string() );
+        ss.clear();
+        ss << "vtk/tdo";
+        ss << file_index;
+        ss << fileformat;
         
-    //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
-    // }
+        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    }
 
 
-    // // TODO:
-    // // TODO: impose BC on updated matrix ?
-    // // TODO:
-    // // TODO:
+    // TODO:
+    // TODO: impose BC on updated matrix ?
+    // TODO:
+    // TODO:
 
-    // for ( int i = 1 ; i < 20 ; ++i )
-    // {
-    //     // update the global stiffness matrix with the updated density distribution
-    //     Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+    for ( int i = 1 ; i < 100 ; ++i )
+    {
+        // update the global stiffness matrix with the updated density distribution
+        Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
 
-    //     // TODO: something's wrong with the solver for N = {3,1}
-    //     cout << "Calculating iteration " << i << " ... " << endl;
-    //     cudaDeviceSynchronize();
-    //     GMG.reinit();
-    //     GMG.set_verbose(1, 0);
-    //     // GMG.set_convergence_params(5, 1e-99, 1e-10); // DEBUG:
-    //     // GMG.set_steps(5, 2);
-    //     GMG.solve(d_u, d_b, d_value);
-    //     cudaDeviceSynchronize();
+        // TODO: something's wrong with the solver for N = {3,1}
+        cout << "Calculating iteration " << i << " ... " << endl;
+        cudaDeviceSynchronize();
+        GMG.reinit();
+        GMG.set_convergence_params(10000, 1e-99, 1e-10);
+        GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
+
+        
+        GMG.set_verbose(1, 0);
+        GMG.solve(d_u, d_b, d_value);
+        cudaDeviceSynchronize();
         
 
-    //     // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-    //     // print_GPU<<<1,1>>>( &d_u[128]);
+        // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+        // print_GPU<<<1,1>>>( &d_u[128]);
         
-    //     // if (result)
+        // if (result)
 
 
-    //     // tdo.set_verbose(1);
-    //     tdo.innerloop(d_u, d_chi);
+        // tdo.set_verbose(1);
+        tdo.innerloop(d_u, d_chi);
         
-    //     // cudaDeviceSynchronize();
-    //     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    //     // cout << "\n";
+        // cudaDeviceSynchronize();
+        // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+        // cout << "\n";
 
-    //     if ( writeToVTK )
-    //     { 
-    //         CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
-    //         CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
+        if ( writeToVTK )
+        { 
+            CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+            CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
 
-    //         file_index++;
-    //         ss.str( string() );
-    //         ss.clear();
-    //         ss << "vtk/tdo";
-    //         ss << file_index;
-    //         ss << fileformat;
+            file_index++;
+            ss.str( string() );
+            ss.clear();
+            ss << "vtk/tdo";
+            ss << file_index;
+            ss << fileformat;
             
-    //         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+            WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
 
-    //     }
+        }
 
-    //     cudaDeviceSynchronize();
-    // }
+        cudaDeviceSynchronize();
+    }
 
     
 
