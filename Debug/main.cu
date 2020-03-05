@@ -27,27 +27,27 @@ using namespace std;
 // TODO: __device__ valueAt() has x and y mixed up
 // NOTE:CHECK: when using shared memory, more than one block, get this error : CUDA error for cudaMemcpy( ...)
 // TODO: check that all kernels have (row, col) formats
-// TODO: getCoarseNode() : change to getCoarseNode2D, because you've separately made a 3D 
+// DONE: getCoarseNode() : change to getCoarseNode2D, because you've separately made a 3D 
 // TODO: h = diagonal length of the quad
 // TODO: your jacobi 2D? You didn't do J = sum(GPs) ? You used 4 GPs, shouldn't you do 4 * J ?
 
 
 // 3D
-// TODO: local stiffness
+// DONE: local stiffness
 // DONE: 3d elements' node distribution
-// TODO: laplacian
+// DONE: laplacian
 
 //// PARALELLIZABLE / OPTIMIZATION
 // TODO: fillIndexVector_GPU()
 // TODO: shared memory, use 8 bytes for double precision to avoid bank conflict
             // cudaDeviceSetSharedMemConfig( cudaSharedMemBankSizeEightByte )
             // see notes in compendium
-// TODO: RAP() : use max_row_size for A(). currently it's going through all num_rows
+// DONE: RAP() : use max_row_size for A(). currently it's going through all num_rows
 
 //// LOW PRIORITY
 // TODO: VTK class
 // TODO: RA and AP's valueAt(indices) are a bit messed up and confusing
-// TODO: enum : bc case 
+// DONE: enum : bc case 
 // TODO: 3d assembly, add for loop
     
 
@@ -73,9 +73,7 @@ int main()
     // // CASE 0 : 2D MBB
     // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
     // double h_coarse = 1;        // local element mesh size on coarsest grid
-    // size_t dim = N.size();
     // size_t bc_case = 0;
-    // bc_index = applyBC(N, numLevels, 0, dim);
     // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
@@ -84,16 +82,17 @@ int main()
     // CASE 1 : 3D MBB
     N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
     double h_coarse = 0.5;      // local element mesh size on coarsest grid
-    size_t dim = N.size();
     size_t bc_case = 1;
-    bc_index = applyBC(N, numLevels, bc_case, dim);
     double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
 
 
-
+    
+    // applying boundary conditions
+    size_t dim = N.size();
+    bc_index = applyBC(N, numLevels, bc_case, dim);
 
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
@@ -185,7 +184,7 @@ int main()
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
     
-    GMG.set_convergence_params(100000, 1e-99, 1e-10);
+    GMG.set_convergence_params(100000, 1e-99, 1e-12);
     GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
    
 
@@ -266,7 +265,7 @@ int main()
     // // TODO:
     // // TODO:
 
-    for ( int i = 1 ; i < 2 ; ++i )
+    for ( int i = 1 ; i < 1 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);

@@ -224,6 +224,13 @@ bool Assembler::init_GPU(
                 r_max_row_size[0] = 18;
             }
 
+            else if (m_N[0][0] == 6 && m_N[0][1] == 1 && m_N[0][2] == 2 )
+            {
+                max_row_size[0] = 18*3;
+                p_max_row_size[0] = 8;
+                r_max_row_size[0] = 18;
+            }
+
 
             else
             {   
@@ -354,16 +361,16 @@ bool Assembler::init_GPU(
     }
 
 
-    // // DEBUG:
-    //     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
-    //     {
-    //         cout << "Element " << elem << " ";
-    //         for ( int i = 0 ; i < 8 ; ++i )
-    //         {
-    //             cout << m_element[elem].nodeIndex(i) << " ";
-    //         }
-    //         cout << "\n";
-    //     }
+    // DEBUG:
+        // for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
+        // {
+        //     cout << "Element " << elem << " ";
+        //     for ( int i = 0 ; i < 8 ; ++i )
+        //     {
+        //         cout << m_element[elem].nodeIndex(i) << " ";
+        //     }
+        //     cout << "\n";
+        // }
 
 
     m_node_index.resize(m_numElements[m_topLev]);
@@ -973,7 +980,7 @@ bool Assembler::UpdateGlobalStiffness(
 
     // printVector_GPU<<<1,4>>>( d_chi, 4);
 
-
+    cout << "Reassembling global stiffness matrix on finest grid" << endl;
     // assemble the global stiffness matrix on the finest grid with the updated chi of each element
     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_num_rows_l, m_d_node_index[i], m_p);
@@ -992,6 +999,7 @@ bool Assembler::UpdateGlobalStiffness(
     // TODO: think it's a bit overkill to use a lot of cuda threads here
     //// apply boundary condition to global and P/R matrices
     // global stiffness matrix
+    cout << "Applying BC on global stiffness matrix" << endl;
     calculateDimensions2D( m_num_rows[m_topLev], m_num_rows[m_topLev], g_gridDim, g_blockDim);
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
         applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
@@ -1011,7 +1019,7 @@ bool Assembler::UpdateGlobalStiffness(
     // CUDA_CALL( cudaMemset( d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
     
 
-
+    cout << "Assembling coarse stiffness matrices" << endl;
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
     {

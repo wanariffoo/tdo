@@ -44,14 +44,29 @@ void WriteVectorToVTK_df(vector<double> &df, vector<double> &u, const std::strin
 	ofs << "POINTS ";
 	ofs << numNodes << " float" << endl;
 
-	for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
-	{
-		for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
-		{
-			for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
-				ofs << " " << h*x << " " << h*z << " " << h*y << endl;
-		}
-	}
+    if ( dim == 2)
+    {
+        for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
+        {
+            for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+            {
+                for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
+                    ofs << " " << h*x << " " << h*z << " " << h*y << endl;
+            }
+        }
+    }
+
+    else
+    {
+        for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
+        {
+            for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+            {
+                for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
+                    ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+            }
+        }
+    }
 
 	ofs << endl;
 
@@ -197,18 +212,6 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
     else
         m_Nz = 0;
     
-    // // TODO: calculate p_w
-    // double g
-
-    // TODO: reduction: calcP_w
-    // calcP_w
-
-
-    // TODO: betastar, etastar
-    
-    // TODO: del_t = 1.0 if 3D, see paper page 15
-    
-
     // local volume
     // NOTE: wrong here because you thought m_h here is baselevel's, it's actually the finest level
     m_local_volume = pow(m_h, m_dim); 
@@ -291,6 +294,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
     
     
+
     // calculating the driving force of each element
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
     calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
@@ -334,7 +338,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
     
     WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
-    WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    // WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
     ++m_file_index;
     
     calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);

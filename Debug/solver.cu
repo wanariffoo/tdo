@@ -538,13 +538,12 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 
     if ( m_bs_verbose )
     {
-        cout << "CG  : ";
+    cout << "CG  : ";
     cudaDeviceSynchronize();
     printResult_GPU<<<1,1>>>(m_d_bs_step, m_d_bs_res, m_d_minRes, m_d_bs_lastRes, m_d_bs_res0, m_d_minRed);
     cudaDeviceSynchronize();
     }
-    
-    
+       
     
     // checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_bs_minRes, m_d_minRed, m_bs_maxIter);
     // checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_bs_maxIter);
@@ -623,20 +622,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 
         return true;
     }
-   
 
-    // static int apsie = 0;
-    // if (apsie == 0)
-    // {
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,450>>>( d_r, 450 );
-    // cudaDeviceSynchronize();
-    // cout << "\n";
-    // cout << "\n";
-    // }
-    // apsie++;
-
-    
     // presmooth
     
     for ( int i = 0 ; i < m_numPreSmooth ; i++)
@@ -656,22 +642,6 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         UpdateResiduum_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
         cudaDeviceSynchronize();
     }
-
-    // static int apsie = 0;
-    // if (apsie == 0)
-    // {
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,450>>>( d_r, 450 );
-    // cudaDeviceSynchronize();
-    // cout << "\n";
-    // cout << "\n";
-    // }
-    // apsie++;
-
-
-
-
-
 
     
     // restrict defect

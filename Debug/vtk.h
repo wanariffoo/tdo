@@ -66,7 +66,7 @@ void WriteVectorToVTK(vector<double> &chi, vector<double> &u, const std::string&
 			for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
 			{
 				for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
-					ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+					ofs << " " << h*x << " " << h*y << " " << (-h*z) << endl;
 			}
 		}
 	}

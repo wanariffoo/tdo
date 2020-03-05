@@ -1026,11 +1026,11 @@ void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0
 }
 
 
-__global__ 
+__global__
 void checkIterationConditionsBS(bool* foo, size_t* step, size_t m_maxIter, double* res, double* m_minRes)
 {
 	// if ( *res > *m_minRes && (*step) <= m_maxIter )
-	if ( *res > 1e-10 && (*step) <= m_maxIter )
+	if ( *res > 1e-12 && (*step) <= m_maxIter )
 	{
 		// printf("%lu : %e (%e), %e (%e)\n", (*step), *res, *m_minRes, (*res)/(*res0), *m_minRed);
 		*foo = true;
