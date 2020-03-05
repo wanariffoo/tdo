@@ -62,26 +62,41 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 4;
+    size_t numLevels = 2;
     size_t topLev = numLevels - 1;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
-    // domain dimensions (x,y,z) on coarsest grid
-    N = {1,1,1};
 
-    // local element mesh size on coarsest grid
-    double h_coarse = 1;
 
+
+    // // CASE 0 : 2D MBB
+    // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
+    // double h_coarse = 1;        // local element mesh size on coarsest grid
+    // size_t dim = N.size();
+    // size_t bc_case = 0;
+    // bc_index = applyBC(N, numLevels, 0, dim);
+    // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
+
+
+
+
+    // // CASE 1 : 3D MBB
+    N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
+    double h_coarse = 0.5;      // local element mesh size on coarsest grid
     size_t dim = N.size();
-    bc_index = applyBC(N, numLevels, 0, dim);
-    
+    size_t bc_case = 1;
+    bc_index = applyBC(N, numLevels, bc_case, dim);
+    double damp = 1.25/3.0;      // smoother (jacobi damping parameter)
+
+
+
+
+
+
+
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
-
-    // smoother (jacobi damping parameter)
-    double damp = 1.0/3.0;
-
     size_t local_num_rows = pow(2,dim)*dim;
 
     // TDO
@@ -96,7 +111,6 @@ int main()
     vector<size_t> r_max_row_size;
 
     //// device pointers
-
     // local stiffness
     double* d_A_local;
 
@@ -145,11 +159,12 @@ int main()
     cout << "Number of Elements = " << Assembly.getNumElements() << endl;
     cout << "Assembly ... DONE" << endl;
   
-    // vector u, b
-    vector<double> b(num_rows[numLevels - 1], 0);
+    // load vector, b
+    vector<double> b(num_rows[numLevels - 1], 0); 
     double force = -1;
-    
-    applyLoad(b, N, numLevels, 0, dim, force);
+    applyLoad(b, N, numLevels, bc_case, dim, force);
+
+
 
 
     double* d_u;
@@ -163,14 +178,14 @@ int main()
 
 
 
-    // /* ##################################################################
-    // #                           SOLVER                                  #
-    // ###################################################################*/
+    /* ##################################################################
+    #                           SOLVER                                  #
+    ###################################################################*/
 
     Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
     
     
-    GMG.set_convergence_params(1000, 1e-99, 1e-11);
+    GMG.set_convergence_params(100000, 1e-99, 1e-10);
     GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
    
 
@@ -185,12 +200,12 @@ int main()
     cout << "Solver   ... DONE" << endl;
 
 
-    // // DEBUG:
-    // dim3 maingridDim;    
-    // dim3 mainblockDim;
-    // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
-    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
-    // printLinearVector( d_A_local, local_num_rows, local_num_rows);
+    // // // DEBUG:
+    // // dim3 maingridDim;    
+    // // dim3 mainblockDim;
+    // // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
+    // // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
+    // // printLinearVector( d_A_local, local_num_rows, local_num_rows);
     
 	
 
@@ -206,10 +221,10 @@ int main()
 
 
 
-    // cout << endl;
-    // cudaDeviceSynchronize();
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    // bar<<<1,1>>>(d_chi);
+    // // cout << endl;
+    // // cudaDeviceSynchronize();
+    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+    // // bar<<<1,1>>>(d_chi);
     
 
 
@@ -246,10 +261,10 @@ int main()
     }
 
 
-    // TODO:
-    // TODO: impose BC on updated matrix ?
-    // TODO:
-    // TODO:
+    // // TODO:
+    // // TODO: impose BC on updated matrix ?
+    // // TODO:
+    // // TODO:
 
     for ( int i = 1 ; i < 100 ; ++i )
     {

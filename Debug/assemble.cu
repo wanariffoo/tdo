@@ -217,6 +217,14 @@ bool Assembler::init_GPU(
                 r_max_row_size[0] = 12;
             }
 
+            else if (m_N[0][0] == 6 && m_N[0][1] == 2 && m_N[0][2] == 1 )
+            {
+                max_row_size[0] = 18*3;
+                p_max_row_size[0] = 8;
+                r_max_row_size[0] = 18;
+            }
+
+
             else
             {   
                 throw(runtime_error("TODO: 3D assembly not done yet for this grid size"));

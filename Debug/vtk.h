@@ -39,8 +39,7 @@ void WriteVectorToVTK(vector<double> &chi, vector<double> &u, const std::string&
 	ofs << "DIMENSIONS";
 	for (std::size_t i = 0; i < 3; ++i)
 		ofs << " " << numNodesPerDim[i];
-	// for (std::size_t i = dim; i < 3; ++i)
-	// 		ofs << " " << 1;
+
 	ofs << std::endl;
 
 	// specify the coordinates of all points

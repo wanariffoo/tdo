@@ -681,72 +681,118 @@ vector<vector<size_t>> applyBC(vector<size_t> N, size_t numLevels, size_t bc_cas
 	
 	vector<size_t> nodesPerDim;
 
-	// nodesPerDim.push_back(N[0]+1);
-	// nodesPerDim.push_back(N[1]+1);
-
 	for( int i = 0 ; i < N.size() ; i++ )
 		nodesPerDim.push_back(N[i]+1);
 	
-
-	// base level
-	size_t totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
-
-	for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
+	if ( bc_case == 0 )
 	{
-		bc_index[0].push_back(i*nodesPerDim[0]*dim);
-
-		if ( dim == 3 )
-		{
-			for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
-				bc_index[0].push_back(i*nodesPerDim[0]*dim + totalNodes2D*3*j);
-		}
-
-	}
-
-	// y-direction boundary condition at bottom right node
-	bc_index[0].push_back(dim*N[0] + 1 );
-
-	if ( dim == 3 )
-	{
-		for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
-			bc_index[0].push_back(dim*N[0] + 1 + totalNodes2D*3*j);
-	}
-	
-
-	// finer levels
-	for ( int lev = 1 ; lev < numLevels ; lev++ )
-	{
-		for( int i = 0 ; i < N.size() ; i++ )
-			nodesPerDim[i] = 2*nodesPerDim[i] - 1;
-
-
-		totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
-
+		// base level
+		size_t totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
 
 		for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
 		{
-			bc_index[lev].push_back(i*nodesPerDim[0]*dim);
+			bc_index[0].push_back(i*nodesPerDim[0]*dim);
 
 			if ( dim == 3 )
 			{
 				for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
-					bc_index[lev].push_back(i*nodesPerDim[0]*dim + totalNodes2D*3*j);
+					bc_index[0].push_back(i*nodesPerDim[0]*dim + totalNodes2D*3*j);
+			}
+		}
+
+		// y-direction boundary condition at bottom right node
+		bc_index[0].push_back(dim*N[0] + 1 );
+
+		if ( dim == 3 )
+		{
+			for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+				bc_index[0].push_back(dim*N[0] + 1 + totalNodes2D*3*j);
+		}
+		
+
+		// finer levels
+		for ( int lev = 1 ; lev < numLevels ; lev++ )
+		{
+			for( int i = 0 ; i < N.size() ; i++ )
+				nodesPerDim[i] = 2*nodesPerDim[i] - 1;
+
+			totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
+
+			for ( int i = 0 ; i < nodesPerDim[1] ; i++ )
+			{
+				bc_index[lev].push_back(i*nodesPerDim[0]*dim);
+
+				if ( dim == 3 )
+				{
+					for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+						bc_index[lev].push_back(i*nodesPerDim[0]*dim + totalNodes2D*3*j);
+
+				}
+
+			}
+
+			// y-direction boundary condition at bottom right node
+			bc_index[lev].push_back(nodesPerDim[0]*dim - (dim-1));
+			
+			if ( dim == 3 )
+			{
+				for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
+					bc_index[lev].push_back(dim*nodesPerDim[0] - (dim-1) + totalNodes2D*3*j);
 
 			}
 
 		}
+	}
 
-		// y-direction boundary condition at bottom right node
-		bc_index[lev].push_back(nodesPerDim[0]*dim - (dim-1));
-		
-		if ( dim == 3 )
+	else if ( bc_case == 1 )
+	{
+		if ( N.size() < 3 )
+			throw(runtime_error("Error : Boundary condition case 1 is not set up yet for 2D"));
+
+		// base level
+		size_t totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
+
+		// plane where u2 = 0
+		for ( int i = 0 ; i < totalNodes2D ; i++ )
+			bc_index[0].push_back(i*dim + 2);
+
+		// 2 points with pinned BC
+		bc_index[0].push_back( totalNodes2D*3*N[2] );
+		bc_index[0].push_back( totalNodes2D*3*N[2] + 1 );
+		bc_index[0].push_back( totalNodes2D*3*N[2] + 2 );
+		bc_index[0].push_back( totalNodes2D*3*N[2] + (N[0]+1) * (N[1]) * 3 );
+		bc_index[0].push_back( totalNodes2D*3*N[2] + 1 + (N[0]+1) * (N[1]) * 3 );
+		bc_index[0].push_back( totalNodes2D*3*N[2] + 2 + (N[0]+1) * (N[1]) * 3 );
+
+		// finer levels
+		for ( int lev = 1 ; lev < numLevels ; lev++ )
 		{
-			for ( int j = 1 ; j < nodesPerDim[2] ; j++ )
-				bc_index[lev].push_back(dim*nodesPerDim[0] - (dim-1) + totalNodes2D*3*j);
+			for( int i = 0 ; i < N.size() ; i++ )
+			{
+				nodesPerDim[i] = 2*nodesPerDim[i] - 1;
+				N[i] *= 2;
+			}
 
+			totalNodes2D = nodesPerDim[0]*nodesPerDim[1];
+
+			// plane where u2 = 0
+			for ( int i = 0 ; i < totalNodes2D ; i++ )
+				bc_index[lev].push_back(i*dim + 2);
+
+			// 2 points with pinned BC
+			bc_index[lev].push_back( totalNodes2D*3*N[2] );
+			bc_index[lev].push_back( totalNodes2D*3*N[2] + 1 );
+			bc_index[lev].push_back( totalNodes2D*3*N[2] + 2 );
+			bc_index[lev].push_back( totalNodes2D*3*N[2] + (N[0]+1) * (N[1]) * 3 );
+			bc_index[lev].push_back( totalNodes2D*3*N[2] + 1 + (N[0]+1) * (N[1]) * 3 );
+			bc_index[lev].push_back( totalNodes2D*3*N[2] + 2 + (N[0]+1) * (N[1]) * 3 );
+			
 		}
 
 	}
+
+
+
 
 	return bc_index;
 }
@@ -756,34 +802,46 @@ __host__
 void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_case, size_t dim, double force)
 {
 	
-	vector<size_t> nodesPerDim;
-
-	for ( int i = 0 ; i < N.size() ; i++)
-		nodesPerDim.push_back(N[i]+1);
-
-
-
-	size_t index = 0;
-	
-	for ( int lev = 0 ; lev < numLevels - 1 ; lev++)
+	if ( bc_case == 0 )
 	{
-		for ( int i = 0 ; i < N.size() ; i++)
-		nodesPerDim[i] = 2*nodesPerDim[i] - 1;
+		vector<size_t> nodesPerDim;
 
+		for ( int i = 0 ; i < N.size() ; i++)
+			nodesPerDim.push_back(N[i]+1);
+
+
+
+		size_t index = 0;
+		
+		for ( int lev = 0 ; lev < numLevels - 1 ; lev++)
+		{
+			for ( int i = 0 ; i < N.size() ; i++)
+			nodesPerDim[i] = 2*nodesPerDim[i] - 1;
+
+		}
+
+		index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
+		
+		b[index] = force;
+		
+		if ( dim == 3 )
+		{
+			for ( int i = 1 ; i < nodesPerDim[2] ; i++ )
+			{
+				index = index + (nodesPerDim[0]*nodesPerDim[1])*dim;
+				b[index] = force;
+				
+			}
+		}
 	}
 
-	index = dim * nodesPerDim[0] * ( nodesPerDim[1] - 1 ) + 1;
-	
-	b[index] = force;
-	
-	if ( dim == 3 )
+	else if ( bc_case == 1 )
 	{
-		for ( int i = 1 ; i < nodesPerDim[2] ; i++ )
-		{
-			index = index + (nodesPerDim[0]*nodesPerDim[1])*dim;
-			b[index] = force;
-			
-		}
+		if ( N.size() < 3 )
+			throw(runtime_error("Error : Load case 1 is not set up yet for 2D"));
+		
+		size_t index = (N[0]+1)*3 - 2;
+		b[index] = force;
 	}
 
 
