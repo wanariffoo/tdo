@@ -81,13 +81,13 @@ int main()
 
 
 
-    // // CASE 1 : 3D MBB
+    // CASE 1 : 3D MBB
     N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
     double h_coarse = 0.5;      // local element mesh size on coarsest grid
     size_t dim = N.size();
     size_t bc_case = 1;
     bc_index = applyBC(N, numLevels, bc_case, dim);
-    double damp = 1.25/3.0;      // smoother (jacobi damping parameter)
+    double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
@@ -266,7 +266,7 @@ int main()
     // // TODO:
     // // TODO:
 
-    for ( int i = 1 ; i < 100 ; ++i )
+    for ( int i = 1 ; i < 2 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);

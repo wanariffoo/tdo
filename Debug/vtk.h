@@ -46,12 +46,28 @@ void WriteVectorToVTK(vector<double> &chi, vector<double> &u, const std::string&
 	ofs << "POINTS ";
 	ofs << numNodes << " float" << endl;
 
-	for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
+	if ( dim == 2 )
 	{
-		for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+		for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
 		{
-			for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
-				ofs << " " << h*x << " " << h*z << " " << h*y << endl;
+			for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+			{
+				for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
+					ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+			}
+		}
+	}
+
+
+	else // dim == 3
+	{
+		for (std::size_t z = 0; z < numNodesPerDim[2]; ++z)
+		{
+			for (std::size_t y = 0; y < numNodesPerDim[1]; ++y)
+			{
+				for (std::size_t x = 0; x < numNodesPerDim[0]; ++x)
+					ofs << " " << h*x << " " << h*y << " " << h*z << endl;
+			}
 		}
 	}
 
