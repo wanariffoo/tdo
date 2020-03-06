@@ -507,7 +507,8 @@ bool Assembler::init_GPU(
     }
 
 
-    
+    // print_GPU<<<1,1>>>( &d_value[1][1] );
+
 //     // cout << "max_row_size[1]" << endl;
     // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
     // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);

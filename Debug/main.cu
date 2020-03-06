@@ -30,6 +30,7 @@ using namespace std;
 // DONE: getCoarseNode() : change to getCoarseNode2D, because you've separately made a 3D 
 // TODO: h = diagonal length of the quad
 // TODO: your jacobi 2D? You didn't do J = sum(GPs) ? You used 4 GPs, shouldn't you do 4 * J ?
+// TODO: clean up and organize makefile to have a more structured file hierarchy
 
 
 // 3D
@@ -93,6 +94,11 @@ int main()
     // applying boundary conditions
     size_t dim = N.size();
     bc_index = applyBC(N, numLevels, bc_case, dim);
+
+    // DEBUG:
+    // for ( int i = 0 ; i < bc_index[0].size() ; i++ )
+    //     cout << bc_index[0][i] << endl;
+
 
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
@@ -159,11 +165,11 @@ int main()
     cout << "Assembly ... DONE" << endl;
   
     // load vector, b
-    vector<double> b(num_rows[numLevels - 1], 0); 
+    vector<double> b(num_rows[numLevels - 1], 0);
     double force = -1;
     applyLoad(b, N, numLevels, bc_case, dim, force);
 
-
+    
 
 
     double* d_u;
@@ -186,10 +192,10 @@ int main()
     
     GMG.set_convergence_params(100000, 1e-99, 1e-12);
     GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
-   
+    
 
     GMG.init();
-    GMG.set_verbose(1, 0);
+    GMG.set_verbose(0, 0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -199,12 +205,12 @@ int main()
     cout << "Solver   ... DONE" << endl;
 
 
-    // // // DEBUG:
-    // // dim3 maingridDim;    
-    // // dim3 mainblockDim;
-    // // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
-    // // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
-    // // printLinearVector( d_A_local, local_num_rows, local_num_rows);
+    // // // // DEBUG:
+    // dim3 maingridDim;    
+    // dim3 mainblockDim;
+    // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
+    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
+    // printLinearVector( d_A_local, local_num_rows, local_num_rows);
     
 	
 
@@ -217,6 +223,7 @@ int main()
     tdo.init();
     tdo.set_verbose(0);
     tdo.innerloop(d_u, d_chi);    // get updated d_chi
+    tdo.print_VTK(0);
 
 
 
@@ -265,7 +272,7 @@ int main()
     // // TODO:
     // // TODO:
 
-    for ( int i = 1 ; i < 1 ; ++i )
+    for ( int i = 1 ; i < 2 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
@@ -278,7 +285,7 @@ int main()
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
 
         
-        GMG.set_verbose(1, 0);
+        GMG.set_verbose(0, 0);
         GMG.solve(d_u, d_b, d_value);
         cudaDeviceSynchronize();
         
@@ -315,7 +322,7 @@ int main()
         cudaDeviceSynchronize();
     }
 
-    
+
 
     // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
     cudaDeviceSynchronize();

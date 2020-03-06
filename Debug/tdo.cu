@@ -279,6 +279,7 @@ bool TDO::init()
 }
 
 void TDO::set_verbose(bool verbose) { m_verbose = verbose; }
+void TDO::print_VTK(bool foo) { m_printVTK = foo; }
 
 bool TDO::innerloop(double* &d_u, double* &d_chi)
 {
@@ -313,7 +314,10 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     cudaDeviceSynchronize();
 
 
+    if ( m_printVTK )
+    {
 
+    
     // getting vtk for driving force
     vector<size_t> numNodesPerDim(3);
     numNodesPerDim[0] = m_Nx + 1;
@@ -335,12 +339,13 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * numNodes * m_dim, cudaMemcpyDeviceToHost) );
     CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
     CUDA_CALL( cudaMemcpy( &laplacian[0], d_laplacian, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
-
     
     WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
     // WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
     ++m_file_index;
     
+    }
+
     calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);
 
 

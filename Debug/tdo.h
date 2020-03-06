@@ -10,6 +10,7 @@ public:
     bool init();
     bool innerloop(double* &d_u, double* &d_chi);
     void set_verbose(bool verbose);
+    void print_VTK(bool foo=false);
     
 
 private:
@@ -38,6 +39,7 @@ private:
 
     // VTK
     int m_file_index = 0;
+    bool m_printVTK = false;
 
     double m_betastar;
     double m_etastar;

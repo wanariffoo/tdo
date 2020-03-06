@@ -826,6 +826,7 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 		
 		if ( dim == 3 )
 		{
+			
 			for ( int i = 1 ; i < nodesPerDim[2] ; i++ )
 			{
 				index = index + (nodesPerDim[0]*nodesPerDim[1])*dim;
@@ -840,7 +841,13 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 		if ( N.size() < 3 )
 			throw(runtime_error("Error : Load case 1 is not set up yet for 2D"));
 		
-		size_t index = (N[0]+1)*3 - 2;
+		// obtaining the finest grid's number of elements on the x-axis
+		size_t Nx_fine = N[0];
+
+		for ( int lev = 0 ; lev < numLevels - 1 ; lev++)
+			Nx_fine *= 2;
+
+		size_t index = (Nx_fine+1)*dim - 2;
 		b[index] = force;
 	}
 
