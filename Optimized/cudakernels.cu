@@ -897,28 +897,6 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 
 }
 
-
-__global__
-void applyMatrixBC_GPU_ (double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
-{
-	int id = threadIdx.x + blockIdx.x*blockDim.x;
-
-	if ( id < bc_size )
-	{
-		size_t bc_id = bc_index[id];
-
-		for ( int i = 0 ; i < num_rows ; i++ )
-		{
-			setAt( i, bc_id, value, index, max_row_size, 0.0 );
-			setAt( bc_id, i, value, index, max_row_size, 0.0 );
-		}
-
-		setAt( bc_id, bc_id, value, index, max_row_size, 1.0 );
-	}
-
-}
-
-
 // CHECK: overkill to use this many threads?
 __global__
 void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)

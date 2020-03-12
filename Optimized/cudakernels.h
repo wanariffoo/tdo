@@ -166,8 +166,6 @@ __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_chi, double*
 
 __global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
 
-__global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size);
-
 __global__ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
 __global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);

@@ -275,7 +275,7 @@ int main()
     // // TODO:
     // // TODO:
 
-    for ( int i = 1 ; i < 10 ; ++i )
+    for ( int i = 1 ; i < 2 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
@@ -291,9 +291,20 @@ int main()
         GMG.set_verbose(0, 0);
         GMG.solve(d_u, d_b, d_value);
         cudaDeviceSynchronize();
+        
+
+        // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
+        // print_GPU<<<1,1>>>( &d_u[128]);
+        
+        // if (result)
+
 
         // tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi);
+        
+        // cudaDeviceSynchronize();
+        // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+        // cout << "\n";
 
         if ( writeToVTK )
         { 
@@ -316,7 +327,7 @@ int main()
 
 
 
-    
+    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
     cudaDeviceSynchronize();
     
 }

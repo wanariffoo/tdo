@@ -99,9 +99,7 @@ private:
     size_t m_numLevels;
     size_t m_topLev;
 
-    // boundary condition index
     vector<vector<size_t>> m_bc_index;
-    vector<size_t*> m_d_bc_index;
 
     //// TDO
     double m_rho;
