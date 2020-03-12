@@ -954,6 +954,26 @@ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, si
 }
 
 
+__global__
+void applyProlMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if( id < bc_size )
+	{
+		size_t bc_id = bc_index[id];
+
+		for ( int i = 0 ; i < num_rows ; i++ )
+		{
+			if ( valueAt(i, bc_id, value, index, max_row_size) != 1.0 )
+				setAt( bc_id, i, value, index, max_row_size, 0.0 );		
+		}	
+
+	}
+	
+}
+
+
 // obtain a node's corresponding fine node index
 __host__
 size_t getFineNode(size_t index, vector<size_t> N, size_t dim)

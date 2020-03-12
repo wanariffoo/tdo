@@ -31,6 +31,7 @@ using namespace std;
 // TODO: h = diagonal length of the quad
 // TODO: your jacobi 2D? You didn't do J = sum(GPs) ? You used 4 GPs, shouldn't you do 4 * J ?
 // TODO: clean up and organize makefile to have a more structured file hierarchy
+// TODO: have cudamemcpy for prol and rest matrices to be outside of the function
 
 // URGENT !!!
 // TODO: TODO: size_t is used instead of int in matrix assembly (fillProl ...), shouldn't be used as size_t can't contain negative values!!
@@ -66,7 +67,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 2;
+    size_t numLevels = 3;
     size_t topLev = numLevels - 1;
     
     vector<size_t> N;
@@ -275,7 +276,7 @@ int main()
     // // TODO:
     // // TODO:
 
-    for ( int i = 1 ; i < 10 ; ++i )
+    for ( int i = 1 ; i < 1 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);

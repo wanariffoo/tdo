@@ -297,15 +297,22 @@ bool Assembler::init_GPU(
     m_r_max_row_size = r_max_row_size;
     m_p_max_row_size = p_max_row_size;
 
+    
+    m_d_bc_index.resize(m_numLevels);
+    
+    for ( int i = 0 ; i < m_numLevels ; i++ )
+    {
+        CUDA_CALL( cudaMalloc( (void**)&m_d_bc_index[i], sizeof(size_t) * m_bc_index[i].size()) );
+        CUDA_CALL( cudaMemcpy( m_d_bc_index[i], &m_bc_index[i][0], sizeof(size_t) * m_bc_index[i].size(), cudaMemcpyHostToDevice) );
+    }
+
+
 
     // assembling the local stiffness matrix
     assembleLocal();
     
     //// assembling prolongation & restriction matrices
-    cout << "Assembling prol matrix ..." << endl;
     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
-
-    cout << "Assembling rest matrix ..." << endl;
     assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
     // allocating temp matrix to be used in RAP
@@ -473,13 +480,13 @@ bool Assembler::init_GPU(
     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
     // cout << m_bc_index[m_topLev][i] << endl;
     
-    m_d_bc_index.resize(m_numLevels);
+    // m_d_bc_index.resize(m_numLevels);
     
-    for ( int i = 0 ; i < m_numLevels ; i++ )
-    {
-        CUDA_CALL( cudaMalloc( (void**)&m_d_bc_index[i], sizeof(size_t) * m_bc_index[i].size()) );
-        CUDA_CALL( cudaMemcpy( m_d_bc_index[i], &m_bc_index[i][0], sizeof(size_t) * m_bc_index[i].size(), cudaMemcpyHostToDevice) );
-    }
+    // for ( int i = 0 ; i < m_numLevels ; i++ )
+    // {
+    //     CUDA_CALL( cudaMalloc( (void**)&m_d_bc_index[i], sizeof(size_t) * m_bc_index[i].size()) );
+    //     CUDA_CALL( cudaMemcpy( m_d_bc_index[i], &m_bc_index[i][0], sizeof(size_t) * m_bc_index[i].size(), cudaMemcpyHostToDevice) );
+    // }
 
 
     //// apply boundary conditions to global stiffness matrix
@@ -891,25 +898,40 @@ bool Assembler::assembleProlMatrix_GPU(
         }
     }
         
-
+        
+    
     // applying boundary conditions on the prolongation matrices on each level
     for ( int lev = 1 ; lev < m_numLevels ; lev++ )
     {
-        for ( int i = 0 ; i < m_bc_index[lev].size() ; i++ )
-            applyProlMatrixBC_GPU<<<1,1>>>(&d_p_value[lev-1][0], &d_p_index[lev-1][0], m_p_max_row_size[lev-1], m_bc_index[lev-1][i], m_num_rows[lev], m_num_rows[lev-1] );
+        calculateDimensions(m_bc_index[lev-1].size(), gridDim, blockDim);
+        applyProlMatrixBC_GPU_<<<gridDim,blockDim>>>(&d_p_value[lev-1][0], &d_p_index[lev-1][0], m_p_max_row_size[lev-1], m_d_bc_index[lev-1], m_num_rows[lev], m_num_rows[lev-1], m_bc_index[lev-1].size() );
     }
 
+    // printVector_GPU<<<gridDim,blockDim>>>( m_d_bc_index[0], m_bc_index[lev_-1].size());
 
-    // int mlev = 1;
-    // int i = 2;
-    // cout << m_bc_index[lev-1][i] << endl;
-    // applyProlMatrixBC_GPU<<<1,1>>>(&d_p_value[mlev-1][0], &d_p_index[mlev-1][0], m_p_max_row_size[mlev-1], m_bc_index[mlev-1][i], m_num_rows[mlev], m_num_rows[mlev-1] );
+    
     // printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
     // printLinearVector( d_p_index[1], m_num_rows[2], m_p_max_row_size[1]);
     // printELLrow(0, d_p_value[0], d_p_index[0], m_p_max_row_size[0], m_num_rows[1], m_num_rows[0]);
     // printELLrow(1, d_p_value[1], d_p_index[1], m_p_max_row_size[1], m_num_rows[2], m_num_rows[1]);
 
     return true;
+
+    // old:
+
+    // int mlev = 1;
+    // int i = 2;
+    // cout << m_bc_index[lev-1][i] << endl;
+    // applyProlMatrixBC_GPU<<<1,1>>>(&d_p_value[mlev-1][0], &d_p_index[mlev-1][0], m_p_max_row_size[mlev-1], m_bc_index[mlev-1][i], m_num_rows[mlev], m_num_rows[mlev-1] );
+
+    // applying boundary conditions on the prolongation matrices on each level
+    // for ( int lev = 1 ; lev < m_numLevels ; lev++ )
+    // {
+    //     for ( int i = 0 ; i < m_bc_index[lev].size() ; i++ )
+    //         applyProlMatrixBC_GPU<<<1,1>>>(&d_p_value[lev-1][0], &d_p_index[lev-1][0], m_p_max_row_size[lev-1], m_bc_index[lev-1][i], m_num_rows[lev], m_num_rows[lev-1] );
+    // }
+
+
 }
 
 bool Assembler::assembleRestMatrix_GPU(

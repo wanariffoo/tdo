@@ -171,6 +171,7 @@ __global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_
 __global__ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
 __global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
+__global__ void applyProlMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size);
 
 __host__ size_t getFineNode(size_t coarse_index, vector<size_t> N, size_t dim);
 
