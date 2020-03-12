@@ -1,6 +1,6 @@
 #include <iostream>
-#include "solver.h"
-#include "cudakernels.h"
+#include "../include/solver.h"
+#include "../include/cudakernels.h"
 
 using namespace std;
 
@@ -763,8 +763,7 @@ bool Solver::smoother(double* d_c, double* d_r, int lev)
 
 bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 {
-    
-    // cout << "solve" << endl;
+       
 
     // // DEBUG:
     // printVector_GPU<<<1, m_num_rows[m_topLev]>>> ( d_b, m_num_rows[m_topLev]);

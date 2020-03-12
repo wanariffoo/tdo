@@ -1,31 +1,37 @@
 
-# source = assemble_solve.cu cudakernels.cu solver.cu
-obj = main.o cudakernels.o solver.o assemble.o tdo.o
+
+# NVCC flags
+NVCC 		= nvcc
+NVCC_FLAGS 	= -arch=sm_70
+
+# Directories
+SRC_DIR = src
+INC_DIR = include
+OBJ_DIR = bin
+VTK_DIR = vtk
+
+# Object files
+OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cudakernels.o $(OBJ_DIR)/solver.o $(OBJ_DIR)/assemble.o $(OBJ_DIR)/tdo.o
 
 # all: 
-all: $(obj)
-	nvcc $(obj) -o a
+all : $(OBJS)
+	nvcc $(OBJS) -o a
 
-main.o: main.cu vtk.h
-	nvcc main.cu -c
+$(OBJ_DIR)/main.o : main.cu $(INC_DIR)/vtk.h
+	nvcc $(NVCC_FLAGS) main.cu -c -o $@
 
-cudakernels.o: cudakernels.cu
-	nvcc cudakernels.cu -c
+$(OBJ_DIR)/cudakernels.o: $(SRC_DIR)/cudakernels.cu
+	nvcc $(NVCC_FLAGS) $(SRC_DIR)/cudakernels.cu -c -o $@
 
-solver.o: solver.cu
-	nvcc solver.cu -c
+$(OBJ_DIR)/solver.o: $(SRC_DIR)/solver.cu
+	nvcc $(NVCC_FLAGS) $(SRC_DIR)/solver.cu -c -o $@
 
-assemble.o: assemble.cu
-	nvcc assemble.cu -c
+$(OBJ_DIR)/assemble.o: $(SRC_DIR)/assemble.cu
+	nvcc $(NVCC_FLAGS) $(SRC_DIR)/assemble.cu -c -o $@
 
-tdo.o: tdo.cu
-	nvcc tdo.cu -c
+$(OBJ_DIR)/tdo.o: $(SRC_DIR)/tdo.cu
+	nvcc $(NVCC_FLAGS) $(SRC_DIR)/tdo.cu -c -o $@
 
 clean:
-	rm -f ${obj} *.o
+	rm -f ${OBJS} $(OBJ_DIR)/*.o $(VTK_DIR)/*.vtk
 
-delvtk:
-	rm vtk/*.vtk
-
-# assemble_solve.o: assemble_solve.cu
-# 	nvcc assemble_solve.cu -c

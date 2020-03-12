@@ -5,7 +5,7 @@
 #include <cmath>
 #include <ctime>
 #include <iostream>
-#include "cudakernels.h"
+#include "../include/cudakernels.h"
 
 
 #define CUDA_CALL( call )                                                                                          \
@@ -163,7 +163,12 @@ void norm_GPU(double* norm, double* x, size_t num_rows)
 
 	if ( id < num_rows )
 	{
+		#if __CUDA_ARCH__ < 600
 		atomicAdd_double( norm, x[id]*x[id] );
+		#else
+		atomicAdd( norm, x[id]*x[id] );
+		#endif
+
 	}
 	__syncthreads();
 
@@ -236,7 +241,13 @@ void sumOfSquare_GPU(double* sum, double* x, size_t n)
 
 	// reduce sum from all blocks' cache
 	if(threadIdx.x == 0)
-		atomicAdd_double(sum, cache[0]);
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, cache[0]);
+		#else
+			atomicAdd(sum, cache[0]);
+		#endif
+	}
 
 
 }
@@ -248,8 +259,14 @@ void LastBlockSumOfSquare_GPU(double* sum, double* x, size_t n, size_t counter)
 	int id = threadIdx.x + blockDim.x*blockIdx.x;
     
     // if ( id >= counter*blockDim.x && id < ( ( counter*blockDim.x ) + lastBlockSize ) )
-    if ( id >= counter*blockDim.x && id < n )
-		atomicAdd_double(sum, x[id]*x[id]);
+	if ( id >= counter*blockDim.x && id < n )
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, x[id]*x[id]);
+		#else
+			atomicAdd(sum, x[id]*x[id]);
+		#endif
+	}
 }
 
 __host__
@@ -461,7 +478,11 @@ void dotProduct_GPU(double* x, double* a, double* b, size_t num_rows)
 	}
 
 	if(threadIdx.x == 0){
-		atomicAdd_double(x, cache[0]);
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(x, cache[0]);
+		#else
+			atomicAdd(x, cache[0]);
+		#endif		
 	}
 	__syncthreads();
 }
@@ -472,7 +493,11 @@ void LastBlockDotProduct(double* dot, double* x, double* y, size_t starting_inde
 {
 	int id = threadIdx.x + blockDim.x*blockIdx.x + starting_index;
 		
-	atomicAdd_double(dot, x[id]*y[id]);
+	#if __CUDA_ARCH__ < 600
+		atomicAdd_double(dot, x[id]*y[id]);
+	#else
+		atomicAdd(dot, x[id]*y[id]);
+	#endif		
 	
 }
 
@@ -897,6 +922,28 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 
 }
 
+
+__global__
+void applyMatrixBC_GPU_ (double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
+{
+	int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < bc_size )
+	{
+		size_t bc_id = bc_index[id];
+
+		for ( int i = 0 ; i < num_rows ; i++ )
+		{
+			setAt( i, bc_id, value, index, max_row_size, 0.0 );
+			setAt( bc_id, i, value, index, max_row_size, 0.0 );
+		}
+
+		setAt( bc_id, bc_id, value, index, max_row_size, 1.0 );
+	}
+
+}
+
+
 // CHECK: overkill to use this many threads?
 __global__
 void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
@@ -929,6 +976,26 @@ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, si
 		if ( valueAt(i, bc_index, value, index, max_row_size) != 1.0 )
 			setAt( bc_index, i, value, index, max_row_size, 0.0 );
 	}
+}
+
+
+__global__
+void applyProlMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if( id < bc_size )
+	{
+		size_t bc_id = bc_index[id];
+
+		for ( int i = 0 ; i < num_rows ; i++ )
+		{
+			if ( valueAt(i, bc_id, value, index, max_row_size) != 1.0 )
+				setAt( bc_id, i, value, index, max_row_size, 0.0 );		
+		}	
+
+	}
+	
 }
 
 
@@ -1161,7 +1228,13 @@ void ApplyTransposed_GPU(
 		{
 			int col = index [ num_cols_per_row * id + n ];
 			double val = value [ num_cols_per_row * id + n ];
-			atomicAdd_double( &r[col], val*x[id] );
+
+			#if __CUDA_ARCH__ < 600
+				atomicAdd_double( &r[col], val*x[id] );
+			#else
+				atomicAdd( &r[col], val*x[id] );
+			#endif		
+
 		}
 	}
 }
@@ -1495,7 +1568,14 @@ void sumOfVector_GPU(double* sum, double* x, size_t n)
 
 	// reduce sum from all blocks' cache
 	if(threadIdx.x == 0)
-		atomicAdd_double(sum, cache[0]);
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, cache[0]);
+		#else
+			atomicAdd(sum, cache[0]);
+		#endif		
+	}
+		
 }
 
 
@@ -1859,7 +1939,13 @@ void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t numElements)
 
 	// reduce sum from all blocks' cache
 	if(threadIdx.x == 0)
-		atomicAdd_double(sum, cache[0]);
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, cache[0]);
+		#else
+			atomicAdd(sum, cache[0]);
+		#endif		
+	}
 }
 
 

@@ -1,57 +1,37 @@
 /*
-    
+    GPU-accelerated Thermodynamic Topology Optimization
 */
 
 #include <iostream>
-// #include <cuda.h>
 #include <vector>
-// #include <cuda_runtime.h>
-// #include "../include/mycudaheader.h"
-// #include "precond.h"
-#include "cudakernels.h"
-#include "assemble.h"
-#include "solver.h"
-#include "tdo.h"
-#include "vtk.h"
+#include "include/cudakernels.h"
+#include "include/assemble.h"
+#include "include/solver.h"
+#include "include/tdo.h"
+#include "include/vtk.h"
 
 using namespace std;
 
-// DONE: bc cases
-// DONE: matrix assembly 2D
-// DONE: fix prolongation assembly - has something to do with bc initialization
-    // DONE: 2D assembly not symmetric
 
 // TODO: store local k matrix in constant/texture memory
-// DONE: ApplyTranspose(prol) --> Apply(rest)
-// TODO: applyMatrixBC_GPU( valuevector, indexvector, mrs, bcindex(node), "which dimension is free", numrows)
 // TODO: __device__ valueAt() has x and y mixed up
 // NOTE:CHECK: when using shared memory, more than one block, get this error : CUDA error for cudaMemcpy( ...)
 // TODO: check that all kernels have (row, col) formats
-// DONE: getCoarseNode() : change to getCoarseNode2D, because you've separately made a 3D 
 // TODO: h = diagonal length of the quad
-// TODO: your jacobi 2D? You didn't do J = sum(GPs) ? You used 4 GPs, shouldn't you do 4 * J ?
-// TODO: clean up and organize makefile to have a more structured file hierarchy
+// TODO: have cudamemcpy for prol and rest matrices to be outside of the function
 
 // URGENT !!!
 // TODO: TODO: size_t is used instead of int in matrix assembly (fillProl ...), shouldn't be used as size_t can't contain negative values!!
-
-
-// 3D
-// DONE: local stiffness
-// DONE: 3d elements' node distribution
-// DONE: laplacian
 
 //// PARALELLIZABLE / OPTIMIZATION
 // TODO: fillIndexVector_GPU()
 // TODO: shared memory, use 8 bytes for double precision to avoid bank conflict
             // cudaDeviceSetSharedMemConfig( cudaSharedMemBankSizeEightByte )
             // see notes in compendium
-// DONE: RAP() : use max_row_size for A(). currently it's going through all num_rows
 
 //// LOW PRIORITY
 // TODO: VTK class
 // TODO: RA and AP's valueAt(indices) are a bit messed up and confusing
-// DONE: enum : bc case 
 // TODO: 3d assembly, add for loop
     
 
@@ -74,20 +54,20 @@ int main()
 
 
 
-    // // CASE 0 : 2D MBB
-    // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
-    // double h_coarse = 1;        // local element mesh size on coarsest grid
-    // size_t bc_case = 0;
-    // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
+    // CASE 0 : 2D MBB
+    N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
+    double h_coarse = 1;        // local element mesh size on coarsest grid
+    size_t bc_case = 0;
+    double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
 
-    // CASE 1 : 3D MBB
-    N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
-    double h_coarse = 0.5;      // local element mesh size on coarsest grid
-    size_t bc_case = 1;
-    double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
+    // // CASE 1 : 3D MBB
+    // N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
+    // double h_coarse = 0.5;      // local element mesh size on coarsest grid
+    // size_t bc_case = 1;
+    // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
@@ -97,11 +77,6 @@ int main()
     // applying boundary conditions
     size_t dim = N.size();
     bc_index = applyBC(N, numLevels, bc_case, dim);
-
-    // DEBUG:
-    // for ( int i = 0 ; i < bc_index[0].size() ; i++ )
-    //     cout << bc_index[0][i] << endl;
-
 
     // calculating the mesh size on the top level grid
     double h = h_coarse/pow(2,numLevels - 1);
@@ -135,13 +110,12 @@ int main()
     vector<size_t*> d_r_index;
 
     // design variable
-    double* d_chi;           // NOTE: can alloc this immediately
+    double* d_chi;
 
 
 
     //// CUDA
     vector<size_t*> d_node_index;
-    // d_node_index.resize(4);
 
     /* ##################################################################
     #                           ASSEMBLY                                #
@@ -177,7 +151,6 @@ int main()
 
     double* d_u;
     double* d_b;
-    // TODO: optimizable: malloc while program is assembling
     CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
     CUDA_CALL( cudaMalloc((void**)&d_b, sizeof(double) * num_rows[numLevels - 1] ) );
 
@@ -208,14 +181,6 @@ int main()
     cout << "Solver   ... DONE" << endl;
 
 
-    // // // // DEBUG:
-    // dim3 maingridDim;    
-    // dim3 mainblockDim;
-    // calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
-    // printVector_GPU<<<maingridDim, mainblockDim>>>( d_u, num_rows[topLev] );
-    // printLinearVector( d_A_local, local_num_rows, local_num_rows);
-    
-	
 
     /* ##################################################################
     #                           TDO                                     #
@@ -230,19 +195,7 @@ int main()
 
 
 
-    // // cout << endl;
-    // // cudaDeviceSynchronize();
-    // // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-    // // bar<<<1,1>>>(d_chi);
-    
-
-
-
-    
-    // cudaDeviceSynchronize();
-
-    // TODO: create a VTK class, write a function for this to make it neater
-    // vtk stuff
+    // vtk
     vector<double> chi(Assembly.getNumElements(), rho);
     vector<double> u(Assembly.getNumNodes() * dim, 0);
     string fileformat(".vtk");
@@ -270,17 +223,11 @@ int main()
     }
 
 
-    // // TODO:
-    // // TODO: impose BC on updated matrix ?
-    // // TODO:
-    // // TODO:
-
     for ( int i = 1 ; i < 2 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
 
-        // TODO: something's wrong with the solver for N = {3,1}
         cout << "Calculating iteration " << i << " ... " << endl;
         cudaDeviceSynchronize();
         GMG.reinit();
@@ -291,20 +238,9 @@ int main()
         GMG.set_verbose(0, 0);
         GMG.solve(d_u, d_b, d_value);
         cudaDeviceSynchronize();
-        
-
-        // printVector_GPU<<<1,num_rows[numLevels - 1]>>>( d_u, num_rows[numLevels - 1]);
-        // print_GPU<<<1,1>>>( &d_u[128]);
-        
-        // if (result)
-
 
         // tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi);
-        
-        // cudaDeviceSynchronize();
-        // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
-        // cout << "\n";
 
         if ( writeToVTK )
         { 
@@ -325,38 +261,7 @@ int main()
         cudaDeviceSynchronize();
     }
 
-
-
-    // printVector_GPU<<<1,Assembly.getNumElements()>>>( d_chi, Assembly.getNumElements());
+   
     cudaDeviceSynchronize();
     
 }
-
-    // PTAP_GPU consider using 2d blocks? :
-    // https://www.quantstart.com/articles/Matrix-Matrix-Multiplication-on-the-GPU-with-Nvidia-CUDA/
-
-// print_GPU<<<1,1>>> ( d_res0 );
-
-
-
-// DEBUG:
-/// verify u-vector
-// A*u = r_
-// norm(r_) should be == norm(b)
-// double* d_r_;
-// double* d_r_norm;
-// CUDA_CALL( cudaMalloc((void**)&d_r_norm, sizeof(double)) );
-// CUDA_CALL( cudaMalloc((void**)&d_r_, sizeof(double) * num_rows[numLevels - 1] ) );
-// CUDA_CALL( cudaMemset(d_r_norm, 0, sizeof(double)) );
-// CUDA_CALL( cudaMemset(d_r_, 0, sizeof(double) * num_rows[numLevels - 1]) );
-
-// dim3 maingridDim;
-// dim3 mainblockDim;
-// calculateDimensions( num_rows[topLev], maingridDim, mainblockDim);
-// Apply_GPU<<<maingridDim, mainblockDim>>>(num_rows[topLev], max_row_size[topLev], d_value[topLev], d_index[topLev], d_u, d_r_);
-// cudaDeviceSynchronize();
-// norm_GPU<<<maingridDim, mainblockDim>>>(d_r_norm, d_r_, num_rows[topLev]);
-// setToZero<<<maingridDim, mainblockDim>>>( d_r_, num_rows[topLev]);
-// cudaDeviceSynchronize();
-// print_GPU<<<1,1>>>( d_r_norm );
-// cudaDeviceSynchronize();

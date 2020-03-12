@@ -1,9 +1,9 @@
 
 #include <iostream>
-#include "assemble.h"
 #include <cmath>
-#include "cudakernels.h"
-#include "tdo.h"
+#include "../include/assemble.h"
+#include "../include/cudakernels.h"
+#include "../include/tdo.h"
 
 #include <fstream>
 #include <stdexcept>
@@ -213,7 +213,6 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
         m_Nz = 0;
     
     // local volume
-    // NOTE: wrong here because you thought m_h here is baselevel's, it's actually the finest level
     m_local_volume = pow(m_h, m_dim); 
     
     
@@ -341,7 +340,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     CUDA_CALL( cudaMemcpy( &laplacian[0], d_laplacian, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
     
     WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
-    // WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
     ++m_file_index;
     
     }
