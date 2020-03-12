@@ -434,16 +434,10 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     
     // restrict defect
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_r[lev-1], m_num_rows[lev-1] );
+        
     
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    
-    if ( lev == 1 )
-    cudaEventRecord(start);
-    
-    // r_coarse = R * r   
-    Apply_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>( m_num_rows[lev], m_r_max_row_size[lev-1], m_d_r_value[lev-1], m_d_r_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+    // r_coarse = P^T * r   
+    ApplyTransposed_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
 
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_c[lev-1], m_num_rows[lev-1] );
 

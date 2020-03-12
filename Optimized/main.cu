@@ -34,6 +34,8 @@ using namespace std;
 // TODO: VTK class
 // TODO: RA and AP's valueAt(indices) are a bit messed up and confusing
 // TODO: 3d assembly, add for loop
+// TODO: tried to fix ApplyTranspose for r_coarse to Apply using R-matrix, but didn't work. using ApplyTranspose for now
+    // not much time difference though, from 0.01 to 0.007
     
 
 int main()
@@ -47,27 +49,27 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 4;
+    size_t numLevels = 3;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
 
 
-    // CASE 0 : 2D MBB
-    N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
-    double h_coarse = 1;        // local element mesh size on coarsest grid
-    size_t bc_case = 0;
-    double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
+    // // CASE 0 : 2D MBB
+    // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
+    // double h_coarse = 1;        // local element mesh size on coarsest grid
+    // size_t bc_case = 0;
+    // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
 
-    // // CASE 1 : 3D MBB
-    // N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
-    // double h_coarse = 0.5;      // local element mesh size on coarsest grid
-    // size_t bc_case = 1;
-    // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
+    // CASE 1 : 3D MBB
+    N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
+    double h_coarse = 0.5;      // local element mesh size on coarsest grid
+    size_t bc_case = 1;
+    double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
