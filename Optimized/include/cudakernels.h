@@ -164,14 +164,14 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 
 __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_chi, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
 
-__global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
+__global__ void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
 
-__global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size);
+__global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size);
 
 __global__ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
-__global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
-__global__ void applyProlMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size);
+__global__ void applyProlMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
+__global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size);
 
 __host__ size_t getFineNode(size_t coarse_index, vector<size_t> N, size_t dim);
 

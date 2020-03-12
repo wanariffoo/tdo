@@ -19,7 +19,6 @@
 using namespace std;
 
 
-
 // Self-defined double-precision atomicAdd function for nvidia GPUs with Compute Capability 6 and below.
 // Pre-defined atomicAdd() with double-precision does not work for pre-CC7 nvidia GPUs.
 __device__ 
@@ -41,7 +40,7 @@ double atomicAdd_double(double* address, double val)
 }
 
 
-// Determines 1-dimensional CUDA block and grid sizes based on the number of rows N
+// determines 1-dimensional CUDA block and grid sizes based on the number of rows N
 __host__ 
 void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
 {
@@ -58,7 +57,7 @@ void calculateDimensions(size_t N, dim3 &gridDim, dim3 &blockDim)
     }
 }
 
-// Determines 2-dimensional CUDA block and grid sizes based on the number of rows N
+// determines 2-dimensional CUDA block and grid sizes based on the number of rows N
 __host__ void calculateDimensions2D(size_t Nx, size_t Ny, dim3 &gridDim, dim3 &blockDim)
 {
     if ( Nx <= 32 && Ny <= 32)
@@ -76,7 +75,6 @@ __host__ void calculateDimensions2D(size_t Nx, size_t Ny, dim3 &gridDim, dim3 &b
 
 }
 
-// TODO: this is for 2D only, need 3D later
 // calculates the DOF of a grid with dimensions
 __host__ size_t calcDOF(size_t Nx, size_t Ny, size_t dim)
 {
@@ -140,6 +138,7 @@ void setAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols
     }
 }
 
+// a[] = 0.0
 __global__
 void setToZero(double* a, size_t num_rows)
 {
@@ -154,8 +153,6 @@ __global__
 void norm_GPU(double* norm, double* x, size_t num_rows)
 {
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
-
-	// TODO: if (id < num)
 
 	if ( id == 0 )
 		*norm = 0;
@@ -912,7 +909,7 @@ void assembleGrid2D_GPU(
 
 
 __global__
-void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows)
+void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows)
 {
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
     int idy = threadIdx.y + blockIdx.y*blockDim.y;
@@ -924,7 +921,7 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 
 
 __global__
-void applyMatrixBC_GPU_ (double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
+void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
 {
 	int id = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -969,7 +966,7 @@ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, s
 }
 
 __global__
-void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+void applyProlMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
 {
 	for ( int i = 0 ; i < num_rows ; i++ )
 	{
@@ -980,7 +977,7 @@ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, si
 
 
 __global__
-void applyProlMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size)
+void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size)
 {
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -1208,8 +1205,6 @@ void Apply_GPU(
 
 /// r = A^T * x
 /// NOTE: This kernel should be run with A's number of rows as the number of threads
-/// e.g., r's size = 9, A's size = 25 x 9, x's size = 25
-/// ApplyTransposed_GPU<<<1, 25>>>()
 __global__ 
 void ApplyTransposed_GPU(	
 	const std::size_t num_rows, 

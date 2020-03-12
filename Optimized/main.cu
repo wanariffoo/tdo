@@ -19,6 +19,7 @@ using namespace std;
 // TODO: check that all kernels have (row, col) formats
 // TODO: h = diagonal length of the quad
 // TODO: have cudamemcpy for prol and rest matrices to be outside of the function
+// TODO: deallocation
 
 // URGENT !!!
 // TODO: TODO: size_t is used instead of int in matrix assembly (fillProl ...), shouldn't be used as size_t can't contain negative values!!
@@ -46,8 +47,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 2;
-    size_t topLev = numLevels - 1;
+    size_t numLevels = 4;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
@@ -163,7 +163,7 @@ int main()
     #                           SOLVER                                  #
     ###################################################################*/
 
-    Solver GMG(d_value, d_index, d_p_value, d_p_index, numLevels, num_rows, max_row_size, p_max_row_size, damp);
+    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
     
     
     GMG.set_convergence_params(100000, 1e-99, 1e-12);
@@ -171,7 +171,7 @@ int main()
     
 
     GMG.init();
-    GMG.set_verbose(0, 0);
+    GMG.set_verbose(1, 0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -192,7 +192,6 @@ int main()
     tdo.set_verbose(0);
     tdo.innerloop(d_u, d_chi);    // get updated d_chi
     tdo.print_VTK(0);
-
 
 
     // vtk
