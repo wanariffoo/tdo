@@ -20,6 +20,7 @@ using namespace std;
 // TODO: h = diagonal length of the quad
 // TODO: have cudamemcpy for prol and rest matrices to be outside of the function
 // TODO: deallocation
+// TODO: RAP_ use shared?
 
 // URGENT !!!
 // TODO: TODO: size_t is used instead of int in matrix assembly (fillProl ...), shouldn't be used as size_t can't contain negative values!!
@@ -224,7 +225,7 @@ int main()
     }
 
 
-    for ( int i = 1 ; i < 10 ; ++i )
+    for ( int i = 1 ; i < 2 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
