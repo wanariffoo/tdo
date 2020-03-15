@@ -50,7 +50,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 3;
+    size_t numLevels = 4;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
@@ -174,7 +174,7 @@ int main()
     
 
     GMG.init();
-    GMG.set_verbose(0, 0);
+    GMG.set_verbose(1, 0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -237,7 +237,7 @@ int main()
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
 
         
-        GMG.set_verbose(0, 0);
+        GMG.set_verbose(1, 0);
         GMG.solve(d_u, d_b, d_value);
         cudaDeviceSynchronize();
 

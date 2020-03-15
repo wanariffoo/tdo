@@ -2009,18 +2009,37 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 						double* p_value, size_t* p_index, size_t p_max_row_size, 
 						size_t lev)
 {
-		double RAP = 0;
 
+		// NOTE: shared
 		unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
 		unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
+		
+		__shared__ double RAP[32][32];
+		RAP[threadIdx.x][threadIdx.y] = 0;
+
 		
 
 		if ( row < num_rows_ && col < num_rows_ )
 		{
 			for ( int i = 0 ; i < r_max_row_size ; i++ )
-				RAP += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
-			setAt( col, row, value_, index_, max_row_size_, RAP );
+				RAP[threadIdx.x][threadIdx.y] += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
+			setAt( col, row, value_, index_, max_row_size_, RAP[threadIdx.x][threadIdx.y] );
 		}
+
+
+		// NOTE: non-shared
+		// double RAP = 0;
+
+		// unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
+		// unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
+		
+
+		// if ( row < num_rows_ && col < num_rows_ )
+		// {
+		// 	for ( int i = 0 ; i < r_max_row_size ; i++ )
+		// 		RAP += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
+		// 	setAt( col, row, value_, index_, max_row_size_, RAP );
+		// }
 
 }
 

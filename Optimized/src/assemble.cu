@@ -457,25 +457,25 @@ bool Assembler::init_GPU(
         // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
         //     CUDA_CALL( cudaStreamCreate(&m_streams[i]) );
 
-        // CHECK: benchmark
+        // // CHECK: benchmark
         // cudaEvent_t start, stop;
         // cudaEventCreate(&start);
         // cudaEventCreate(&stop);
         // cudaEventRecord(start);
             
-        // CHECK: benchmark
         // apply boundary conditions to the global stiffness matrix
             calculateDimensions( m_bc_index[m_topLev].size(), g_gridDim, g_blockDim);
             applyMatrixBC_GPU_<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_d_bc_index[m_topLev], num_rows[m_topLev], m_bc_index[m_topLev].size() );
 
 
     
+    // // CHECK: benchmark
     // calculateDimensions2D( num_rows[m_topLev], num_rows[m_topLev], g_gridDim, g_blockDim);
     // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
     //     applyMatrixBC_GPU<<<g_gridDim,g_blockDim,0,m_streams[i]>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_bc_index[m_topLev][i], num_rows[m_topLev], num_rows[m_topLev] );
 
         
-        // CHECK: benchmark
+        // // CHECK: benchmark
         // cudaEventRecord(stop);
         // cudaEventSynchronize(stop);
         // float milliseconds = 0;
@@ -491,6 +491,7 @@ bool Assembler::init_GPU(
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
     {
+        cout << "aps " << lev << endl;
         calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
         RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
                                                 d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 
