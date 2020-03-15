@@ -156,6 +156,8 @@ private:
 
     double* m_d_temp_matrix;
 
+    vector<cudaStream_t> m_streams;
+
     
 };
 

@@ -558,7 +558,10 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
 
         // update residuum r = r - A*c
         UpdateResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], m_d_c, m_d_r );
-           
+
+
+
+       
 
         // store norm of the last residuum
         // lastRes = res;

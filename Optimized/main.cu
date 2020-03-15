@@ -168,12 +168,12 @@ int main()
     Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
     
     
-    GMG.set_convergence_params(100000, 1e-99, 1e-12);
+    GMG.set_convergence_params(10000, 1e-99, 1e-12);
     GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
     
 
     GMG.init();
-    GMG.set_verbose(1, 0);
+    GMG.set_verbose(0, 0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -224,7 +224,7 @@ int main()
     }
 
 
-    for ( int i = 1 ; i < 2 ; ++i )
+    for ( int i = 1 ; i < 10 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
@@ -259,7 +259,7 @@ int main()
 
         }
 
-        cudaDeviceSynchronize();
+        
     }
 
    

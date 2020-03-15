@@ -2,7 +2,7 @@
 
 # NVCC flags
 NVCC 		= nvcc
-NVCC_FLAGS 	= -arch=sm_50
+NVCC_FLAGS 	= -arch=sm_70 --default-stream per-thread
 
 # Directories
 SRC_DIR = src
