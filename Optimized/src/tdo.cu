@@ -294,6 +294,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
     
     
+    //// for loop
+    for ( int j = 0 ; j < m_n ; j++ )
+    {
 
     // calculating the driving force of each element
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
@@ -371,9 +374,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     
 
 
-    //// for loop
-    for ( int j = 0 ; j < m_n ; j++ )
-    {
+
 
         // bisection algo: 
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);

@@ -941,6 +941,31 @@ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_
 }
 
 
+// CHECK: overkill to use this many threads?
+__global__
+void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+{
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	// printf("(%d, %d) = %lu, %d, %d\n", idx, idy, bc_index, num_rows, num_cols);
+	if ( idx < num_cols && idy < num_rows )
+	{
+		if ( idx == bc_index && idy == bc_index )
+		{
+			for ( int i = 0 ; i < num_rows ; i++ )
+				setAt( i, idy, value, index, max_row_size, 0.0 );
+
+			for ( int j = 0 ; j < num_cols ; j++ )
+				setAt( idx, j, value, index, max_row_size, 0.0 );
+
+
+			setAt( idx, idy, value, index, max_row_size, 1.0 );
+		}
+	}
+}
+
+
 
 __global__
 void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)

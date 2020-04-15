@@ -67,7 +67,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 3;
+    size_t numLevels = 7;
     size_t topLev = numLevels - 1;
     
     vector<size_t> N;
@@ -75,20 +75,20 @@ int main()
 
 
 
-    // // CASE 0 : 2D MBB
-    // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
-    // double h_coarse = 1;        // local element mesh size on coarsest grid
-    // size_t bc_case = 0;
-    // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
+    // CASE 0 : 2D MBB
+    N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
+    double h_coarse = 1;        // local element mesh size on coarsest grid
+    size_t bc_case = 0;
+    double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
 
-    // CASE 1 : 3D MBB
-    N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
-    double h_coarse = 0.5;      // local element mesh size on coarsest grid
-    size_t bc_case = 1;
-    double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
+    // // CASE 1 : 3D MBB
+    // N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
+    // double h_coarse = 0.5;      // local element mesh size on coarsest grid
+    // size_t bc_case = 1;
+    // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
 
 
@@ -199,7 +199,7 @@ int main()
     
 
     GMG.init();
-    GMG.set_verbose(0, 0);
+    GMG.set_verbose(1, 0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -276,7 +276,7 @@ int main()
     // // TODO:
     // // TODO:
 
-    for ( int i = 1 ; i < 1 ; ++i )
+    for ( int i = 1 ; i < 30 ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
