@@ -160,7 +160,7 @@ bool Solver::init()
         CUDA_CALL( cudaMemset(m_d_step, 0, sizeof(size_t)) );
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_step, sizeof(size_t)) );
         CUDA_CALL( cudaMemset(m_d_bs_step, 0, sizeof(size_t)) );
-
+        
         /// GMG precond
         // residuum and correction vectors on each level
         m_d_gmg_r.resize(m_numLevels);
@@ -168,34 +168,34 @@ bool Solver::init()
         
         // temporary residuum vectors for GMG
         m_d_rtmp.resize(m_numLevels);
-
+        
         // temporary correction vectors for GMG
         m_d_ctmp.resize(m_numLevels);
-
+        
         for ( int i = 0 ; i < m_numLevels ; i++ )
         {
             CUDA_CALL( cudaMalloc((void**)&m_d_gmg_r[i], sizeof(double) * m_num_rows[i] ) );
             CUDA_CALL( cudaMalloc((void**)&m_d_gmg_c[i], sizeof(double) * m_num_rows[i] ) );
             CUDA_CALL( cudaMemset(m_d_gmg_r[i], 0, sizeof(double) * m_num_rows[i] ) );
             CUDA_CALL( cudaMemset(m_d_gmg_c[i], 0, sizeof(double) * m_num_rows[i] ) );
-
+            
             CUDA_CALL( cudaMalloc((void**)&m_d_rtmp[i], sizeof(double) * m_num_rows[i] ) );
             CUDA_CALL( cudaMemset(m_d_rtmp[i], 0, sizeof(double) * m_num_rows[i] ) );
-
+            
             CUDA_CALL( cudaMalloc((void**)&m_d_ctmp[i], sizeof(double) * m_num_rows[i] ) );
             CUDA_CALL( cudaMemset(m_d_ctmp[i], 0, sizeof(double) * m_num_rows[i] ) );
         }
-
-
+        
+        
         // base-solver
-
+        
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_r, sizeof(double) * m_num_rows[0] ) );
         CUDA_CALL( cudaMemset(m_d_bs_r, 0, sizeof(double) * m_num_rows[0] ) );
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_z, sizeof(double) * m_num_rows[0] ) );
         CUDA_CALL( cudaMemset(m_d_bs_z, 0, sizeof(double) * m_num_rows[0] ) );
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_p, sizeof(double) * m_num_rows[0] ) );
         CUDA_CALL( cudaMemset(m_d_bs_p, 0, sizeof(double) * m_num_rows[0] ) );
-
+        
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_res, sizeof(double) ) );
         CUDA_CALL( cudaMemset(m_d_bs_res, 0, sizeof(double) ) );
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_res0, sizeof(double) ) );
@@ -210,7 +210,10 @@ bool Solver::init()
         CUDA_CALL( cudaMemset(m_d_bs_alpha, 0, sizeof(double) ) );
         CUDA_CALL( cudaMalloc((void**)&m_d_bs_alpha_temp, sizeof(double) ) );
         CUDA_CALL( cudaMemset(m_d_bs_alpha_temp, 0, sizeof(double) ) );
-               
+        
+
+        
+        
 
     return true;
 }
@@ -331,10 +334,10 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
         {
 
             // precond
-            Jacobi_Precond_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_z, m_d_value[0], m_d_index[0], m_max_row_size[0], m_d_bs_r, m_num_rows[0], m_damp);
+            // Jacobi_Precond_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_z, m_d_value[0], m_d_index[0], m_max_row_size[0], m_d_bs_r, m_num_rows[0], m_damp);
 
             // z = r
-            // vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
+            vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
 
 
             // rho = < z, r >

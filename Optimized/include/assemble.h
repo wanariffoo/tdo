@@ -158,6 +158,12 @@ private:
 
     vector<cudaStream_t> m_streams;
 
+    // rows and max_row_sizes
+    size_t* m_d_num_rows;
+    size_t* m_d_max_row_size;
+    size_t* m_d_p_max_row_size;
+    size_t* m_d_r_max_row_size;
+
     
 };
 

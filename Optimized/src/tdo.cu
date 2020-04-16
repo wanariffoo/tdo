@@ -305,7 +305,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
    
 
     // DEBUG:
-    checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
+    // checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
 
     // if(m_verbose)
     // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_df, m_numElements);
@@ -313,40 +313,40 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // printVector_GPU<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements);
     
     // print_GPU<<<1,1>>>( &m_d_df[168] );
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
 
 
-    if ( m_printVTK )
-    {
+    // if ( m_printVTK )
+    // {
 
     
-    // getting vtk for driving force
-    vector<size_t> numNodesPerDim(3);
-    numNodesPerDim[0] = m_Nx + 1;
-    numNodesPerDim[1] = m_Ny + 1;
-    numNodesPerDim[2] = m_Nz + 1;
-    size_t numNodes = numNodesPerDim[0] * numNodesPerDim[1] * numNodesPerDim[2];
+    // // getting vtk for driving force
+    // vector<size_t> numNodesPerDim(3);
+    // numNodesPerDim[0] = m_Nx + 1;
+    // numNodesPerDim[1] = m_Ny + 1;
+    // numNodesPerDim[2] = m_Nz + 1;
+    // size_t numNodes = numNodesPerDim[0] * numNodesPerDim[1] * numNodesPerDim[2];
     
-    vector<double> df_(m_numElements, 0);
-    vector<double> u(numNodes * m_dim, 0);
-    string fileformat(".vtk");
-    stringstream ss_; 
-    ss_ << "vtk/df";
-    ss_ << m_file_index;
-    ss_ << fileformat;
-    stringstream ss__; 
-    ss__ << "vtk/laplacian";
-    ss__ << m_file_index;
-    ss__ << fileformat;
-    CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * numNodes * m_dim, cudaMemcpyDeviceToHost) );
-    CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
-    CUDA_CALL( cudaMemcpy( &laplacian[0], d_laplacian, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
+    // vector<double> df_(m_numElements, 0);
+    // vector<double> u(numNodes * m_dim, 0);
+    // string fileformat(".vtk");
+    // stringstream ss_; 
+    // ss_ << "vtk/df";
+    // ss_ << m_file_index;
+    // ss_ << fileformat;
+    // stringstream ss__; 
+    // ss__ << "vtk/laplacian";
+    // ss__ << m_file_index;
+    // ss__ << fileformat;
+    // CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * numNodes * m_dim, cudaMemcpyDeviceToHost) );
+    // CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
+    // CUDA_CALL( cudaMemcpy( &laplacian[0], d_laplacian, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
     
-    WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
-    WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
-    ++m_file_index;
+    // WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    // WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
+    // ++m_file_index;
     
-    }
+    // }
 
     calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);
 

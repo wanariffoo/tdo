@@ -1461,9 +1461,7 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 			int global_col = ( node_index [ m / dim ] * dim ) + ( m % dim ); 
 			// printf("u[%d] = %f\n", global_col, u[global_col]);
 
-
 			temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
-
 
 		}
 
@@ -1479,7 +1477,9 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 	}
 	
 	*x *= 0.5 * p * pow(*chi, p-1) / local_volume;
-    
+
+
+
 }
 
 

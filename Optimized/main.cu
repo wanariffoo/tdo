@@ -44,6 +44,7 @@ int main()
   
     // create vtk files
     bool writeToVTK = true;
+    bool benchmark = false;
 
     // material properties
     double youngMod = 200000;
@@ -56,7 +57,7 @@ int main()
     vector<vector<size_t>> bc_index(numLevels);
 
     // DEBUG:
-    size_t update_steps = 40;
+    size_t update_steps = 60;
 
 
     // CASE 0 : 2D MBB
@@ -66,13 +67,27 @@ int main()
     double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
-
-
     // // CASE 1 : 3D MBB
     // N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
     // double h_coarse = 0.5;      // local element mesh size on coarsest grid
     // size_t bc_case = 1;
     // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
+
+
+
+        // // NOTE: benchmark
+        // cudaEvent_t start, stop;
+        // cudaEventCreate(&start);
+        // cudaEventCreate(&stop);
+        // cudaEventRecord(start);
+        // // NOTE: benchmark
+        // cudaEventRecord(stop);
+        // cudaEventSynchronize(stop);
+        // float milliseconds = 0;
+        // cudaEventElapsedTime(&milliseconds, start, stop);
+        // cout << "Elapsed time: " << milliseconds << " ms" << endl;
+
+
 
 
 
@@ -117,10 +132,12 @@ int main()
     // design variable
     double* d_chi;
 
-
-
     //// CUDA
     vector<size_t*> d_node_index;
+
+    // NOTE: for benchmarking
+    cudaEvent_t start, stop;
+
 
     /* ##################################################################
     #                           ASSEMBLY                                #
@@ -176,14 +193,34 @@ int main()
     
 
     GMG.init();
-    GMG.set_verbose(1,0);
+    GMG.set_verbose(0,0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
-    
-    GMG.solve(d_u, d_b, d_value);
-    cudaDeviceSynchronize();
 
-    cout << "Solver   ... DONE" << endl;
+            if ( benchmark )
+            {
+                // NOTE: benchmark
+                cudaEventCreate(&start);
+                cudaEventCreate(&stop);
+                cudaEventRecord(start);
+            }
+    GMG.solve(d_u, d_b, d_value);
+            if ( benchmark )
+            {        
+                // NOTE: benchmark
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                float milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                cout << "Solver time: " << milliseconds << " ms" << endl;
+            }
+    // cudaDeviceSynchronize();
+
+    // cout << "Solver   ... DONE" << endl;
+
+
+        
+
 
 
 
@@ -227,21 +264,36 @@ int main()
     }
 
 
+
     for ( int i = 1 ; i < update_steps ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
 
-        cout << "Calculating iteration " << i << " ... " << endl;
-        cudaDeviceSynchronize();
+        // cout << "Calculating iteration " << i << " ... " << endl;
+        // cudaDeviceSynchronize();
         GMG.reinit();
         GMG.set_convergence_params(10000, 1e-99, 1e-10);
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
+        GMG.set_verbose(0, 0);
 
         
-        GMG.set_verbose(0, 0);
+                        // NOTE: benchmark
+                        
+                        cudaEventCreate(&start);
+                        cudaEventCreate(&stop);
+                        cudaEventRecord(start);
+
         GMG.solve(d_u, d_b, d_value);
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
+
+                        // NOTE: benchmark
+                        cudaEventRecord(stop);
+                        cudaEventSynchronize(stop);
+                        float milliseconds = 0;
+                        cudaEventElapsedTime(&milliseconds, start, stop);
+                        cout << "Solver time: " << milliseconds << " ms" << endl;
+
 
         // tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi);
