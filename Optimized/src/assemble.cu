@@ -314,9 +314,10 @@ bool Assembler::init_GPU(
     assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
     assembleRestMatrix_GPU(d_r_value, d_r_index, d_p_value, d_p_index);
 
-    // allocating temp matrix to be used in RAP
-    CUDA_CALL( cudaMalloc( (void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
-    CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    // TODO: not needed
+    // // allocating temp matrix to be used in RAP
+    // CUDA_CALL( cudaMalloc( (void**)&m_d_temp_matrix, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
+    // CUDA_CALL( cudaMemset( m_d_temp_matrix, 0, sizeof(double) * num_rows[m_topLev] * num_rows[m_topLev-1] ) );
     
 
 
@@ -470,13 +471,24 @@ bool Assembler::init_GPU(
             // applyMatrixBC_GPU_<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_d_bc_index[m_topLev], num_rows[m_topLev], m_bc_index[m_topLev].size() );
 
 
+    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    //     cout << m_bc_index[m_topLev][i] << endl;
 
 
-
-            calculateDimensions2D( m_num_rows[m_topLev], m_num_rows[m_topLev], g_gridDim, g_blockDim);
-            for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-                applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
+                calculateDimensions( m_num_rows[m_topLev], g_gridDim, g_blockDim);
+                for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+                    applyMatrixBC_GPU_2<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
+                
         
+                // NOTE: temp
+                // calculateDimensions2D( m_num_rows[m_topLev], m_num_rows[m_topLev], g_gridDim, g_blockDim);
+                // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+                //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
+            
+                // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
+
+                // printLinearVector( d_value[2], m_num_rows[2], m_max_row_size[2]);
+
 
 
 
@@ -503,7 +515,7 @@ bool Assembler::init_GPU(
     // A_coarse = R * A_fine * P
     for ( int lev = m_topLev ; lev != 0 ; lev--)
     {
-        cout << "aps " << lev << endl;
+        // cout << "aps " << lev << endl;
         calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
         RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
                                                 d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 

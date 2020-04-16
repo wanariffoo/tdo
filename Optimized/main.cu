@@ -55,6 +55,8 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
+    // DEBUG:
+    size_t update_steps = 40;
 
 
     // CASE 0 : 2D MBB
@@ -174,7 +176,7 @@ int main()
     
 
     GMG.init();
-    GMG.set_verbose(0, 0);
+    GMG.set_verbose(1,0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
     
@@ -225,7 +227,7 @@ int main()
     }
 
 
-    for ( int i = 1 ; i < 1 ; ++i )
+    for ( int i = 1 ; i < update_steps ; ++i )
     {
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
@@ -258,9 +260,7 @@ int main()
             
             WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
 
-        }
-
-        
+        }        
     }
 
    

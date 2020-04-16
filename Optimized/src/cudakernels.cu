@@ -966,6 +966,47 @@ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, s
 }
 
 
+//NOTE: testing
+__global__
+void applyMatrixBC_GPU_2(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+{
+    int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < num_rows )
+	{
+		// row-wise
+		if ( id == bc_index )
+		{
+			int counter = 0;
+			for ( int i = 0 ; i < max_row_size ; i++)
+			{
+				if ( index[id*max_row_size + i] == bc_index && counter == 0)
+				{
+					value[id*max_row_size + i] = 1.0;
+					counter++;
+				}
+
+				else
+					value[id*max_row_size + i] = 0.0;
+			}
+		}
+
+		// column-wise
+		else
+		{
+			for ( int i = 0 ; i < max_row_size ; i++)
+			{
+				if ( index[id*max_row_size + i] == bc_index )
+					value[id*max_row_size + i] = 0.0;
+			}
+		}
+
+	}
+	
+}
+
+
+
 
 __global__
 void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)

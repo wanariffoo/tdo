@@ -330,8 +330,11 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
         while(m_bs_foo || bs_step < m_bs_maxIter)
         {
 
+            // precond
+            Jacobi_Precond_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_z, m_d_value[0], m_d_index[0], m_max_row_size[0], m_d_bs_r, m_num_rows[0], m_damp);
+
             // z = r
-            vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
+            // vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
 
 
             // rho = < z, r >
