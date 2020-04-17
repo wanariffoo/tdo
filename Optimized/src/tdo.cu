@@ -196,7 +196,7 @@ void WriteVectorToVTK_laplacian(vector<double> &laplacian, vector<double> &u, co
 
 
 
-TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, double etastar, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p)
+TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, double etastar, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p, vector<size_t> nodeindex)
  : m_d_u(d_u), m_d_chi(d_chi), m_h(h), m_dim(dim), m_numElements(numElements), m_num_rows(num_rows), m_d_A_local(d_A_local), m_d_node_index(d_node_index), m_rho(rho), m_etastar(etastar), m_betastar(betastar), m_numLevels(numLevels), m_p(p)
 {
     // inner loop frequency, n
@@ -215,6 +215,8 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
     // local volume
     m_local_volume = pow(m_h, m_dim); 
     
+    //DEBUG:
+    m_node_index = nodeindex;
     
 }
 
@@ -227,8 +229,8 @@ bool TDO::init()
     CUDA_CALL( cudaMalloc( (void**)&m_d_df, sizeof(double) * m_numElements ) );
     CUDA_CALL( cudaMemset( m_d_df, 0, sizeof(double) * m_numElements) );
 
-    CUDA_CALL( cudaMalloc( (void**)&m_d_uTAu, sizeof(double) * m_num_rows) );
-    CUDA_CALL( cudaMemset( m_d_uTAu, 0, sizeof(double) * m_num_rows) );
+    // CUDA_CALL( cudaMalloc( (void**)&m_d_uTAu, sizeof(double) * m_num_rows) );
+    // CUDA_CALL( cudaMemset( m_d_uTAu, 0, sizeof(double) * m_num_rows) );
 
     CUDA_CALL( cudaMalloc( (void**)&m_d_temp, sizeof(double) * m_num_rows) );
     CUDA_CALL( cudaMemset( m_d_temp, 0, sizeof(double) * m_num_rows) );
@@ -258,22 +260,25 @@ bool TDO::init()
     CUDA_CALL( cudaMemset( m_d_rho_tr, 0, sizeof(double) ) );
     CUDA_CALL( cudaMemset( m_d_p_w, 0, sizeof(double) ) );
 
+
+    
+
     CUDA_CALL( cudaMalloc( (void**)&m_d_tdo_foo, sizeof(bool) ) );
     CUDA_CALL( cudaMemcpy( m_d_tdo_foo, &m_tdo_foo, sizeof(bool), cudaMemcpyHostToDevice) );
     
 
-
     // DEBUG: temporary
     CUDA_CALL( cudaMalloc( (void**)&d_laplacian, sizeof(double) * m_numElements) );
-    CUDA_CALL( cudaMemset( d_laplacian, 0, sizeof(double) * m_numElements) );
+    // CUDA_CALL( cudaMemset( d_laplacian, 0, sizeof(double) * m_numElements) );
+
+
 
     CUDA_CALL( cudaMalloc( (void**)&m_d_sum_g, sizeof(double) ) );
     CUDA_CALL( cudaMalloc( (void**)&m_d_sum_df_g, sizeof(double) ) );
 
-
-
-
-
+    CUDA_CALL( cudaMalloc( (void**)&m_d_node_index_, sizeof(size_t) * m_node_index.size() ) );
+    CUDA_CALL( cudaMemcpy( m_d_node_index_, &m_node_index[0], sizeof(size_t) * m_node_index.size(), cudaMemcpyHostToDevice) );
+    
     return true;
 }
 
@@ -288,11 +293,17 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     m_d_chi = d_chi;
     m_tdo_foo = true;
     setToTrue<<<1,1>>>( m_d_tdo_foo );
-    laplacian.resize(m_numElements);
+    // laplacian.resize(m_numElements);
     setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
     setToZero<<<1,1>>>( m_d_sum_g, 1 );
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
     
+    
+    // // DEBUG: trying something
+    // vector<size_t*> bc_()
+    
+    
+
     
     //// for loop
     for ( int j = 0 ; j < m_n ; j++ )
@@ -302,6 +313,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
     calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
 
+
+    
+    // calcDrivingForce_GPU_<<<1,10>>>( m_d_df, m_d_u, m_d_chi, m_p, m_d_node_index_, m_d_A_local, m_num_rows, m_dim, m_local_volume);
+        
+
+    // printVector_GPU<<<1,4>>>( m_d_df, 4 );
    
 
     // DEBUG:
@@ -348,32 +365,14 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     
     // }
 
+
+
     calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);
 
 
     // calculate eta and beta
     calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
-    cudaDeviceSynchronize();
-
-
     
-    // // cout << "aps" << endl;
-    // // cout << m_etastar << endl;
-    // // cout << m_betastar << endl;
-
-    // print_GPU<<<1,1>>>( m_d_p_w );
-    // // cout << "sum_g" << endl;
-    // cudaDeviceSynchronize();
-    // // print_GPU<<<1,1>>>( m_d_temp );
-    // cudaDeviceSynchronize();
-    // print_GPU<<<1,1>>>( m_d_beta );
-    // // cudaDeviceSynchronize();
-    // // print_GPU<<<1,1>>>( m_d_tdo_foo );
-    // // cudaDeviceSynchronize();
-
-    
-
-
 
 
         // bisection algo: 
@@ -390,35 +389,22 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
             // print_GPU<<<1,1>>>( m_d_lambda_u );
             // cudaDeviceSynchronize();
 
-        int counter = 0;
+
         while(m_tdo_foo)
         {
-            
+            // compute chi_trial
             calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
 
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[0] );
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[0] );
-            cudaDeviceSynchronize();
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[168] );
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[168] );
-            cudaDeviceSynchronize();
-
+            // compute rho_trial
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_chi_tr, m_numElements);
             calcRhoTrial<<<1,1>>>(m_d_rho_tr, m_local_volume, m_numElements);
 
-            if ( counter == 0 )
-            {
-            // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi_tr, m_numElements);
-            // print_GPU<<<1,1>>>( m_d_rho_tr );
-
-            }
-            cudaDeviceSynchronize();
-            // cout << "\n";
 
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
 
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
+            
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
 
             // cout << "counter " << ++counter << endl;

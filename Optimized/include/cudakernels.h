@@ -12,8 +12,8 @@
 #define CUDA_CALL( call )                                                                                          \
     {                                                                                                                  \
     cudaError_t err = call;                                                                                          \
-    if ( cudaSuccess != err)                                                                                         \
-        fprintf(stderr, "CUDA error for %s in %d of %s : %s.\n", #call , __LINE__ , __FILE__ ,cudaGetErrorString(err));\
+    if ( cudaSuccess != err){                                                                                         \
+        fprintf(stderr, "CUDA error for %s in %d of %s : %s.\n", #call , __LINE__ , __FILE__ ,cudaGetErrorString(err));exit(EXIT_FAILURE);}\
     }
 
 
@@ -184,14 +184,14 @@ __device__ int getCoarseNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, 
 __device__ int getCoarseNode3D_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz);
 
 // __global__ void fillIndexVectorProl2D_GPU(size_t* p_index, size_t Nx, size_t Ny, size_t p_max_row_size, size_t num_rows, size_t num_cols);
-__global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx, size_t Ny, size_t p_max_row_size, size_t num_rows, size_t num_cols);
-__global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx, size_t Ny, size_t Nz, size_t p_max_row_size, size_t num_rows, size_t num_cols);
+__global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx, size_t Ny, size_t* p_max_row_size, size_t* num_rows, size_t* num_cols);
+__global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx, size_t Ny, size_t Nz, size_t* p_max_row_size, size_t* num_rows, size_t* num_cols);
 
-__global__ void fillIndexVectorRest2D_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t r_max_row_size, size_t num_rows, size_t num_cols);
-__global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t Nz, size_t r_max_row_size, size_t num_rows, size_t num_cols);
+__global__ void fillIndexVectorRest2D_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t* r_max_row_size, size_t* num_rows, size_t* num_cols);
+__global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny, size_t Nz, size_t* r_max_row_size, size_t* num_rows, size_t* num_cols);
 
 __global__ void fillProlMatrix(	double* p_value, size_t* p_index, size_t p_max_row_size, size_t num_rows, size_t num_cols, size_t Nx, size_t Ny, size_t Nz, size_t dim);
-__global__ void fillRestMatrix(double* r_value, size_t* r_index, size_t r_max_row_size, double* p_value, size_t* p_index, size_t p_max_row_size, size_t num_rows, size_t num_cols);
+__global__ void fillRestMatrix(double* r_value, size_t* r_index, size_t* r_max_row_size, double* p_value, size_t* p_index, size_t* p_max_row_size, size_t* num_rows, size_t* num_cols);
 
 __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_t max_row_size, size_t num_rows);
 __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_t Nz, size_t max_row_size, size_t num_rows);
@@ -295,10 +295,10 @@ __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> 
 					vector<size_t> num_rows, 
 					size_t lev);
 
-__global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t num_rows,
-						double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, 
-						double* r_value, size_t* r_index, size_t r_max_row_size, 
-						double* p_value, size_t* p_index, size_t p_max_row_size, 
+__global__ void RAP_(	double* value, size_t* index, size_t* max_row_size, size_t* num_rows,
+						double* value_, size_t* index_, size_t* max_row_size_, size_t* num_rows_, 
+						double* r_value, size_t* r_index, size_t* r_max_row_size, 
+						double* p_value, size_t* p_index, size_t* p_max_row_size, 
 						size_t lev);
 
 // DEBUG: TEMP:
@@ -312,5 +312,21 @@ __global__ void checkMassConservation(double* chi, double local_volume, size_t n
 
 __global__ void bar(double* x);
 
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+__global__ void setToZero_(double* a, size_t* num_rows);
+__global__ void setToOne_(int* a);
+__global__ void addVector_GPU_(double *x, double *c, size_t* num_rows);
+__global__ void ComputeResiduum_GPU_( const std::size_t* num_rows, const std::size_t* num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r, double* b);
+__global__ void UpdateResiduum_GPU_( const std::size_t* num_rows, const std::size_t* num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
+__global__ void vectorEquals_GPU_(double* a, double* b, size_t* num_rows);
+__global__ void norm_GPU_(double* norm, double* x, size_t* num_rows);
+__global__ void checkIterationConditions_(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t* m_maxIter);
+__global__ void checkIterationConditionsBS_(bool* foo, size_t* step, size_t* m_maxIter, double* res, double* m_minRes);
+__global__ void calcDrivingForce_GPU_(double *x, double *u, double* chi, double p, size_t *node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume);
+
+
 #endif // CUDAKERNELS_H
+
 

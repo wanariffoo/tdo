@@ -41,23 +41,23 @@ using namespace std;
 
 int main()
 {
-  
+    
     // create vtk files
     bool writeToVTK = true;
-    bool benchmark = false;
+
 
     // material properties
     double youngMod = 200000;
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 7;
+    size_t numLevels = 3;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
     // DEBUG:
-    size_t update_steps = 60;
+    size_t update_steps = 20;
 
 
     // CASE 0 : 2D MBB
@@ -113,7 +113,8 @@ int main()
     vector<size_t> p_max_row_size;
     vector<size_t> r_max_row_size;
 
-    //// device pointers
+    
+    //// CUDA
     // local stiffness
     double* d_A_local;
 
@@ -132,8 +133,16 @@ int main()
     // design variable
     double* d_chi;
 
-    //// CUDA
     vector<size_t*> d_node_index;
+
+    // rows and max_row_sizes
+    size_t* d_num_rows;
+    size_t* d_max_row_size;
+    size_t* d_p_max_row_size;
+    size_t* d_r_max_row_size;
+
+
+
 
     // NOTE: for benchmarking
     cudaEvent_t start, stop;
@@ -146,7 +155,7 @@ int main()
 
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
+    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index, d_num_rows, d_max_row_size, d_p_max_row_size, d_r_max_row_size);
 
     cout << "### GPU-accelerated Thermodynamic Topology Optimization ###" << endl;
     cout << "Dimension: " << dim << endl;
@@ -169,7 +178,7 @@ int main()
     applyLoad(b, N, numLevels, bc_case, dim, force);
 
     
-
+    
 
     double* d_u;
     double* d_b;
@@ -185,7 +194,7 @@ int main()
     #                           SOLVER                                  #
     ###################################################################*/
 
-    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
+    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp, d_num_rows, d_max_row_size, d_p_max_row_size, d_r_max_row_size);
     
     
     GMG.set_convergence_params(10000, 1e-99, 1e-12);
@@ -197,39 +206,35 @@ int main()
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
 
-            if ( benchmark )
-            {
-                // NOTE: benchmark
-                cudaEventCreate(&start);
-                cudaEventCreate(&stop);
-                cudaEventRecord(start);
-            }
+            // if ( benchmark )
+            // {
+            //     // NOTE: benchmark
+            //     cudaEventCreate(&start);
+            //     cudaEventCreate(&stop);
+            //     cudaEventRecord(start);
+            // }
     GMG.solve(d_u, d_b, d_value);
-            if ( benchmark )
-            {        
-                // NOTE: benchmark
-                cudaEventRecord(stop);
-                cudaEventSynchronize(stop);
-                float milliseconds = 0;
-                cudaEventElapsedTime(&milliseconds, start, stop);
-                cout << "Solver time: " << milliseconds << " ms" << endl;
-            }
-    // cudaDeviceSynchronize();
+            // if ( benchmark )
+            // {        
+            //     // NOTE: benchmark
+            //     cudaEventRecord(stop);
+            //     cudaEventSynchronize(stop);
+            //     float milliseconds = 0;
+            //     cudaEventElapsedTime(&milliseconds, start, stop);
+            //     cout << "Solver time: " << milliseconds << " ms" << endl;
+            // }
+    cudaDeviceSynchronize();
 
-    // cout << "Solver   ... DONE" << endl;
+    cout << "Solver   ... DONE" << endl;
 
 
         
-
-
-
-
     /* ##################################################################
     #                           TDO                                     #
     ###################################################################*/
 
 
-    TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
+    TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p, Assembly.getNodeIndexArray(dim));
     tdo.init();
     tdo.set_verbose(0);
     tdo.innerloop(d_u, d_chi);    // get updated d_chi
@@ -263,7 +268,7 @@ int main()
         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
     }
 
-
+    
 
     for ( int i = 1 ; i < update_steps ; ++i )
     {
@@ -276,27 +281,27 @@ int main()
         GMG.set_convergence_params(10000, 1e-99, 1e-10);
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
         GMG.set_verbose(0, 0);
-
         
-                        // NOTE: benchmark
-                        
-                        cudaEventCreate(&start);
-                        cudaEventCreate(&stop);
-                        cudaEventRecord(start);
-
         GMG.solve(d_u, d_b, d_value);
-        // cudaDeviceSynchronize();
 
-                        // NOTE: benchmark
-                        cudaEventRecord(stop);
-                        cudaEventSynchronize(stop);
-                        float milliseconds = 0;
-                        cudaEventElapsedTime(&milliseconds, start, stop);
-                        cout << "Solver time: " << milliseconds << " ms" << endl;
 
+
+                        // // NOTE: benchmark
+                        
+                        // cudaEventCreate(&start);
+                        // cudaEventCreate(&stop);
+                        // cudaEventRecord(start);                        
 
         // tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi);
+
+                        // // NOTE: benchmark
+                        // cudaEventRecord(stop);
+                        // cudaEventSynchronize(stop);
+                        // float milliseconds = 0;
+                        // cudaEventElapsedTime(&milliseconds, start, stop);
+                        // cout << "Solver time: " << milliseconds << " ms" << endl;
+
 
         if ( writeToVTK )
         { 

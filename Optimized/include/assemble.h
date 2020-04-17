@@ -13,7 +13,7 @@ public:
     Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels);
 
     bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
-    bool init_GPU(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
+    bool init_GPU(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index, size_t* &d_num_rows,  size_t* &d_max_row_size, size_t* &d_p_max_row_size, size_t* &d_r_max_row_size);
 
     ~Assembler();
 
@@ -27,10 +27,16 @@ public:
     void setBC(vector<vector<size_t>> bc_index);
     bool UpdateGlobalStiffness(double* &d_chi, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_A_local);
  
+    
+
+
     vector<size_t> getNumNodesPerDim();
     vector<size_t> getGridSize();
     size_t getNumElements();
     size_t getNumNodes();
+    
+    // DEBUG:
+    vector<size_t> getNodeIndexArray(size_t dim);
 
     double valueAt(size_t x, size_t y);
 
@@ -158,7 +164,7 @@ private:
 
     vector<cudaStream_t> m_streams;
 
-    // rows and max_row_sizes
+    // rows and max_row_sizes in device
     size_t* m_d_num_rows;
     size_t* m_d_max_row_size;
     size_t* m_d_p_max_row_size;
