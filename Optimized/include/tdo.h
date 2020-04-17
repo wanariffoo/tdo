@@ -3,12 +3,17 @@
 
 #include <vector>
 
+#include <string>
+#include <fstream>
+#include <stdexcept>
+#include <sstream>
+
 class TDO{
 
 public:
     TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
     bool init();
-    bool innerloop(double* &d_u, double* &d_chi);
+    bool innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm);
     void set_verbose(bool verbose);
     void print_VTK(bool foo=false);
     

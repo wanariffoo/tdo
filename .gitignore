@@ -2,3 +2,5 @@
 *.vtu
 *.zip
 *.pvsm
+*.out
+*.txt

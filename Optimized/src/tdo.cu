@@ -280,16 +280,22 @@ bool TDO::init()
 void TDO::set_verbose(bool verbose) { m_verbose = verbose; }
 void TDO::print_VTK(bool foo) { m_printVTK = foo; }
 
-bool TDO::innerloop(double* &d_u, double* &d_chi)
+bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
 {
-    
+    // benchmark output
+    // ofstream ofssbm(filename, ios::out);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float milliseconds;
+    static int inner_counter = 0;
     
     m_d_u = d_u;
     m_d_chi = d_chi;
     m_tdo_foo = true;
     setToTrue<<<1,1>>>( m_d_tdo_foo );
-    laplacian.resize(m_numElements);
-    setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
+    // laplacian.resize(m_numElements);
+    // setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
     setToZero<<<1,1>>>( m_d_sum_g, 1 );
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
     
@@ -300,9 +306,14 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
     // calculating the driving force of each element
     // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
+            cudaEventRecord(start);
     calcDrivingForce ( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( inner_counter == 0 ) ofssbm << "calcDrivingForce()\t\t" << milliseconds << endl;
 
-   
 
     // DEBUG:
     // checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
@@ -348,12 +359,22 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
     
     // }
 
+        cudaEventRecord(start);
     calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);
-
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        if ( inner_counter == 0 ) ofssbm << "calcP_w()\t\t\t" << milliseconds << endl;
 
     // calculate eta and beta
+        cudaEventRecord(start);
     calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
-    cudaDeviceSynchronize();
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        if ( inner_counter == 0 ) ofssbm << "calcEtaBeta()\t\t\t" << milliseconds << endl;
 
 
     
@@ -378,9 +399,21 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
 
         // bisection algo: 
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
+            cudaEventRecord(start);
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( inner_counter == 0 ) ofssbm << "calcLambdaLower()\t\t" << milliseconds << endl;
+            
+            cudaEventRecord(start);
         calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
-        
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( inner_counter == 0 ) ofssbm << "calcLambdaLower()\t\t" << milliseconds << endl;        
 
         minus_GPU<<<1,1>>>( m_d_lambda_l, m_d_eta);
         add_GPU<<<1,1>>>( m_d_lambda_u, m_d_eta);
@@ -393,35 +426,39 @@ bool TDO::innerloop(double* &d_u, double* &d_chi)
         int counter = 0;
         while(m_tdo_foo)
         {
-            
+            // computing chi_trial
+                cudaEventRecord(start);
             calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( inner_counter == 0 ) ofssbm << "calcChiTrial()\t\t\t" << milliseconds << endl;    
 
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[0] );
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[0] );
-            cudaDeviceSynchronize();
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[168] );
-            // print_GPU<<<1,1>>>( &m_d_chi_tr[168] );
-            cudaDeviceSynchronize();
-
+            // computing rho_trial
             setToZero<<<1,1>>>(m_d_rho_tr, 1);
+                cudaEventRecord(start);
             sumOfVector_GPU <<< m_gridDim, m_blockDim >>> (m_d_rho_tr, m_d_chi_tr, m_numElements);
             calcRhoTrial<<<1,1>>>(m_d_rho_tr, m_local_volume, m_numElements);
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( inner_counter == 0 ) ofssbm << "calcRhoTrial()\t\t\t" << milliseconds << endl;    
 
-            if ( counter == 0 )
-            {
-            // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi_tr, m_numElements);
-            // print_GPU<<<1,1>>>( m_d_rho_tr );
-
-            }
-            cudaDeviceSynchronize();
-            // cout << "\n";
-
+                cudaEventRecord(start);
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( inner_counter == 0 ) ofssbm << "calcLambdaTrial()\t\t" << milliseconds << endl;    
 
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
 
             // cout << "counter " << ++counter << endl;
+            inner_counter++;
         }
 
         // printVector_GPU<<<1,10>>>(m_d_chi_tr, 10);

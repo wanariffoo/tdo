@@ -9,6 +9,7 @@
 #include "include/solver.h"
 #include "include/tdo.h"
 #include "include/vtk.h"
+#include <ctime>
 
 using namespace std;
 
@@ -41,7 +42,7 @@ using namespace std;
 
 int main()
 {
-  
+
     // create vtk files
     bool writeToVTK = true;
     bool benchmark = false;
@@ -51,13 +52,13 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 7;
+    size_t numLevels = 6;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
     // DEBUG:
-    size_t update_steps = 60;
+    size_t update_steps = 20;
 
 
     // CASE 0 : 2D MBB
@@ -72,26 +73,6 @@ int main()
     // double h_coarse = 0.5;      // local element mesh size on coarsest grid
     // size_t bc_case = 1;
     // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
-
-
-
-        // // NOTE: benchmark
-        // cudaEvent_t start, stop;
-        // cudaEventCreate(&start);
-        // cudaEventCreate(&stop);
-        // cudaEventRecord(start);
-        // // NOTE: benchmark
-        // cudaEventRecord(stop);
-        // cudaEventSynchronize(stop);
-        // float milliseconds = 0;
-        // cudaEventElapsedTime(&milliseconds, start, stop);
-        // cout << "Elapsed time: " << milliseconds << " ms" << endl;
-
-
-
-
-
-
 
     
     // applying boundary conditions
@@ -135,9 +116,39 @@ int main()
     //// CUDA
     vector<size_t*> d_node_index;
 
-    // NOTE: for benchmarking
+    //// benchmarking stuff
+    // cuda event
     cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float milliseconds;
 
+    // creating output file
+    // obtaining time and date for output filename
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+    
+    string fileformat_(".txt");
+    stringstream ssbm; 
+    ssbm << "outputs/" << 1900 + ltm->tm_year << "_" << 1 + ltm->tm_mon << "_" << ltm->tm_mday << "_" << 2 + ltm->tm_hour << ltm->tm_min << 1 + ltm->tm_sec;
+    ssbm << fileformat_;
+    ofstream ofssbm(ssbm.str(), ios::out);
+
+
+    ofssbm << "### GPU-accelerated Thermodynamic Topology Optimization ###" << endl;
+    ofssbm << "Dimension: " << dim << endl;
+    ofssbm << "Number of Multigrid Levels: " << numLevels << endl;
+    ofssbm << "All measurements in ms" << endl;
+    ofssbm << endl;
+    ofssbm << "ASSEMBLER" << endl;
+
+
+    // for overall benchmark
+    cudaEvent_t start_, stop_;
+    cudaEventCreate(&start_);
+    cudaEventCreate(&stop_);
+    float milliseconds_;
+    cudaEventRecord(start_);
 
     /* ##################################################################
     #                           ASSEMBLY                                #
@@ -146,7 +157,17 @@ int main()
 
     Assembler Assembly(dim, h, N, youngMod, poisson, rho, p, numLevels);
     Assembly.setBC(bc_index);
-    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index);
+
+        cudaEventRecord(start);
+    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index, ofssbm);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        ofssbm << endl;
+        ofssbm << "Total assembly time\t\t" << milliseconds << endl;
+
+
 
     cout << "### GPU-accelerated Thermodynamic Topology Optimization ###" << endl;
     cout << "Dimension: " << dim << endl;
@@ -196,24 +217,18 @@ int main()
     GMG.set_verbose(0,0);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
-
-            if ( benchmark )
-            {
-                // NOTE: benchmark
-                cudaEventCreate(&start);
-                cudaEventCreate(&stop);
+            
+                ofssbm << endl;
+                ofssbm << "SOLVER" << endl;
                 cudaEventRecord(start);
-            }
-    GMG.solve(d_u, d_b, d_value);
-            if ( benchmark )
-            {        
-                // NOTE: benchmark
+    GMG.solve(d_u, d_b, d_value, ofssbm);
                 cudaEventRecord(stop);
                 cudaEventSynchronize(stop);
-                float milliseconds = 0;
+                milliseconds = 0;
                 cudaEventElapsedTime(&milliseconds, start, stop);
-                cout << "Solver time: " << milliseconds << " ms" << endl;
-            }
+                ofssbm << endl;
+                ofssbm << "Total solver time\t\t" << milliseconds << endl;
+            
     // cudaDeviceSynchronize();
 
     // cout << "Solver   ... DONE" << endl;
@@ -225,14 +240,25 @@ int main()
 
 
     /* ##################################################################
-    #                           TDO                                     #
+    #                         DENSITY UPDATE                            #
     ###################################################################*/
 
 
     TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
     tdo.init();
     tdo.set_verbose(0);
-    tdo.innerloop(d_u, d_chi);    // get updated d_chi
+
+                ofssbm << endl;
+                ofssbm << "DENSITY UPDATE" << endl;
+                cudaEventRecord(start);
+    tdo.innerloop(d_u, d_chi, ofssbm);    // get updated d_chi
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                ofssbm << endl;
+                ofssbm << "Total density update time\t" << milliseconds << endl;
+
     tdo.print_VTK(0);
 
 
@@ -270,7 +296,7 @@ int main()
         // update the global stiffness matrix with the updated density distribution
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
 
-        // cout << "Calculating iteration " << i << " ... " << endl;
+        cout << "Calculating iteration " << i << " ... " << endl;
         // cudaDeviceSynchronize();
         GMG.reinit();
         GMG.set_convergence_params(10000, 1e-99, 1e-10);
@@ -278,25 +304,25 @@ int main()
         GMG.set_verbose(0, 0);
 
         
-                        // NOTE: benchmark
+                        // // NOTE: benchmark
                         
-                        cudaEventCreate(&start);
-                        cudaEventCreate(&stop);
-                        cudaEventRecord(start);
+                        // cudaEventCreate(&start);
+                        // cudaEventCreate(&stop);
+                        // cudaEventRecord(start);
 
-        GMG.solve(d_u, d_b, d_value);
+        GMG.solve(d_u, d_b, d_value, ofssbm);
         // cudaDeviceSynchronize();
 
-                        // NOTE: benchmark
-                        cudaEventRecord(stop);
-                        cudaEventSynchronize(stop);
-                        float milliseconds = 0;
-                        cudaEventElapsedTime(&milliseconds, start, stop);
-                        cout << "Solver time: " << milliseconds << " ms" << endl;
+                        // // NOTE: benchmark
+                        // cudaEventRecord(stop);
+                        // cudaEventSynchronize(stop);
+                        // float milliseconds = 0;
+                        // cudaEventElapsedTime(&milliseconds, start, stop);
+                        // cout << "Solver time: " << milliseconds << " ms" << endl;
 
 
         // tdo.set_verbose(1);
-        tdo.innerloop(d_u, d_chi);
+        tdo.innerloop(d_u, d_chi, ofssbm);
 
         if ( writeToVTK )
         { 
@@ -315,6 +341,12 @@ int main()
         }        
     }
 
+    cudaEventRecord(stop_);
+    cudaEventSynchronize(stop_);
+    milliseconds_ = 0;
+    cudaEventElapsedTime(&milliseconds_, start_, stop_);
+    ofssbm << endl;
+    ofssbm << "TOTAL RUNTIME\t\t\t" << milliseconds_ << endl;
    
     cudaDeviceSynchronize();
     

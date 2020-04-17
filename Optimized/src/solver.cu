@@ -11,7 +11,7 @@ Solver::Solver( vector<double*> d_value, vector<size_t*> d_index, vector<size_t>
 : m_d_value(d_value), m_d_index(d_index), m_max_row_size(max_row_size), m_d_p_value(d_p_value), m_d_p_index(d_p_index), m_p_max_row_size(p_max_row_size), m_d_r_value(d_r_value), m_d_r_index(d_r_index), m_r_max_row_size(r_max_row_size), m_numLevels(numLevels), m_num_rows(num_rows), m_damp(damp) 
 {
     
-
+    
 }
 
 void Solver::set_verbose(bool verbose, bool bs_verbose) { m_verbose = verbose; m_bs_verbose = bs_verbose; }
@@ -255,7 +255,7 @@ bool Solver::reinit()
         return true;
 }
 
-bool Solver::precond(double* m_d_c, double* m_d_r)
+bool Solver::precond(double* m_d_c, double* m_d_r, ofstream& ofssbm)
 {
     
     // reset correction
@@ -272,7 +272,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
 	vectorEquals_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_d_gmg_c[m_topLev], m_d_c, m_num_rows[m_topLev]);
 	vectorEquals_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_d_gmg_r[m_topLev], m_d_r, m_num_rows[m_topLev]);
 
-    precond_add_update_GPU(m_d_gmg_c[m_topLev], m_d_rtmp[m_topLev], m_topLev, m_gamma);
+    precond_add_update_GPU(m_d_gmg_c[m_topLev], m_d_rtmp[m_topLev], m_topLev, m_gamma, ofssbm);
 
     vectorEquals_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_d_c, m_d_gmg_c[m_topLev], m_num_rows[m_topLev]);
 	vectorEquals_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_d_r, m_d_gmg_r[m_topLev], m_num_rows[m_topLev]);
@@ -281,8 +281,15 @@ bool Solver::precond(double* m_d_c, double* m_d_r)
 }
 
 // A*c = r ==> A_coarse*d_bs_u = d_bs_b
-bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
+bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
 {
+    // benchmark output
+    // ofstream ofssbm(filename, ios::out);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float milliseconds;
+    static int base_counter = 0;
 
     // resetting base solver variables to zero
     setToZero<<<1,m_num_rows[0]>>>(m_d_bs_r, m_num_rows[0]);
@@ -300,11 +307,26 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
     m_bs_foo = true;
     
 
+            
+    
+            
     // m_d_bs_r = d_bs_b - A*d_bs_u
+            cudaEventRecord(start);
     ComputeResiduum_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], d_bs_u, m_d_bs_r, d_bs_b);
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( base_counter == 0 ) ofssbm << "   Base: ComputeResiduum_GPU()\t" << milliseconds << endl;
 
     // norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
+            cudaEventRecord(start);
     norm_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_res, m_d_bs_r, m_num_rows[0]);
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( base_counter == 0 ) ofssbm << "   Base: norm_GPU()\t\t" << milliseconds << endl;
 
     equals_GPU<<<1,1>>>(m_d_bs_res0, m_d_bs_res);
     
@@ -334,34 +356,74 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
         {
 
             // precond
-            // Jacobi_Precond_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_z, m_d_value[0], m_d_index[0], m_max_row_size[0], m_d_bs_r, m_num_rows[0], m_damp);
-
+                cudaEventRecord(start);
+            Jacobi_Precond_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_z, m_d_value[0], m_d_index[0], m_max_row_size[0], m_d_bs_r, m_num_rows[0], m_damp);
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: Jacobi_Precond_GPU()\t" << milliseconds << endl;
             // z = r
-            vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
+            // vectorEquals_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_z, m_d_bs_r, m_num_rows[0]);
 
 
             // rho = < z, r >
+                cudaEventRecord(start);
             dotProduct(m_d_bs_rho, m_d_bs_r, m_d_bs_z, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
-         
-            // calculate p
-            calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
-    
-            /// z = A*p
-            Apply_GPU<<<m_gridDim[0],m_blockDim[0]>>>( m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], m_d_bs_p, m_d_bs_z );
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: dotProduct()\t\t" << milliseconds << endl;
 
+
+            // calculate p
+                cudaEventRecord(start);
+            calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: calcDirectionVector()\t" << milliseconds << endl;
+
+            /// z = A*p
+                cudaEventRecord(start);
+            Apply_GPU<<<m_gridDim[0],m_blockDim[0]>>>( m_num_rows[0], m_max_row_size[0], m_d_value[0], m_d_index[0], m_d_bs_p, m_d_bs_z );
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: Apply_GPU()\t\t" << milliseconds << endl;
 
             // alpha = rho / (p * z)
+                cudaEventRecord(start);
             calculateAlpha(m_d_bs_alpha, m_d_bs_rho, m_d_bs_p, m_d_bs_z, m_d_bs_alpha_temp, m_num_rows[0], m_gridDim[0], m_blockDim[0] );
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: calculateAlpha()\t" << milliseconds << endl;
+
 
             // add correction to solution
             // u = u + alpha * p
+                cudaEventRecord(start);
             axpy_GPU<<<m_gridDim[0],m_blockDim[0]>>>(d_bs_u, m_d_bs_alpha, m_d_bs_p, m_num_rows[0]);
-
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: axpy_GPU()\t\t" << milliseconds << endl;
 
             // update residuum
             // r = r - alpha * z
+                cudaEventRecord(start);
             axpy_neg_GPU<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_r, m_d_bs_alpha, m_d_bs_z, m_num_rows[0]);
-
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( base_counter == 0 ) ofssbm << "   Base: axpy_neg_GPU()\t\t" << milliseconds << endl;
 
             // compute residuum
             // lastRes = res;
@@ -395,7 +457,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
             addStep<<<1,1>>>(m_d_bs_step);
     
             bs_step++;
-    
+            base_counter++;
         }
 
         return true;
@@ -404,8 +466,15 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b)
 }
 
 
-bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle)
+bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle, ofstream& ofssbm)
 {
+    // benchmark output
+    // ofstream ofssbm(filename, ios::out);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float milliseconds;
+    static int p_a_u_counter = 0;
 
     // initialize ctmp[lev] to zero
     setToZero<<< m_gridDim[lev], m_blockDim[lev] >>>( m_d_ctmp[lev], m_num_rows[lev] );			
@@ -413,7 +482,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     // if on base level
 	if( lev == 0 )
 	{
-        base_solve(m_d_ctmp[lev], d_r);   
+        base_solve(m_d_ctmp[lev], d_r, ofssbm);   
 
         // c += ctmp;
 		addVector_GPU<<< m_gridDim[lev], m_blockDim[lev] >>>(d_c, m_d_ctmp[lev], m_num_rows[0]);
@@ -427,7 +496,16 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     // presmooth
     for ( int i = 0 ; i < m_numPreSmooth ; i++)
     {
+                cudaEventRecord(start);
         smoother( m_d_ctmp[lev], d_r, lev );
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                if ( p_a_u_counter == 0 && lev == m_topLev && i == 0 ) ofssbm << "Smoother : Jacobi()\t\t" << milliseconds << endl;
+
+
+
 
         // c += ctmp;
         addVector_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>( d_c, m_d_ctmp[lev], m_num_rows[lev] );
@@ -443,7 +521,14 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         
     
     // r_coarse = P^T * r   
+            cudaEventRecord(start);
     ApplyTransposed_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( p_a_u_counter == 0 && lev == m_topLev ) ofssbm << "ApplyTransposed_GPU()\t\t" << milliseconds << endl;
+
 
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_c[lev-1], m_num_rows[lev-1] );
 
@@ -452,14 +537,14 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     if(cycle == -1) 
 	{
         // one F-Cycle ...
-        if( !precond_add_update_GPU(m_d_ctmp[lev-1], m_d_rtmp[lev-1], lev-1, -1) )  // TODO: check ctmp or gmg_c?
+        if( !precond_add_update_GPU(m_d_ctmp[lev-1], m_d_rtmp[lev-1], lev-1, -1, ofssbm) )  // TODO: check ctmp or gmg_c?
         {
             std::cout << "gmg failed on level " << lev << ". Aborting." << std::endl;
             return false;
         }
 
         // ... followed by a V-Cycle
-        if( !precond_add_update_GPU(m_d_ctmp[lev-1], m_d_rtmp[lev-1], lev-1, 1) )
+        if( !precond_add_update_GPU(m_d_ctmp[lev-1], m_d_rtmp[lev-1], lev-1, 1, ofssbm) )
         {
             std::cout << "gmg failed on level " << lev << ". Aborting." << std::endl;
             return false;
@@ -471,7 +556,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 	{
 		for (int g = 0; g < cycle; ++g)
 		{
-			if( !precond_add_update_GPU(m_d_gmg_c[lev-1], m_d_gmg_r[lev-1], lev-1, cycle) )
+			if( !precond_add_update_GPU(m_d_gmg_c[lev-1], m_d_gmg_r[lev-1], lev-1, cycle, ofssbm) )
 			{
 				std::cout << "gmg failed on level " << lev << ". Aborting." << std::endl;
 				return false;
@@ -481,9 +566,15 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     }
     
     /// prolongate coarse grid correction
-	// ctmp = P[lev-1] * c_coarse;
+    // ctmp = P[lev-1] * c_coarse;
+            cudaEventRecord(start);
     Apply_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>( m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], m_d_gmg_c[lev-1], m_d_ctmp[lev]);
-    
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( p_a_u_counter == 1 && lev == m_topLev ) ofssbm << "Apply_GPU()\t\t\t" << milliseconds << endl;
+            
     /// add correction and update defect
 	// c += ctmp;
 	addVector_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(d_c, m_d_ctmp[lev], m_num_rows[lev]);
@@ -503,23 +594,31 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 
     }
     
-
+    if ( lev = m_topLev ) p_a_u_counter++;
     return true;
 }
 
 bool Solver::smoother(double* d_c, double* d_r, int lev)
 {
-        
+    
     Jacobi_Precond_GPU<<<m_gridDim[lev], m_blockDim[lev]>>>(d_c, m_d_value[lev], m_d_index[lev], m_max_row_size[lev], d_r, m_num_rows[lev], m_damp);
-
+    
     return true;
 }
 
 
 
 
-bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
+bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& ofssbm)
 {
+    // benchmark output
+    // ofstream ofssbm(filename, ios::out);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    float milliseconds;
+    static int bm_counter = 0;
+    
     
     // initialization
     setToZero<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( d_u, m_num_rows[m_topLev] );
@@ -529,14 +628,23 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     
 
     // r = b - A*u
+        cudaEventRecord(start);
     ComputeResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], d_u, m_d_r, d_b);
-    
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        if ( bm_counter == 0 ) ofssbm << "ComputeResiduum_GPU()\t\t" << milliseconds << endl;
     
     
     // d_res0 = norm(m_d_r)
-    // norm_GPU(m_d_res0, m_d_r, m_num_rows[m_topLev], m_gridDim[m_topLev], m_blockDim[m_topLev]);
+        cudaEventRecord(start);
     norm_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_d_res0, m_d_r, m_num_rows[m_topLev]);
-    
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        if ( bm_counter == 0 ) ofssbm << "norm_GPU()\t\t\t" << milliseconds << endl;
 
     // res = res0;
     equals_GPU<<<1,1>>>(m_d_res, m_d_res0);	
@@ -555,7 +663,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
     while(m_foo)
     {
         // GMG-preconditioner
-        precond(m_d_c, m_d_r);
+        precond(m_d_c, m_d_r, ofssbm);
         
         // add correction to solution
         // u += c;
@@ -563,8 +671,13 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
         
 
         // update residuum r = r - A*c
+            cudaEventRecord(start);
         UpdateResiduum_GPU<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>( m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], m_d_c, m_d_r );
-
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            if ( bm_counter == 0 ) ofssbm << "UpdateResiduum_GPU()\t\t" << milliseconds << endl;
 
 
        
@@ -591,6 +704,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value)
         CUDA_CALL( cudaMemcpy( &m_foo, m_d_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
         
         addStep<<<1,1>>>(m_d_step);
+        bm_counter++;
     
     }
 

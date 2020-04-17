@@ -2,6 +2,12 @@
 #define SOLVER_H
 
 #include <vector>
+
+#include <string>
+#include <fstream>
+#include <stdexcept>
+#include <sstream>
+
 using namespace std;
 
 class Solver
@@ -16,16 +22,16 @@ public:
 
     bool init();
 
-    bool solve(double* d_u, double* d_r, vector<double*> d_value);
+    bool solve(double* d_u, double* d_r, vector<double*> d_value, ofstream& ofssbm);
+    // ofstream& ofssbm
+
+    bool base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm);
     
 
-    bool base_solve(double* d_bs_u, double* d_bs_b);
-    
-
-    bool precond(double* d_c, double* d_r);
+    bool precond(double* d_c, double* d_r, ofstream& ofssbm);
     // bool precond_(double* d_c, double* d_r, double* d_value, size_t* d_index, size_t max_row_size, size_t m_num_rows);
 
-    bool precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle);
+    bool precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle, ofstream& ofssbm);
     
     void set_num_prepostsmooth(size_t pre_n, size_t post_n);
     void set_convergence_params(size_t maxIter, double minRes, double minRed);
@@ -159,7 +165,7 @@ private:
     size_t m_step;
     size_t m_bs_step;
 
-    
+        
 
 };
 
