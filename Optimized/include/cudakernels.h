@@ -161,6 +161,8 @@ __device__ double matMul(size_t row, size_t col,
 // ASSEMBLER
 ////////////////////////////////////////////
 
+__global__ void transposeELL( double* A, double* B, size_t num_rows, size_t max_row_size);
+__global__ void transposeELL( size_t* A, size_t* B, size_t num_rows, size_t max_row_size);
 
 __host__ vector<vector<size_t>> applyBC( vector<size_t> N, size_t numLevels, size_t bc_case, size_t dim);
 

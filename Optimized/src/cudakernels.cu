@@ -3524,3 +3524,33 @@ __global__ void bar(double* x)
 }
 
 
+// A = B^T
+// num_rows and max_row_size are of B matrix's
+__global__ void transposeELL( 
+	double* A, double* B,
+	size_t num_rows, 						
+	size_t max_row_size)					
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < max_row_size )
+	{
+		for ( int i = 0 ; i < num_rows ; i++ )
+			A[ i + id*num_rows ] = B[ id + i*max_row_size ];
+	}
+}
+
+
+__global__ void transposeELL( 
+	size_t* A, size_t* B,
+	size_t num_rows, 						
+	size_t max_row_size)					
+{
+	unsigned int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < max_row_size )
+	{
+		for ( int i = 0 ; i < num_rows ; i++ )
+			A[ i + id*num_rows ] = B[ id + i*max_row_size ];
+	}
+}
