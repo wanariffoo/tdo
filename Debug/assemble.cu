@@ -553,6 +553,8 @@ bool Assembler::init_GPU(
 
 //     // printVector_GPU<<<1,10>>>( dt_index, 10 );
 //     // printLinearVector( d_index[0], num_rows[0], max_row_size[0]);
+    // printLinearVector( d_p_index[0], num_rows[1], p_max_row_size[0]);
+    // printLinearVector( d_r_index[0], num_rows[0], r_max_row_size[0]);
     // printLinearVector( d_index[1], num_rows[1], max_row_size[1]);
 //     // printLinearVector( d_index[2], num_rows[2], max_row_size[2]);
     // printLinearVector( d_p_index[0], num_rows[1], p_max_row_size[0]);

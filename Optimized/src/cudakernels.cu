@@ -95,6 +95,19 @@ double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_ro
     return 0.0;
 }
 
+// returns value of a transposed ELLPack matrix A at (row,col)
+__device__
+double valueAt_(size_t row, size_t col, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows)
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {
+        if(vIndex[k * num_rows + row] == col)
+            return vValue[k * num_rows + row];
+    }
+
+    return 0.0;
+}
+
 // adds the value to an ELLPack matrix A at (x,y)
 __device__
 void addAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value )
@@ -111,6 +124,24 @@ void addAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_s
     }
 }
 
+
+// adds the value to a transposed ELLPack matrix A at (row,col)
+__device__
+void addAt_( size_t row, size_t col, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value )
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {	
+		// printf("%d\n", (k * num_rows + y) );
+        if(vIndex[k * num_rows + col] == row)
+        {
+            vValue[k * num_rows + col] += value;
+            // printf("%f \n", vValue[k * num_rows + y]);
+                k = max_row_size; // to exit for loop
+		}
+    }
+}
+
+
 // sets the value of an ELLPack matrix A at (x,y)
 __device__
 void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value )
@@ -126,7 +157,21 @@ void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_s
 }
 
 __device__
-void setAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols, size_t max_row_size, double value )
+void setAt_( size_t row, size_t col, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value )
+{
+	for(size_t k = 0; k < max_row_size; ++k)
+    {	
+        if(vIndex[k * num_rows + col] == row)
+        {
+            vValue[k * num_rows + col] = value;
+                k = max_row_size; // to exit for loop
+		}
+    }
+}
+
+// specific for assembling restriction matrix
+__device__
+void setAt_RestMatrix( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols, size_t max_row_size, double value )
 {
     for(size_t k = 0; k < max_row_size; ++k)
     {
@@ -137,6 +182,7 @@ void setAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols
 		}
     }
 }
+
 
 // a[] = 0.0
 __global__
@@ -413,6 +459,22 @@ void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_
 
 
 __global__
+void printELL_GPU_(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
+{
+	
+
+		for ( int i = 0 ; i < num_rows ; i++)
+		{
+			for ( int j = 0 ; j < num_cols ; j++)
+			printf("%f ", valueAt_(i, j, value, index, max_row_size, num_rows) );
+
+			printf("\n");
+		}
+	
+}
+
+
+__global__
 void printELLrow_GPU(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
 		for ( int j = 0 ; j < num_cols ; j++)
@@ -430,6 +492,28 @@ void printELLrow(size_t lev, double* value, size_t* index, size_t max_row_size, 
     for ( size_t i = 0 ; i < num_rows ; i++ )
     {
         printELLrow_GPU<<<1,1>>> (i, value, index, max_row_size, num_rows, num_cols);
+        cudaDeviceSynchronize();    
+    }
+}
+
+
+// prints matrix with size (num_rows, num_cols) that is stored in a transposed ELLPACK format
+__global__
+void printELLrow_GPU_(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
+{
+		for ( int j = 0 ; j < num_cols ; j++)
+			printf("%.3f ", valueAt_(row, j, value, index, max_row_size, num_rows) );
+
+		printf("\n");
+	
+}
+
+__host__
+void printELLrow_(size_t lev, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
+{
+	for ( size_t i = 0 ; i < num_rows ; i++ )
+    {
+        printELLrow_GPU_<<<1,1>>> (i, value, index, max_row_size, num_rows, num_cols);
         cudaDeviceSynchronize();    
     }
 }
@@ -876,17 +960,18 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 
 }
 
+// adds local stiffness matrix of an element to the global stiffness matrix
 __global__
 void assembleGrid2D_GPU(
-    size_t N,               		// number of elements per row
-    size_t dim,             		// dimension
-	double* chi,					// the updated design variable value of each element
-    double* A_local,      		// local stiffness matrix
-    double* value,        // global element's ELLPACK value vector
-    size_t* index,        // global element's ELLPACK index vector
-    size_t max_row_size,  			// global element's ELLPACK maximum row size
-    size_t num_rows,      			// global element's ELLPACK number of rows
-    size_t* node_index,      // vector that contains the corresponding global indices of the node's local indices
+    size_t N,               // number of elements per row
+    size_t dim,             // dimension
+	double* chi,			// the updated design variable value of each element
+    double* A_local,      	// local stiffness matrix
+    double* value,        	// global element's ELLPACK value vector
+    size_t* index,        	// global element's ELLPACK index vector
+    size_t max_row_size,  	// global element's ELLPACK maximum row size
+    size_t num_rows,      	// global element's ELLPACK number of rows
+    size_t* node_index,     // vector that contains the corresponding global indices of the node's local indices
 	size_t p					
 )        
 {
@@ -898,14 +983,44 @@ void assembleGrid2D_GPU(
 		size_t local_num_cols = pow(2,dim) * dim;
     	addAt( dim*node_index[ idx/dim ] + ( idx % dim ), dim*node_index[idy/dim] + ( idy % dim ), value, index, max_row_size, pow(*chi,p)*A_local[ ( idx + idy*local_num_cols ) ]  );
 	}
-    	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, pow(*chi,p)*A_local[ ( idx + idy * ( 4 * dim ) ) ]  );
+}
 
-    	// addAt( 2*node_index[ idx/2 ] + ( idx % 2 ), 2*node_index[idy/2] + ( idy % 2 ), value, index, max_row_size, A_local[ ( idx + idy * ( 4 * dim ) ) ] );
 
-	// if ( idx == 0 && idy == 0 )
-	// 	printf("%e\n", *chi);
+// adds local stiffness matrix of an element to the global stiffness matrix
+__global__
+void assembleGrid2D_GPU_(
+    size_t N,               // number of elements per row
+    size_t dim,             // dimension
+	double* chi,			// the updated design variable value of each element
+	double* A_local,      	// local stiffness matrix
+	size_t num_rows_l,      // local stiffness matrix's number of rows
+    double* value,        	// global element's ELLPACK value vector
+    size_t* index,        	// global element's ELLPACK index vector
+    size_t max_row_size,  	// global element's ELLPACK maximum row size
+    size_t num_rows,      	// global element's ELLPACK number of rows
+    size_t* node_index,     // vector that contains the corresponding global indices of the node's local indices
+	size_t p					
+)        
+{
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	if ( idx < num_rows_l && idy < num_rows_l )
+	{
+		size_t local_num_cols = pow(2,dim) * dim;
+    	
+    	addAt_( dim*node_index[idy/dim] + ( idy % dim ), dim*node_index[ idx/dim ] + ( idx % dim ), value, index, max_row_size, num_rows, pow(*chi,p)*A_local[ ( idy + idx*local_num_cols ) ]  );
+    	// addAt_( dim*node_index[idy/dim] + ( idy % dim ), dim*node_index[ idx/dim ] + ( idx % dim ), value, index, max_row_size, num_rows, pow(*chi,p)*A_local[ ( idx + idy*local_num_cols ) ]  );
+	}
+
+	// if ( idx == 1 && idy == 1 )
+	// {
+	// 	size_t local_num_cols = pow(2,dim) * dim;
+    // addAt_( 1, 3, value, index, max_row_size, num_rows, 5555  );
+	// }
 
 }
+
 
 
 __global__
@@ -921,48 +1036,55 @@ void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, s
 
 
 __global__
-void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
+void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
 {
 	int id = threadIdx.x + blockIdx.x*blockDim.x;
 
-	if ( id < bc_size )
+	if ( id < num_rows )
 	{
-		size_t bc_id = bc_index[id];
-
-		for ( int i = 0 ; i < num_rows ; i++ )
+		// row-wise
+		if ( id == bc_index )
 		{
-			setAt( i, bc_id, value, index, max_row_size, 0.0 );
-			setAt( bc_id, i, value, index, max_row_size, 0.0 );
+			int counter = 0;
+			for ( int i = 0 ; i < max_row_size ; i++)
+			{
+				if ( index[i*num_rows + id] == bc_index && counter == 0)
+				{
+					value[i*num_rows + id] = 1.0;
+					counter++;
+				}
+
+				else
+					value[i*num_rows + id] = 0.0;
+			}
 		}
 
-		setAt( bc_id, bc_id, value, index, max_row_size, 1.0 );
-	}
-
-}
-
-
-// CHECK: overkill to use this many threads?
-__global__
-void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
-{
-    int idx = threadIdx.x + blockIdx.x*blockDim.x;
-    int idy = threadIdx.y + blockIdx.y*blockDim.y;
-
-	// printf("(%d, %d) = %lu, %d, %d\n", idx, idy, bc_index, num_rows, num_cols);
-	if ( idx < num_cols && idy < num_rows )
-	{
-		if ( idx == bc_index && idy == bc_index )
+		// column-wise
+		else
 		{
-			for ( int i = 0 ; i < num_rows ; i++ )
-				setAt( i, idy, value, index, max_row_size, 0.0 );
-
-			for ( int j = 0 ; j < num_cols ; j++ )
-				setAt( idx, j, value, index, max_row_size, 0.0 );
-
-
-			setAt( idx, idy, value, index, max_row_size, 1.0 );
+			for ( int i = 0 ; i < max_row_size ; i++)
+			{
+				if ( index[i*num_rows + id] == bc_index )
+					value[i*num_rows + id] = 0.0;
+			}
 		}
+
 	}
+	// int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	// if ( id < bc_size )
+	// {
+	// 	size_t bc_id = bc_index[id];
+
+	// 	for ( int i = 0 ; i < num_rows ; i++ )
+	// 	{
+	// 		setAt( i, bc_id, value, index, max_row_size, 0.0 );
+	// 		setAt( bc_id, i, value, index, max_row_size, 0.0 );
+	// 	}
+
+	// 	setAt( bc_id, bc_id, value, index, max_row_size, 1.0 );
+	// }
+
 }
 
 
@@ -1004,6 +1126,32 @@ void applyMatrixBC_GPU_2(double* value, size_t* index, size_t max_row_size, size
 	}
 	
 }
+
+
+// CHECK: overkill to use this many threads?
+__global__
+void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+{
+	int idx = threadIdx.x + blockIdx.x*blockDim.x;
+	int idy = threadIdx.y + blockIdx.y*blockDim.y;
+
+	// printf("(%d, %d) = %lu, %d, %d\n", idx, idy, bc_index, num_rows, num_cols);
+	if ( idx < num_cols && idy < num_rows )
+	{
+		if ( idx == bc_index && idy == bc_index )
+		{
+			for ( int i = 0 ; i < num_rows ; i++ )
+				setAt( i, idy, value, index, max_row_size, 0.0 );
+
+			for ( int j = 0 ; j < num_cols ; j++ )
+				setAt( idx, j, value, index, max_row_size, 0.0 );
+
+
+			setAt( idx, idy, value, index, max_row_size, 1.0 );
+		}
+	}
+}
+
 
 
 
@@ -1120,7 +1268,7 @@ __global__ void fillRestMatrix(double* r_value, size_t* r_index, size_t r_max_ro
     int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
 	if ( idx < num_cols && idy < num_rows )
-		setAt_( r_index[idx + idy*r_max_row_size], idy, r_value, r_index, num_cols, r_max_row_size, valueAt(r_index[idx + idy*r_max_row_size], idy, p_value, p_index, p_max_row_size));
+		setAt_RestMatrix( r_index[idx + idy*r_max_row_size], idy, r_value, r_index, num_cols, r_max_row_size, valueAt(r_index[idx + idy*r_max_row_size], idy, p_value, p_index, p_max_row_size));
 
 }
 
@@ -1261,6 +1409,31 @@ void Apply_GPU(
 		r[id] = dot;
 	}
 	
+}
+
+
+// Ax = r for transposed ELLPACK
+__global__ void Apply_GPU_ (
+	const std::size_t num_rows, 
+	const std::size_t max_row_size,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if ( id < num_rows )
+    {
+        double sum = 0;
+        for ( int n = 0 ; n < max_row_size; n++ )
+        {
+			unsigned int offset = id + n*num_rows;
+			// sum += value[offset] * x[ index[offset] ];
+            sum += value[offset] * __ldg( &x[ index[offset] ] );
+        }
+        r[id] = sum;
+    }
 }
 
 

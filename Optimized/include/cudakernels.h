@@ -39,10 +39,13 @@ __device__ double valueAt(size_t x, size_t y, double* vValue, size_t* vIndex, si
 // adds the value to an ELLPack matrix A at (x,y)
 __device__ void addAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value );
 
+
 // sets the value of an ELLPack matrix A at (x,y)
 __device__ void setAt( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, double value );
 
-__device__ void setAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols, size_t max_row_size, double value );
+
+// specific for assembling restriction matrix
+__device__ void setAt_RestMatrix( size_t x, size_t y, double* vValue, size_t* vIndex, size_t num_cols, size_t max_row_size, double value );
 
 __global__ void setToZero(double* a, size_t num_rows);
 
@@ -171,8 +174,6 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_chi, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
 
 __global__ void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
-
-__global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size);
 
 __global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
@@ -311,8 +312,22 @@ __global__ void checkLaplacian(double* laplacian, double* chi, size_t Nx, size_t
 // DEBUG:
 __global__ void checkMassConservation(double* chi, double local_volume, size_t numElements);
 
-
 __global__ void bar(double* x);
+
+
+
+// transposed ELL
+__device__ void addAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value );
+__device__ void setAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value );
+__global__ void printELL_GPU_(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
+
+__global__ void printELLrow_GPU_(size_t row, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
+
+__host__ void printELLrow_(size_t lev, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols);
+__device__ double valueAt_(size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows);
+__global__ void assembleGrid2D_GPU_( size_t N, size_t dim, double* d_chi, double* d_A_local, size_t num_rows_l, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
+__global__ void Apply_GPU_ (const std::size_t num_rows, const std::size_t max_row_size,const double* value,const std::size_t* index,const double* x,double* r);
+__global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
 #endif // CUDAKERNELS_H
 
