@@ -566,7 +566,7 @@ bool Assembler::init_GPU(
             cudaEventRecord(start);
     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
     {
-        // assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value_[m_topLev][0], &d_index_[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
+        assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value_[m_topLev][0], &d_index_[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
         assembleGrid2D_GPU_<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, m_num_rows_l, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows[m_topLev], d_node_index[i], m_p);
     }
             cudaEventRecord(stop);
@@ -645,8 +645,10 @@ bool Assembler::init_GPU(
     calculateDimensions( m_num_rows[m_topLev], g_gridDim, g_blockDim);
         cudaEventRecord(start);
     for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
+    {
         applyMatrixBC_GPU_<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
-        // applyMatrixBC_GPU_2<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
+        applyMatrixBC_GPU_2<<<g_gridDim,g_blockDim>>>(&d_value_[m_topLev][0], &d_index_[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
+    }
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             milliseconds = 0;
@@ -687,30 +689,49 @@ bool Assembler::init_GPU(
 
 
 
-    // //// obtaining the coarse stiffness matrices of each lower grid level
-    // dim3 temp_gridDim;
-    // dim3 temp_blockDim;
+    //// obtaining the coarse stiffness matrices of each lower grid level
+    dim3 temp_gridDim;
+    dim3 temp_blockDim;
     
-    // // A_coarse = R * A_fine * P
-    //         cudaEventRecord(start);
-    // for ( int lev = m_topLev ; lev != 0 ; lev--)
-    // {
-    //     // cout << "aps " << lev << endl;
-    //     calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
-    //     RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
-    //                                             d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 
-    //                                             d_r_value[lev-1], d_r_index[lev-1], r_max_row_size[lev-1],
-    //                                             d_p_value[lev-1], d_p_index[lev-1], p_max_row_size[lev-1], lev-1);
-    //     cudaDeviceSynchronize();
-    // }
-    //         cudaEventRecord(stop);
-    //         cudaEventSynchronize(stop);
-    //         milliseconds = 0;
-    //         cudaEventElapsedTime(&milliseconds, start, stop);
-    //         ofssbm << "RAP() \t\t\t\t" << milliseconds << endl;
+    // A_coarse = R * A_fine * P
+            cudaEventRecord(start);
+    for ( int lev = m_topLev ; lev != 0 ; lev--)
+    {
+        // NOTE: temporary, using non-transposed ellpack
+        calculateDimensions2D( num_rows[lev-1], num_rows[lev-1], temp_gridDim, temp_blockDim);
+        RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value_[lev], d_index_[lev], max_row_size[lev], num_rows[lev], 
+                                                d_value_[lev-1], d_index_[lev-1], max_row_size[lev-1], num_rows[lev-1], 
+                                                d_r_value_[lev-1], d_r_index_[lev-1], r_max_row_size[lev-1],
+                                                d_p_value_[lev-1], d_p_index_[lev-1], p_max_row_size[lev-1], lev-1);
+        cudaDeviceSynchronize();
 
-    // // printLinearVector( d_r_index[1], m_num_rows[1], m_r_max_row_size[1]);
-    // // printELLrow(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+        // NOTE: temporary
+        transposeELL<<<temp_gridDim,temp_blockDim>>>( d_index[lev-1], d_index_[lev-1], m_num_rows[lev-1], m_max_row_size[lev-1] );
+        transposeELL<<<temp_gridDim,temp_blockDim>>>( d_value[lev-1], d_value_[lev-1], m_num_rows[lev-1], m_max_row_size[lev-1] );
+        cudaDeviceSynchronize();
+    }
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            ofssbm << "RAP() \t\t\t\t" << milliseconds << endl;
+
+
+    
+
+    //TODO: cudaFree the temp matrices
+
+
+
+
+
+
+
+    // printLinearVector( d_r_index[1], m_num_rows[1], m_r_max_row_size[1]);
+    // printELLrow(0, d_value_[0], d_index_[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELLrow(1, d_value_[1], d_index_[1], max_row_size[1], num_rows[1], num_rows[1]);
+    // printELLrow_(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
+    // printELLrow_(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
     // // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
 

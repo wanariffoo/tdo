@@ -328,6 +328,8 @@ __device__ double valueAt_(size_t x, size_t y, double* vValue, size_t* vIndex, s
 __global__ void assembleGrid2D_GPU_( size_t N, size_t dim, double* d_chi, double* d_A_local, size_t num_rows_l, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
 __global__ void Apply_GPU_ (const std::size_t num_rows, const std::size_t max_row_size,const double* value,const std::size_t* index,const double* x,double* r);
 __global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
-
+__global__ void ComputeResiduum_GPU_(const std::size_t num_rows, const std::size_t num_cols_per_row,const double* value,const std::size_t* index,const double* x,double* r,double* b);
+__global__ void UpdateResiduum_GPU_( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
+__global__ void Jacobi_Precond_GPU_(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows, double damp);
 #endif // CUDAKERNELS_H
 

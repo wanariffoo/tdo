@@ -1287,6 +1287,17 @@ __global__ void Jacobi_Precond_GPU(double* c, double* value, size_t* index, size
 }
 
 
+__global__ void Jacobi_Precond_GPU_(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows, double damp){
+
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	// B = damp / diag(A);
+	if ( id < num_rows )
+		c[id] = r[id] * damp / valueAt_(id, id, value, index, max_row_size, num_rows);
+
+}
+
+
 // ////////////////////////////////////////////
 // // SOLVER
 // ////////////////////////////////////////////
@@ -1352,9 +1363,46 @@ void ComputeResiduum_GPU(
 		}
 		r[id] = b[id] - dot;
 	}
-	
 }
 
+/// r = b - A*x
+__global__ 
+void ComputeResiduum_GPU_(	
+	const std::size_t num_rows, 
+	const std::size_t max_row_size,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r,
+	double* b)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	// if ( id < num_rows )
+	// {
+	// 	double dot = 0.0;
+
+	// 	for ( int n = 0; n < max_row_size; n++ )
+	// 	{
+	// 		int col = index [ max_row_size * id + n ];
+	// 		double val = value [ max_row_size * id + n ];
+	// 		dot += val * x [ col ];
+	// 	}
+	// 	r[id] = b[id] - dot;
+	// }
+
+	if ( id < num_rows )
+    {
+        double sum = 0;
+        for ( int n = 0 ; n < max_row_size; n++ )
+        {
+			unsigned int offset = id + n*num_rows;
+			// sum += value[offset] * x[ index[offset] ];
+            sum += value[offset] * __ldg( &x[ index[offset] ] );
+        }
+        r[id] = b[id] - sum;
+    }
+}
 
 /// r = r - A*x
 __global__ 
@@ -1380,7 +1428,32 @@ void UpdateResiduum_GPU(
 		}
 		r[id] = r[id] - dot;
 	}
-	
+}
+
+
+/// r = r - A*x
+__global__ 
+void UpdateResiduum_GPU_(
+	const std::size_t num_rows, 
+	const std::size_t max_row_size,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r)
+{
+  	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	  if ( id < num_rows )
+	  {
+		  double sum = 0;
+		  for ( int n = 0 ; n < max_row_size; n++ )
+		  {
+			  unsigned int offset = id + n*num_rows;
+			  // sum += value[offset] * x[ index[offset] ];
+			  sum += value[offset] * __ldg( &x[ index[offset] ] );
+		  }
+		  r[id] = r[id] - sum;
+	  }
 }
 
 
@@ -2255,9 +2328,7 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 		
 		__shared__ double RAP[32][32];
 		RAP[threadIdx.x][threadIdx.y] = 0;
-
-		
-
+	
 		if ( row < num_rows_ && col < num_rows_ )
 		{
 			for ( int i = 0 ; i < r_max_row_size ; i++ )

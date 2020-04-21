@@ -52,7 +52,7 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 3;
+    size_t numLevels = 6;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
@@ -130,7 +130,7 @@ int main()
     
     string fileformat_(".txt");
     stringstream ssbm; 
-    ssbm << "outputs/" << 1900 + ltm->tm_year << "_" << 1 + ltm->tm_mon << "_" << ltm->tm_mday << "_" << 2 + ltm->tm_hour << ltm->tm_min << 1 + ltm->tm_sec;
+    ssbm << "outputs/" << 1900 + ltm->tm_year << "_" << 1 + ltm->tm_mon << "_" << ltm->tm_mday << "_" << 2 + ltm->tm_hour << ltm->tm_min << 1 + ltm->tm_sec << "_" << dim << "d_lvl_" << numLevels;
     ssbm << fileformat_;
     ofstream ofssbm(ssbm.str(), ios::out);
 
@@ -204,36 +204,36 @@ int main()
 
    
 
-    // /* ##################################################################
-    // #                           SOLVER                                  #
-    // ###################################################################*/
+    /* ##################################################################
+    #                           SOLVER                                  #
+    ###################################################################*/
 
-    // Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
+    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
     
     
-    // GMG.set_convergence_params(10000, 1e-99, 1e-12);
-    // GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
+    GMG.set_convergence_params(10000, 1e-99, 1e-12);
+    GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
     
 
-    // GMG.init();
-    // GMG.set_verbose(0,0);
-    // GMG.set_num_prepostsmooth(3,3);
-    // GMG.set_cycle('V');
+    GMG.init();
+    GMG.set_verbose(1,0);
+    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_cycle('V');
             
-    //             ofssbm << endl;
-    //             ofssbm << "SOLVER" << endl;
-    //             cudaEventRecord(start);
-    // GMG.solve(d_u, d_b, d_value, ofssbm);
-    //             cudaEventRecord(stop);
-    //             cudaEventSynchronize(stop);
-    //             milliseconds = 0;
-    //             cudaEventElapsedTime(&milliseconds, start, stop);
-    //             ofssbm << endl;
-    //             ofssbm << "Total solver time\t\t" << milliseconds << endl;
+                ofssbm << endl;
+                ofssbm << "SOLVER" << endl;
+                cudaEventRecord(start);
+    GMG.solve(d_u, d_b, d_value, ofssbm);
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                ofssbm << endl;
+                ofssbm << "Total solver time\t\t" << milliseconds << endl;
             
-    // // cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
 
-    // // cout << "Solver   ... DONE" << endl;
+    // cout << "Solver   ... DONE" << endl;
 
 
         
