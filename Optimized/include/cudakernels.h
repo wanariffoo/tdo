@@ -12,8 +12,8 @@
 #define CUDA_CALL( call )                                                                                          \
     {                                                                                                                  \
     cudaError_t err = call;                                                                                          \
-    if ( cudaSuccess != err)                                                                                         \
-        fprintf(stderr, "CUDA error for %s in %d of %s : %s.\n", #call , __LINE__ , __FILE__ ,cudaGetErrorString(err));\
+    if ( cudaSuccess != err){                                                                                         \
+        fprintf(stderr, "CUDA error for %s in %d of %s : %s.\n", #call , __LINE__ , __FILE__ ,cudaGetErrorString(err));exit(EXIT_FAILURE);}\
     }
 
 
@@ -331,5 +331,8 @@ __global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_
 __global__ void ComputeResiduum_GPU_(const std::size_t num_rows, const std::size_t num_cols_per_row,const double* value,const std::size_t* index,const double* x,double* r,double* b);
 __global__ void UpdateResiduum_GPU_( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
 __global__ void Jacobi_Precond_GPU_(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows, double damp);
+__device__ void atomicAddAt_( size_t row, size_t col, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value );
+__global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t num_rows, double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, double* p_value, size_t* p_index, size_t p_max_row_size);
+
 #endif // CUDAKERNELS_H
 

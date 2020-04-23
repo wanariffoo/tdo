@@ -52,13 +52,12 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 6;
+    size_t numLevels = 8;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    // DEBUG:
-    size_t update_steps = 1;
+    size_t update_steps = 100;
 
 
     // CASE 0 : 2D MBB
@@ -241,107 +240,107 @@ int main()
 
 
 
-    // /* ##################################################################
-    // #                         DENSITY UPDATE                            #
-    // ###################################################################*/
+    /* ##################################################################
+    #                         DENSITY UPDATE                            #
+    ###################################################################*/
 
 
-    // TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
-    // tdo.init();
-    // tdo.set_verbose(0);
+    TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
+    tdo.init();
+    tdo.set_verbose(0);
 
-    //             ofssbm << endl;
-    //             ofssbm << "DENSITY UPDATE" << endl;
-    //             cudaEventRecord(start);
-    // tdo.innerloop(d_u, d_chi, ofssbm);    // get updated d_chi
-    //             cudaEventRecord(stop);
-    //             cudaEventSynchronize(stop);
-    //             milliseconds = 0;
-    //             cudaEventElapsedTime(&milliseconds, start, stop);
-    //             ofssbm << endl;
-    //             ofssbm << "Total density update time\t" << milliseconds << endl;
+                ofssbm << endl;
+                ofssbm << "DENSITY UPDATE" << endl;
+                cudaEventRecord(start);
+    tdo.innerloop(d_u, d_chi, ofssbm);    // get updated d_chi
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                ofssbm << endl;
+                ofssbm << "Total density update time\t" << milliseconds << endl;
 
-    // tdo.print_VTK(0);
+    tdo.print_VTK(0);
 
 
-    // // vtk
-    // vector<double> chi(Assembly.getNumElements(), rho);
-    // vector<double> u(Assembly.getNumNodes() * dim, 0);
-    // string fileformat(".vtk");
-    // int file_index = 0;
-    // stringstream ss; 
-    // ss << "vtk/tdo";
-    // ss << file_index;
-    // ss << fileformat;
+    // vtk
+    vector<double> chi(Assembly.getNumElements(), rho);
+    vector<double> u(Assembly.getNumNodes() * dim, 0);
+    string fileformat(".vtk");
+    int file_index = 0;
+    stringstream ss; 
+    ss << "vtk/tdo";
+    ss << file_index;
+    ss << fileformat;
 
-    // if ( writeToVTK )
-    // {
-    //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    if ( writeToVTK )
+    {
+        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
         
-    //     CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
-    //     CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
+        CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+        CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
 
-    //     file_index++;
-    //     ss.str( string() );
-    //     ss.clear();
-    //     ss << "vtk/tdo";
-    //     ss << file_index;
-    //     ss << fileformat;
+        file_index++;
+        ss.str( string() );
+        ss.clear();
+        ss << "vtk/tdo";
+        ss << file_index;
+        ss << fileformat;
         
-    //     WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
-    // }
+        WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+    }
 
 
 
-    // for ( int i = 1 ; i < update_steps ; ++i )
-    // {
-    //     // update the global stiffness matrix with the updated density distribution
-    //     Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+    for ( int i = 1 ; i < update_steps ; ++i )
+    {
+        // update the global stiffness matrix with the updated density distribution
+        Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
 
-    //     cout << "Calculating iteration " << i << " ... " << endl;
-    //     // cudaDeviceSynchronize();
-    //     GMG.reinit();
-    //     GMG.set_convergence_params(10000, 1e-99, 1e-10);
-    //     GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
-    //     GMG.set_verbose(0, 0);
+        cout << "Calculating iteration " << i << " ... " << endl;
+        // cudaDeviceSynchronize();
+        GMG.reinit();
+        GMG.set_convergence_params(10000, 1e-99, 1e-10);
+        GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
+        GMG.set_verbose(0, 0);
 
         
-    //                     // // NOTE: benchmark
+                        // // NOTE: benchmark
                         
-    //                     // cudaEventCreate(&start);
-    //                     // cudaEventCreate(&stop);
-    //                     // cudaEventRecord(start);
+                        // cudaEventCreate(&start);
+                        // cudaEventCreate(&stop);
+                        // cudaEventRecord(start);
 
-    //     GMG.solve(d_u, d_b, d_value, ofssbm);
-    //     // cudaDeviceSynchronize();
+        GMG.solve(d_u, d_b, d_value, ofssbm);
+        // cudaDeviceSynchronize();
 
-    //                     // // NOTE: benchmark
-    //                     // cudaEventRecord(stop);
-    //                     // cudaEventSynchronize(stop);
-    //                     // float milliseconds = 0;
-    //                     // cudaEventElapsedTime(&milliseconds, start, stop);
-    //                     // cout << "Solver time: " << milliseconds << " ms" << endl;
+                        // // NOTE: benchmark
+                        // cudaEventRecord(stop);
+                        // cudaEventSynchronize(stop);
+                        // float milliseconds = 0;
+                        // cudaEventElapsedTime(&milliseconds, start, stop);
+                        // cout << "Solver time: " << milliseconds << " ms" << endl;
 
 
-    //     // tdo.set_verbose(1);
-    //     tdo.innerloop(d_u, d_chi, ofssbm);
+        // tdo.set_verbose(1);
+        tdo.innerloop(d_u, d_chi, ofssbm);
 
-    //     if ( writeToVTK )
-    //     { 
-    //         CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
-    //         CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
+        if ( writeToVTK )
+        { 
+            CUDA_CALL( cudaMemcpy(&chi[0], d_chi, sizeof(double) * Assembly.getNumElements(), cudaMemcpyDeviceToHost) );
+            CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * u.size(), cudaMemcpyDeviceToHost) );
 
-    //         file_index++;
-    //         ss.str( string() );
-    //         ss.clear();
-    //         ss << "vtk/tdo";
-    //         ss << file_index;
-    //         ss << fileformat;
+            file_index++;
+            ss.str( string() );
+            ss.clear();
+            ss << "vtk/tdo";
+            ss << file_index;
+            ss << fileformat;
             
-    //         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
+            WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
 
-    //     }        
-    // }
+        }        
+    }
 
     cudaEventRecord(stop_);
     cudaEventSynchronize(stop_);

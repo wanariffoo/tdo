@@ -446,6 +446,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
                 cudaEventElapsedTime(&milliseconds, start, stop);
                 if ( inner_counter == 0 ) ofssbm << "calcRhoTrial()\t\t\t" << milliseconds << endl;    
 
+            cudaDeviceSynchronize();
+            cout << "rho_trial :\n";
+            print_GPU<<<1,1>>>(m_d_rho_tr);
+            cudaDeviceSynchronize();
+
+
                 cudaEventRecord(start);
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
                 cudaEventRecord(stop);

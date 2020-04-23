@@ -11,8 +11,8 @@
 #define CUDA_CALL( call )                                                                                          \
     {                                                                                                                  \
     cudaError_t err = call;                                                                                          \
-    if ( cudaSuccess != err)                                                                                         \
-        fprintf(stderr, "CUDA error for %s in %d of %s : %s.\n", #call , __LINE__ , __FILE__ ,cudaGetErrorString(err));\
+    if ( cudaSuccess != err){                                                                                         \
+        fprintf(stderr, "CUDA error for %s in %d of %s : %s.\n", #call , __LINE__ , __FILE__ ,cudaGetErrorString(err));exit(EXIT_FAILURE);}\
     }
 
 
@@ -2462,7 +2462,14 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		}
 	}
 
+
+	
+
+
+
 	}
+
+	
 }
 
 __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_t Nz, size_t max_row_size, size_t num_rows)
@@ -3796,5 +3803,58 @@ __global__ void transposeELL(
 	{
 		for ( int i = 0 ; i < num_rows ; i++ )
 			A[ i + id*num_rows ] = B[ id + i*max_row_size ];
+	}
+}
+
+
+// adds the value to a transposed ELLPack matrix A at (row,col)
+__device__
+void atomicAddAt_( size_t row, size_t col, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value )
+{
+    for(size_t k = 0; k < max_row_size; ++k)
+    {	
+        if(vIndex[k * num_rows + col] == row)
+        {
+            atomicAdd( &vValue[k * num_rows + col] , value );
+                k = max_row_size; // to exit for loop
+		}
+    }
+}
+
+
+
+// A_coarse = P^T * A_fine * P
+__global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t num_rows,
+	double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_,
+	double* p_value, size_t* p_index, size_t p_max_row_size)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if( id < num_rows )
+	{
+		for ( int i_ = 0 ; i_ < p_max_row_size ; i_++ )
+		{
+			size_t i = p_index[id + i_*num_rows];
+			double P_ki = p_value[id + i_*num_rows];
+
+			for( int l_ = 0 ; l_ < max_row_size ; l_++  )
+			{
+				size_t l = index[id + l_*num_rows];
+				double A_kl = value[id + l_*num_rows];
+				double P_ki_A_kl = P_ki * A_kl;
+
+				for( int j_ = 0 ; j_ < p_max_row_size ; j_++ )
+				{
+					size_t j = p_index[l + j_*num_rows];
+					if( j >= num_rows ) break;
+
+					double P_lj = p_value[l + j_*num_rows];
+					double P_ki_A_kl_P_lj = P_ki_A_kl * P_lj;
+					
+					if(P_ki_A_kl_P_lj != 0.0)
+						atomicAddAt_( j, i, value_, index_, max_row_size_, num_rows_, P_ki_A_kl_P_lj );
+				}
+			}
+		}
 	}
 }
