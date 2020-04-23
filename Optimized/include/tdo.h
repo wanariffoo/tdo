@@ -11,7 +11,7 @@
 class TDO{
 
 public:
-    TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p);
+    TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p, size_t* &d_node_index_);
     bool init();
     bool innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm);
     void set_verbose(bool verbose);
@@ -78,6 +78,7 @@ private:
 
     double *m_d_uTAu;
     vector<size_t*> m_d_node_index;
+    size_t* m_d_node_index_;
 
     // bisection algorithm
     double* m_d_lambda_l;

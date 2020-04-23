@@ -1542,6 +1542,7 @@ void ApplyTransposed_GPU(
 }
 
 
+
 __global__ 
 void printResult_GPU(size_t* step, double* res, double* m_minRes, double* lastRes, double* res0, double* m_minRed)
 {
@@ -1706,19 +1707,19 @@ void calcDrivingForce_GPU(double *x, double *u, double* chi, double p, size_t *n
 			// converts local node to global node
 			int global_col = ( node_index [ m / dim ] * dim ) + ( m % dim ); 
 			// printf("u[%d] = %f\n", global_col, u[global_col]);
-
+			
 			temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
 
 		}
-
+		
 	}
 
 
 	for ( int n = 0; n < num_rows; n++ )
 	{
 		int global_col = ( node_index [ n / dim ] * dim ) + ( n % dim );
+		// printf("%d\n", global_col);
 		*x += temp[n] * u[global_col];
-
 		
 	}
 	
@@ -1750,11 +1751,52 @@ void calcDrivingForce(
 	// calculate the driving force in each element ( 1 element per thread )
     // df[] = (0.5/local_volume) * p * pow(chi,p-1) - u[]^T * A_local * u[]
 	for ( int i = 0 ; i < numElements; i++ )
-	    calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim, local_volume);
+	{
+		calcDrivingForce_GPU<<<1, 1>>>(&df[i], u, &chi[i], p, node_index[i], d_A_local, num_rows, dim, local_volume);
+		cudaDeviceSynchronize();
+	}
 
     cudaDeviceSynchronize();
 
 }
+
+// x[] = u[]^T * A * u[]
+__global__
+void calcDrivingForce(double *x, double *u, double* chi, double p, size_t* node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume, size_t numElements)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < numElements)
+	{
+		double temp[24];
+		size_t numNodesPerElement = pow(2,dim);
+		
+		x[id] = 0;
+		for ( int n = 0; n < num_rows; n++ )
+		{
+			temp[n]=0;
+			for ( int m = 0; m < num_rows; m++)
+			{
+				// converts local node to global node
+				int global_col = ( node_index [ (m / dim) + id*numNodesPerElement ] * dim ) + ( m % dim ); 
+				temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
+			}
+			
+			// if (id==0) printf("%f\n", temp[n]);
+		}
+		
+		for ( int n = 0; n < num_rows; n++ )
+		{
+			int global_col = ( node_index [ (n / dim) + id*numNodesPerElement ] * dim ) + ( n % dim );
+			x[id] += temp[n] * u[global_col];
+		}
+	
+		x[id] *= 0.5 * p * pow(chi[id], p-1) / local_volume;
+
+	}
+
+}
+
 
 __global__ 
 void sumOfVector_GPU(double* sum, double* x, size_t n)
@@ -1833,10 +1875,8 @@ void calcDrivingForce_(
 		// uTAu *= u
         uTAu *= u[ ( node_index [ id / dim ] * dim ) + ( id % dim ) ];
 
-
 		df[id] = uTAu * (p) * pow(chi[id], (p-1));
     }
-	
 }
 
 __device__
@@ -2355,8 +2395,12 @@ __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t 
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)
 {
+	
 	if ( abs(rho - *rho_trial) < 1e-7 )
 		*foo = false;
+	
+	else
+		*foo = true;
 }
 
 

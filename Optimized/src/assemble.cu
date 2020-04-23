@@ -121,6 +121,7 @@ bool Assembler::init_GPU(
     vector<size_t> &p_max_row_size,
     vector<size_t> &r_max_row_size,
     vector<size_t*> &d_node_index,
+    size_t* &d_node_index_,
     ofstream& ofssbm)
 {
     // benchmark output
@@ -306,7 +307,6 @@ bool Assembler::init_GPU(
     m_r_max_row_size = r_max_row_size;
     m_p_max_row_size = p_max_row_size;
 
-
     // output file
     ofssbm << "Top-level grid size = { " << m_N[m_topLev][0];
     for ( int i = 1 ; i < m_dim ; ++i )
@@ -454,14 +454,27 @@ bool Assembler::init_GPU(
  
 
 
-
+    vector<size_t> node_index_;
     m_node_index.resize(m_numElements[m_topLev]);
     d_node_index.resize(m_numElements[m_topLev]);
     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
     {
         for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
+        {
             m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+            node_index_.push_back( m_element[elem].getNodeIndex(index) );
+        }
     }
+    
+
+    // 
+    CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * m_numElements[m_topLev] * pow(2, m_dim) ) );
+    CUDA_CALL( cudaMemcpy(d_node_index_, &node_index_[0], sizeof(double) * m_numElements[m_topLev] * pow(2, m_dim), cudaMemcpyHostToDevice) );
+    
+
+    
+
+
 
     // allocating and copying the design variable to device
     // design variable currently has initial values of rho

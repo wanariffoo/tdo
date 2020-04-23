@@ -45,7 +45,6 @@ int main()
 
     // create vtk files
     bool writeToVTK = true;
-    bool benchmark = false;
 
     // material properties
     double youngMod = 200000;
@@ -57,7 +56,11 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 100;
+    size_t update_steps = 20;
+    bool gmg_verbose = 0;
+    bool pcg_verbose = 0;
+    bool gmg_verbose_ = 0;
+    bool pcg_verbose_ = 0;
 
 
     // CASE 0 : 2D MBB
@@ -114,6 +117,7 @@ int main()
 
     //// CUDA
     vector<size_t*> d_node_index;
+    size_t* d_node_index_;
 
     //// benchmarking stuff
     // cuda event
@@ -160,7 +164,7 @@ int main()
     Assembly.setBC(bc_index);
 
         cudaEventRecord(start);
-    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index, ofssbm);
+    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index, d_node_index_, ofssbm);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         milliseconds = 0;
@@ -192,7 +196,6 @@ int main()
 
     
 
-
     double* d_u;
     double* d_b;
     CUDA_CALL( cudaMalloc((void**)&d_u, sizeof(double) * num_rows[numLevels - 1] ) );
@@ -211,11 +214,13 @@ int main()
     
     
     GMG.set_convergence_params(10000, 1e-99, 1e-12);
-    GMG.set_bs_convergence_params(100, 1e-15, 1e-7);
+    GMG.set_bs_convergence_params(1000, 1e-15, 1e-7);
     
 
+
+
     GMG.init();
-    GMG.set_verbose(1,0);
+    GMG.set_verbose(gmg_verbose,pcg_verbose);
     GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
             
@@ -232,7 +237,7 @@ int main()
             
     // cudaDeviceSynchronize();
 
-    // cout << "Solver   ... DONE" << endl;
+    cout << "Solver   ... DONE" << endl;
 
 
         
@@ -245,7 +250,7 @@ int main()
     ###################################################################*/
 
 
-    TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p);
+    TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p, d_node_index_);
     tdo.init();
     tdo.set_verbose(0);
 
@@ -302,26 +307,10 @@ int main()
         GMG.reinit();
         GMG.set_convergence_params(10000, 1e-99, 1e-10);
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
-        GMG.set_verbose(0, 0);
+        GMG.set_verbose(gmg_verbose_, pcg_verbose_);
+        GMG.solve(d_u, d_b, d_value, ofssbm);
 
         
-                        // // NOTE: benchmark
-                        
-                        // cudaEventCreate(&start);
-                        // cudaEventCreate(&stop);
-                        // cudaEventRecord(start);
-
-        GMG.solve(d_u, d_b, d_value, ofssbm);
-        // cudaDeviceSynchronize();
-
-                        // // NOTE: benchmark
-                        // cudaEventRecord(stop);
-                        // cudaEventSynchronize(stop);
-                        // float milliseconds = 0;
-                        // cudaEventElapsedTime(&milliseconds, start, stop);
-                        // cout << "Solver time: " << milliseconds << " ms" << endl;
-
-
         // tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi, ofssbm);
 

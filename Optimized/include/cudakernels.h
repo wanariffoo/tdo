@@ -333,6 +333,6 @@ __global__ void UpdateResiduum_GPU_( const std::size_t num_rows, const std::size
 __global__ void Jacobi_Precond_GPU_(double* c, double* value, size_t* index, size_t max_row_size, double* r, size_t num_rows, double damp);
 __device__ void atomicAddAt_( size_t row, size_t col, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value );
 __global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t num_rows, double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, double* p_value, size_t* p_index, size_t p_max_row_size);
-
+__global__ void calcDrivingForce(double *x, double *u, double* chi, double p, size_t* node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume, size_t numElements);
 #endif // CUDAKERNELS_H
 
