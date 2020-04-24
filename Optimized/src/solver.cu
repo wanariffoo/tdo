@@ -283,6 +283,7 @@ bool Solver::precond(double* m_d_c, double* m_d_r, ofstream& ofssbm)
 // A*c = r ==> A_coarse*d_bs_u = d_bs_b
 bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
 {
+    
     // benchmark output
     // ofstream ofssbm(filename, ios::out);
     cudaEvent_t start, stop;
@@ -479,6 +480,8 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     // initialize ctmp[lev] to zero
     setToZero<<< m_gridDim[lev], m_blockDim[lev] >>>( m_d_ctmp[lev], m_num_rows[lev] );			
 
+    
+
     // if on base level
 	if( lev == 0 )
 	{
@@ -496,6 +499,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     // presmooth
     for ( int i = 0 ; i < m_numPreSmooth ; i++)
     {
+        
                 cudaEventRecord(start);
         smoother( m_d_ctmp[lev], d_r, lev );
                 cudaEventRecord(stop);
@@ -514,7 +518,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
         UpdateResiduum_GPU_<<< m_gridDim[lev], m_blockDim[lev] >>>(m_num_rows[lev], m_max_row_size[lev], m_d_value[lev], m_d_index[lev], m_d_ctmp[lev], d_r);
 
     }
-
+    
     
     // restrict defect
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_r[lev-1], m_num_rows[lev-1] );
@@ -628,7 +632,7 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& 
     m_d_value = d_value;
     m_foo = true;
     
-
+    
     // r = b - A*u
         cudaEventRecord(start);
     ComputeResiduum_GPU_<<<m_gridDim[m_topLev], m_blockDim[m_topLev]>>>(m_num_rows[m_topLev], m_max_row_size[m_topLev], m_d_value[m_topLev], m_d_index[m_topLev], d_u, m_d_r, d_b);
@@ -660,6 +664,8 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& 
     }
 
     addStep<<<1,1>>>(m_d_step);
+
+    
 
     // iteration loop
     while(m_foo)

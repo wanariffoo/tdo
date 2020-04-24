@@ -1461,7 +1461,7 @@ void UpdateResiduum_GPU_(
 __global__ 
 void Apply_GPU(	
 	const std::size_t num_rows, 
-	const std::size_t num_cols_per_row,
+	const std::size_t max_row_size,
 	const double* value,
 	const std::size_t* index,
 	const double* x,
@@ -1473,10 +1473,10 @@ void Apply_GPU(
 	{
 		double dot = 0;
 
-		for ( int n = 0; n < num_cols_per_row; n++ )
+		for ( int n = 0; n < max_row_size; n++ )
 		{
-			int col = index [ num_cols_per_row * id + n ];
-			double val = value [ num_cols_per_row * id + n ];
+			int col = index [ max_row_size * id + n ];
+			double val = value [ max_row_size * id + n ];
 			dot += val * x [ col ];
 		}
 		r[id] = dot;
@@ -1502,8 +1502,8 @@ __global__ void Apply_GPU_ (
         for ( int n = 0 ; n < max_row_size; n++ )
         {
 			unsigned int offset = id + n*num_rows;
-			// sum += value[offset] * x[ index[offset] ];
-            sum += value[offset] * __ldg( &x[ index[offset] ] );
+			sum += value[offset] * x[ index[offset] ];
+            // sum += value[offset] * __ldg( &x[ index[offset] ] );
         }
         r[id] = sum;
     }
@@ -1530,6 +1530,37 @@ void ApplyTransposed_GPU(
 		{
 			int col = index [ num_cols_per_row * id + n ];
 			double val = value [ num_cols_per_row * id + n ];
+
+			#if __CUDA_ARCH__ < 600
+				atomicAdd_double( &r[col], val*x[id] );
+			#else
+				atomicAdd( &r[col], val*x[id] );
+			#endif		
+
+		}
+		
+	}
+}
+
+/// r = A^T * x
+/// NOTE: This kernel should be run with A's number of rows as the number of threads
+__global__ 
+void ApplyTransposed_GPU_(	
+	const std::size_t num_rows, 
+	const std::size_t max_row_size,
+	const double* value,
+	const std::size_t* index,
+	const double* x,
+	double* r)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( id < num_rows )
+	{
+		for ( int n = 0; n < max_row_size; n++ )
+		{
+			int col = index [ id + n*num_rows ];
+			double val = value [ id + n*num_rows ];
 
 			#if __CUDA_ARCH__ < 600
 				atomicAdd_double( &r[col], val*x[id] );

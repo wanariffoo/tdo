@@ -308,8 +308,8 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
         // calculating the driving force of each element
         // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
             cudaEventRecord(start);
-                calcDrivingForce( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
-                // calcDrivingForce<<<m_gridDim, m_blockDim>>>(m_d_df, m_d_u, m_d_chi, m_p, m_d_node_index_, m_d_A_local, m_num_rows, m_dim, m_local_volume, m_numElements);
+                // calcDrivingForce( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
+                calcDrivingForce<<<m_gridDim, m_blockDim>>>(m_d_df, m_d_u, m_d_chi, m_p, m_d_node_index_, m_d_A_local, m_num_rows, m_dim, m_local_volume, m_numElements);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             milliseconds = 0;

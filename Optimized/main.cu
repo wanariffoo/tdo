@@ -56,7 +56,7 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 20;
+    size_t update_steps = 2;
     bool gmg_verbose = 0;
     bool pcg_verbose = 0;
     bool gmg_verbose_ = 0;
@@ -204,7 +204,9 @@ int main()
     CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
-   
+    vector<size_t> node_index_ = Assembly.getNodeIndex();
+    CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * Assembly.getNumElements() * pow(2, dim) ) );
+    CUDA_CALL( cudaMemcpy(d_node_index_, &node_index_[0], sizeof(double) * Assembly.getNumElements() * pow(2, dim), cudaMemcpyHostToDevice) );
 
     /* ##################################################################
     #                           SOLVER                                  #
@@ -309,10 +311,13 @@ int main()
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
         GMG.set_verbose(gmg_verbose_, pcg_verbose_);
         GMG.solve(d_u, d_b, d_value, ofssbm);
-
+        
+        cout << "Solver done ... ";
         
         // tdo.set_verbose(1);
         tdo.innerloop(d_u, d_chi, ofssbm);
+        
+        cout << "Density update done ... " << endl;
 
         if ( writeToVTK )
         { 

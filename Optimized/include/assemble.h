@@ -35,6 +35,7 @@ public:
  
     vector<size_t> getNumNodesPerDim();
     vector<size_t> getGridSize();
+    vector<size_t> getNodeIndex();
     size_t getNumElements();
     size_t getNumNodes();
 
@@ -147,6 +148,7 @@ private:
     vector<Element> m_element;
 
     vector<vector<size_t>> m_node_index;    
+    vector<size_t> m_node_index_;    
 
     //// CUDA
 
