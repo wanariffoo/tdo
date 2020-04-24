@@ -986,6 +986,7 @@ void assembleGrid2D_GPU(
 }
 
 
+
 // adds local stiffness matrix of an element to the global stiffness matrix
 __global__
 void assembleGrid2D_GPU_(

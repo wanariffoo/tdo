@@ -476,6 +476,7 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
     cudaEventCreate(&stop);
     float milliseconds;
     static int p_a_u_counter = 0;
+    static int p_a_u_counter_ = 0;
 
     // initialize ctmp[lev] to zero
     setToZero<<< m_gridDim[lev], m_blockDim[lev] >>>( m_d_ctmp[lev], m_num_rows[lev] );			
@@ -526,13 +527,13 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
 
     // r_coarse = P^T * r   
             cudaEventRecord(start);
-    // ApplyTransposed_GPU<<<m_gridDim[lev],m_blockDim[lev]>>>(m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
-    Apply_GPU_<<<m_gridDim[lev-1],m_blockDim[lev-1]>>>(m_num_rows[lev-1], m_r_max_row_size[lev-1], m_d_r_value[lev-1], m_d_r_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+    ApplyTransposed_GPU_<<<m_gridDim[lev],m_blockDim[lev]>>>(m_num_rows[lev], m_p_max_row_size[lev-1], m_d_p_value[lev-1], m_d_p_index[lev-1], d_r, m_d_gmg_r[lev-1]);
+    // Apply_GPU_<<<m_gridDim[lev-1],m_blockDim[lev-1]>>>(m_num_rows[lev-1], m_r_max_row_size[lev-1], m_d_r_value[lev-1], m_d_r_index[lev-1], d_r, m_d_gmg_r[lev-1]);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
-            if ( p_a_u_counter == 0 && lev == m_topLev ) ofssbm << "Apply_GPU()\t\t\t" << milliseconds << endl;
+            if ( p_a_u_counter == 0 && lev == m_topLev ) ofssbm << "ApplyTransposed_GPU()\t\t" << milliseconds << endl;
 
 
     setToZero<<<m_gridDim_cols[lev-1],m_blockDim_cols[lev-1]>>>( m_d_gmg_c[lev-1], m_num_rows[lev-1] );
@@ -578,7 +579,11 @@ bool Solver::precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, i
             cudaEventSynchronize(stop);
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
-            if ( p_a_u_counter == 1 && lev == m_topLev ) ofssbm << "Apply_GPU()\t\t\t" << milliseconds << endl;
+            if ( p_a_u_counter_ == 0 && lev == m_topLev )
+            {
+                ofssbm << "Apply_GPU()\t\t\t" << milliseconds << endl;
+                p_a_u_counter_++; 
+            }
             
     /// add correction and update defect
 	// c += ctmp;

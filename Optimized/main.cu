@@ -56,7 +56,7 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 2;
+    size_t update_steps = 20;
     bool gmg_verbose = 0;
     bool pcg_verbose = 0;
     bool gmg_verbose_ = 0;
@@ -208,6 +208,8 @@ int main()
     CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * Assembly.getNumElements() * pow(2, dim) ) );
     CUDA_CALL( cudaMemcpy(d_node_index_, &node_index_[0], sizeof(double) * Assembly.getNumElements() * pow(2, dim), cudaMemcpyHostToDevice) );
 
+
+
     /* ##################################################################
     #                           SOLVER                                  #
     ###################################################################*/
@@ -297,7 +299,7 @@ int main()
         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
     }
 
-
+    size_t iterations = 1;
 
     for ( int i = 1 ; i < update_steps ; ++i )
     {
@@ -334,6 +336,8 @@ int main()
             WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
 
         }        
+
+        iterations++;
     }
 
     cudaEventRecord(stop_);
@@ -341,6 +345,7 @@ int main()
     milliseconds_ = 0;
     cudaEventElapsedTime(&milliseconds_, start_, stop_);
     ofssbm << endl;
+    ofssbm << "Number of iterations\t\t" << iterations << endl;
     ofssbm << "TOTAL RUNTIME\t\t\t" << milliseconds_ << endl;
    
     cudaDeviceSynchronize();

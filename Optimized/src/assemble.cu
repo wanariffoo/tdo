@@ -613,21 +613,24 @@ bool Assembler::init_GPU(
 
 
 
-
+    // // rr = A^T * xx
     // // NOTE: temporary test
     // vector<double> xx( m_num_rows[m_topLev], 1.0);
     // double* d_xx;
     // double* d_rr;
     
-    // CUDA_CALL( cudaMalloc((void**)&d_xx, sizeof(double) * m_num_rows[m_topLev] ) );
     // CUDA_CALL( cudaMalloc((void**)&d_rr, sizeof(double) * m_num_rows[m_topLev] ) );
+    // CUDA_CALL( cudaMalloc((void**)&d_xx, sizeof(double) * m_num_rows[m_topLev] ) );
     // CUDA_CALL( cudaMemcpy(d_xx, &xx[0], sizeof(double) * m_num_rows[m_topLev], cudaMemcpyHostToDevice) );
     
     // // Ax = r (x = 1 hardcoded)
     // calculateDimensions( num_rows[m_topLev], index_gridDim, index_blockDim);
 
+    // /// r = A^T * x, ( .., x, r )
+
     //     cudaEventRecord(start);
-    // ApplyTransposed_GPU_ <<<index_gridDim,index_blockDim>>>  (m_num_rows[m_topLev], m_max_row_size[m_topLev], d_value[m_topLev], d_index[m_topLev], d_xx, d_rr);
+    // // ApplyTransposed_GPU_ <<<index_gridDim,index_blockDim>>>  (m_num_rows[m_topLev], m_max_row_size[m_topLev], d_value[m_topLev], d_index[m_topLev], d_xx, d_rr);
+    // ApplyTransposed_GPU <<<index_gridDim,index_blockDim>>>  (m_num_rows[m_topLev], m_max_row_size[m_topLev], d_value_[m_topLev], d_index_[m_topLev], d_xx, d_rr);
     // // Apply_GPU_ <<<index_gridDim,index_blockDim>>>  (m_num_rows[m_topLev], m_max_row_size[m_topLev], d_value[m_topLev], d_index[m_topLev], d_xx, d_rr);
     //     cudaEventRecord(stop);
     //     cudaEventSynchronize(stop);
@@ -635,6 +638,7 @@ bool Assembler::init_GPU(
     //     cudaEventElapsedTime(&milliseconds, start, stop);
     //     cout << "Apply_GPU_() \t\t" << milliseconds << endl;
 
+    //     printVector_GPU<<<1, num_rows[m_topLev]>>>( d_rr, num_rows[m_topLev] );
 
 
     //     cudaEventRecord(start);
