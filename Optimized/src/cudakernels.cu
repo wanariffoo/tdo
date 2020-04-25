@@ -1023,6 +1023,44 @@ void assembleGrid2D_GPU_(
 }
 
 
+// DEBUG: test
+// adds local stiffness matrix of an element to the global stiffness matrix
+__global__
+void assembleGrid_GPU(
+    size_t numElements,               // total number of elements
+    size_t dim,             // dimension
+	double* chi,			// the updated design variable value of each element
+	double* A_local,      	// local stiffness matrix
+	size_t num_rows_l,      // local stiffness matrix's number of rows
+    double* value,        	// global element's ELLPACK value vector
+    size_t* index,        	// global element's ELLPACK index vector
+    size_t max_row_size,  	// global element's ELLPACK maximum row size
+    size_t num_rows,      	// global element's ELLPACK number of rows
+    size_t* node_index,     // vector that contains the corresponding global indices of the node's local indices
+	size_t p					
+)        
+{
+   
+	int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < numElements )
+	{
+		int numNodesPerElement = pow(2,dim);
+		for ( int row = 0 ; row < num_rows_l ; row++ )
+		{
+			int y = dim*node_index[ (row/dim) + (id*numNodesPerElement) ] + ( row % dim );
+
+			for ( int col = 0 ; col < num_rows_l ; col++ )
+			{
+				int x = dim*node_index[ (col/dim) + (id*numNodesPerElement) ] + ( col % dim );
+
+				atomicAddAt_( x, y, value, index, max_row_size, num_rows, pow(chi[id],p)*A_local[ ( col + row*num_rows_l ) ] );
+			}
+		}
+	}
+}
+
+
 
 __global__
 void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows)
@@ -1128,51 +1166,54 @@ void applyMatrixBC_GPU_2(double* value, size_t* index, size_t max_row_size, size
 	
 }
 
-
-// CHECK: overkill to use this many threads?
 __global__
-void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
+void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
 {
-	int idx = threadIdx.x + blockIdx.x*blockDim.x;
-	int idy = threadIdx.y + blockIdx.y*blockDim.y;
+	int id = threadIdx.x + blockIdx.x*blockDim.x;
 
-	// printf("(%d, %d) = %lu, %d, %d\n", idx, idy, bc_index, num_rows, num_cols);
-	if ( idx < num_cols && idy < num_rows )
+	if ( id < num_rows )
 	{
-		if ( idx == bc_index && idy == bc_index )
+		// assigning the bc indices to their corresponding threads
+		int bc = -1;
+		for ( int i = 0 ; i < bc_size ; i++ )
 		{
-			for ( int i = 0 ; i < num_rows ; i++ )
-				setAt( i, idy, value, index, max_row_size, 0.0 );
-
-			for ( int j = 0 ; j < num_cols ; j++ )
-				setAt( idx, j, value, index, max_row_size, 0.0 );
-
-
-			setAt( idx, idy, value, index, max_row_size, 1.0 );
+			if ( id == bc_index[i] ) 
+				bc = id;
 		}
+
+
+		// row-wise
+		if ( id == bc )
+		{
+			int counter = 0;
+			for ( int i = 0 ; i < max_row_size ; i++)
+			{
+				if ( index[i*num_rows + id] == bc && counter == 0)
+				{
+					value[i*num_rows + id] = 1.0;
+					counter++;
+				}
+
+				else
+					value[i*num_rows + id] = 0.0;
+			}
+		}
+
+		// column-wise
+		else
+		{
+			for ( int j = 0 ; j < bc_size ; j++)
+			{
+				for ( int i = 0 ; i < max_row_size ; i++)
+				{
+					if ( index[i*num_rows + id] == bc_index[j] )
+						value[i*num_rows + id] = 0.0;
+				}
+			}
+		}
+
 	}
-}
-
-
-
-
-
-__global__
-void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
-{
-    int idx = threadIdx.x + blockIdx.x*blockDim.x;
-    int idy = threadIdx.y + blockIdx.y*blockDim.y;
-
-		if ( idx < num_cols && idy < num_rows )
-		{
-			if ( idx == bc_index && idy == bc_index )
-				setAt( idx, idy, value, index, max_row_size, 1.0 );
-
-			else if( idx == bc_index || idy == bc_index)	
-				setAt( idx, idy, value, index, max_row_size, 0.0 );
-				
-		}
-
+	
 }
 
 __global__
@@ -2446,6 +2487,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 	if ( id < num_rows )
 	{
+
 	
 
 	int base_id = (id - id%dim);
@@ -2455,7 +2497,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim - dim + i;
+			index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim - dim + i;
 			counter++;
 		}
 	}
@@ -2465,7 +2507,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + i;
+			index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + i;
 			counter++;
 		}
 	}
@@ -2475,7 +2517,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + dim + i;
+			index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + dim + i;
 			counter++;
 		}
 	}
@@ -2486,7 +2528,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) - dim + i;
+			index[id + counter*num_rows] = (id - id%dim) - dim + i;
 			counter++;
 		}
 	}
@@ -2494,7 +2536,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	// origin
 	for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) + i;
+			index[id + counter*num_rows] = (id - id%dim) + i;
 			counter++;
 		}
 
@@ -2503,7 +2545,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) + dim + i;
+			index[id + counter*num_rows] = (id - id%dim) + dim + i;
 			counter++;
 		}
 	}
@@ -2513,7 +2555,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim - dim + i;
+			index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim - dim + i;
 			counter++;
 		}
 	}
@@ -2523,7 +2565,7 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + i;
+			index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + i;
 			counter++;
 		}
 	}
@@ -2533,12 +2575,17 @@ __global__ void fillIndexVector2D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 		for(int i = 0 ; i < dim ; i++)
 		{
-			index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + dim + i;
+			index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + dim + i;
 			counter++;
 		}
 	}
 
 
+
+	for ( int i = counter ; i < max_row_size; i++)
+	{
+		index[id + i*num_rows] = num_rows;
+	}
 	
 
 
@@ -2571,9 +2618,6 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	
 
 
-
-
-
 	//// previous layer
 
 		
@@ -2583,7 +2627,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim - dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim - dim + i - gridsize_2D;
 				counter++;
 			}
 		}
@@ -2594,7 +2638,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + i - gridsize_2D;
 				counter++;
 			}
 
@@ -2606,7 +2650,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{	
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + dim + i - gridsize_2D;
 				counter++;
 			}
 
@@ -2619,7 +2663,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - dim + i - gridsize_2D;
 				counter++;
 			}
 
@@ -2632,7 +2676,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + i - gridsize_2D;
 				counter++;
 			}
 		}
@@ -2646,7 +2690,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 				{
-					index[counter + id*max_row_size] = (id - id%dim) + dim + i - gridsize_2D;
+					index[id + counter*num_rows] = (id - id%dim) + dim + i - gridsize_2D;
 					counter++;
 				}
 		}
@@ -2660,7 +2704,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim - dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim - dim + i - gridsize_2D;
 				counter++;
 			}
 
@@ -2672,7 +2716,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + i - gridsize_2D;
 				counter++;
 			}
 
@@ -2684,7 +2728,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + dim + i - gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + dim + i - gridsize_2D;
 				counter++;
 			}
 
@@ -2708,7 +2752,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim - dim + i;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim - dim + i;
 				counter++;
 			}
 		}
@@ -2719,7 +2763,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + i;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + i;
 				counter++;
 			}
 
@@ -2731,7 +2775,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{	
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + dim + i;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + dim + i;
 				counter++;
 			}
 
@@ -2744,7 +2788,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - dim + i;
+				index[id + counter*num_rows] = (id - id%dim) - dim + i;
 				counter++;
 			}
 
@@ -2753,7 +2797,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		// origin
 		for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + i;
+				index[id + counter*num_rows] = (id - id%dim) + i;
 				counter++;
 			}
 
@@ -2766,7 +2810,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 				{
-					index[counter + id*max_row_size] = (id - id%dim) + dim + i;
+					index[id + counter*num_rows] = (id - id%dim) + dim + i;
 					counter++;
 				}
 		}
@@ -2780,7 +2824,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim - dim + i;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim - dim + i;
 				counter++;
 			}
 
@@ -2792,7 +2836,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + i;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + i;
 				counter++;
 			}
 
@@ -2804,7 +2848,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + dim + i;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + dim + i;
 				counter++;
 			}
 
@@ -2819,7 +2863,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim - dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim - dim + i + gridsize_2D;
 				counter++;
 			}
 		}
@@ -2830,7 +2874,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + i + gridsize_2D;
 				counter++;
 			}
 
@@ -2842,7 +2886,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{	
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - (Nx+1)*dim + dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - (Nx+1)*dim + dim + i + gridsize_2D;
 				counter++;
 			}
 
@@ -2855,7 +2899,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) - dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) - dim + i + gridsize_2D;
 				counter++;
 			}
 
@@ -2869,7 +2913,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + i + gridsize_2D;
 				counter++;
 			}
 		}
@@ -2883,7 +2927,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 			for(int i = 0 ; i < dim ; i++)
 				{
-					index[counter + id*max_row_size] = (id - id%dim) + dim + i + gridsize_2D;
+					index[id + counter*num_rows] = (id - id%dim) + dim + i + gridsize_2D;
 					counter++;
 				}
 		}
@@ -2897,7 +2941,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim - dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim - dim + i + gridsize_2D;
 				counter++;
 			}
 
@@ -2909,7 +2953,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + i + gridsize_2D;
 				counter++;
 			}
 
@@ -2921,7 +2965,7 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 		{
 			for(int i = 0 ; i < dim ; i++)
 			{
-				index[counter + id*max_row_size] = (id - id%dim) + (Nx+1)*dim + dim + i + gridsize_2D;
+				index[id + counter*num_rows] = (id - id%dim) + (Nx+1)*dim + dim + i + gridsize_2D;
 				counter++;
 			}
 
@@ -2929,10 +2973,11 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 
 
 
-	for ( int i = counter ; i < max_row_size; i++)
-	{
-		index[i + id*max_row_size] = num_rows;
-	}
+
+		for ( int i = counter ; i < max_row_size; i++)
+		{
+			index[id + i*num_rows] = num_rows;
+		}
 
 
 }
@@ -2968,11 +3013,13 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 		bool north = ( id < (Nx+1)*(Ny)*dim );
 
 
+
+
 		// if there exists a coarse node in the same location
 		if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, 0, dim) == node_index )
 		{
-			p_index[counter + id*p_max_row_size] = coarse_node_index*dim + id%dim;
-			p_value[counter + id*p_max_row_size] = 1;
+			p_index[id + counter*num_rows] = coarse_node_index*dim + id%dim;
+			p_value[id + counter*num_rows] = 1;
 			counter++;
 		}
 
@@ -2983,8 +3030,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t south_west_fine_node = (node_index - (Nx+1) - 1);
 				size_t south_west_coarse_node = getCoarseNode_GPU(south_west_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = south_west_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.25 ;
+				p_index[id + counter*num_rows] = south_west_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.25 ;
 				counter++;
 			}
 
@@ -2993,8 +3040,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t south_fine_node = (node_index - (Nx+1) );
 				size_t south_coarse_node = getCoarseNode_GPU(south_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = south_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = south_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3003,8 +3050,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t south_east_fine_node = (node_index - (Nx+1) + 1);
 				size_t south_east_coarse_node = getCoarseNode_GPU(south_east_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = south_east_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.25 ;
+				p_index[id + counter*num_rows] = south_east_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.25 ;
 				counter++;
 			}
 
@@ -3013,8 +3060,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t west_fine_node = (node_index - 1);
 				size_t west_coarse_node = getCoarseNode_GPU(west_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = west_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = west_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3023,8 +3070,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t east_fine_node = (node_index + 1);
 				size_t east_coarse_node = getCoarseNode_GPU(east_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = east_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = east_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3033,8 +3080,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t north_west_fine_node = (node_index + (Nx+1) - 1);
 				size_t north_west_coarse_node = getCoarseNode_GPU(north_west_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = north_west_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.25 ;
+				p_index[id + counter*num_rows] = north_west_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.25 ;
 				counter++;
 			}
 
@@ -3043,8 +3090,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t north_fine_node = (node_index + (Nx+1) );
 				size_t north_coarse_node = getCoarseNode_GPU(north_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = north_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = north_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3053,8 +3100,8 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 			{
 				size_t north_east_fine_node = (node_index + (Nx+1) + 1);
 				size_t north_east_coarse_node = getCoarseNode_GPU(north_east_fine_node, Nx, Ny, 0, dim);
-				p_index[counter + id*p_max_row_size] = north_east_coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.25 ;
+				p_index[id + counter*num_rows] = north_east_coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.25 ;
 				counter++;
 			}
 
@@ -3064,8 +3111,10 @@ __global__ void fillProlMatrix2D_GPU(double* p_value, size_t* p_index, size_t Nx
 
 		for ( int i = counter ; i < p_max_row_size; i++)
 		{
-			p_index[i + id*p_max_row_size] = num_cols;
+			p_index[id + i*num_rows] = num_cols;
 		}
+
+
 
 	}
 }
@@ -3110,8 +3159,6 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 		bool condition6 = ( node_index % (numNodes2D*2) < (Nx+1)*(Ny+1) );
 
 
-
-
 		bool south = ( id_2D >= (Nx + 1)*dim );
 		bool west  = ( (id) % ((Nx + 1)*dim) >= dim );
 		bool east  = ( (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 );
@@ -3119,21 +3166,11 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 		bool previous = ( coarse_node_index >= (Nx_+1)*(Ny_+1) );
 		bool next = ( coarse_node_index + (Nx_+1)*(Ny_+1) <= (Nx_+1)*(Ny_+1) );
 
-		
-
-		// node-traversal operations
-		size_t previous_ = -numNodes2D;
-		size_t next_ = numNodes2D;
-		size_t west_ = -1;
-		size_t east_ = 1;
-		size_t south_ = -(Nx+1);
-		size_t north_ = +(Nx+1);
-
 		// if there exists a coarse node in the same location
 		if ( getFineNode_GPU(coarse_node_index, Nx_, Ny_, Nz_, dim) == node_index )
 		{
-			p_index[counter + id*p_max_row_size] = coarse_node_index*dim + id%dim;
-			p_value[counter + id*p_max_row_size] = 1;
+			p_index[id + counter*num_rows] = coarse_node_index*dim + id%dim;
+			p_value[id + counter*num_rows] = 1;
 			counter++;
 		}
 
@@ -3150,8 +3187,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			// previous-south-west
 			fine_node = (node_index - numNodes2D - (Nx+1) - 1 );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++;
 
 
@@ -3159,50 +3196,50 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			// previous-south-east
 			fine_node = (node_index - numNodes2D - (Nx+1) + 1 );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++;
 
 			// previous-north-west
 			fine_node = (node_index - numNodes2D + (Nx+1) - 1 );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++; 
 
 			// previous-north-east
 			fine_node = (node_index - numNodes2D + (Nx+1) + 1 );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++; 
 
 			// next-south-west
 			fine_node = (node_index + numNodes2D - (Nx+1) - 1 );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++;
 
 			// next-south-east
 			fine_node = (node_index + numNodes2D - (Nx+1) + 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++;
 
 			// next-north-west
 			fine_node = (node_index + numNodes2D + (Nx+1) - 1 );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++; 
 
 			// next-north-east
 			fine_node = (node_index + numNodes2D + (Nx+1) + 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.125 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.125 ;
 			counter++; 
 		}
 
@@ -3215,29 +3252,29 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			// previous-west
 			fine_node = (node_index - (Nx+1)*(Ny+1) - 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// previous-east
 			fine_node = (node_index - (Nx+1)*(Ny+1) + 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// next-west
 			fine_node = (node_index + (Nx+1)*(Ny+1) - 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// next-east
 			fine_node = (node_index + (Nx+1)*(Ny+1) + 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 		}
 
@@ -3250,29 +3287,29 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			// south-west
 			fine_node = (node_index - (Nx+1) - 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// south-east
 			fine_node = (node_index - (Nx+1) + 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// north-east
 			fine_node = (node_index + (Nx+1) - 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// north-east
 			fine_node = (node_index + (Nx+1) + 1);
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 		}
 
@@ -3285,29 +3322,29 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 			// previous-south
 			fine_node = (node_index - (Nx+1)*(Ny+1) - (Nx+1) );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// previous-north
 			fine_node = (node_index - (Nx+1)*(Ny+1) + (Nx+1) );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// next-south
 			fine_node = (node_index + (Nx+1)*(Ny+1) - (Nx+1) );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 
 			// next-north
 			fine_node = (node_index + (Nx+1)*(Ny+1) + (Nx+1) );
 			coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-			p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-			p_value[counter + id*p_max_row_size] = 0.25 ;
+			p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+			p_value[id + counter*num_rows] = 0.25 ;
 			counter++;
 		}
 
@@ -3323,8 +3360,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				// printf("%lu\n", node_index*dim );
 				size_t fine_node = (node_index - (Nx+1)*(Ny+1));
 				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3335,8 +3372,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				// printf("%lu\n", node_index*dim );
 				size_t fine_node = (node_index + (Nx+1)*(Ny+1));
 				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3347,8 +3384,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				
 				size_t fine_node = (node_index - (Nx+1));
 				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3359,8 +3396,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				// printf("%lu\n", node_index*3 );
 				size_t fine_node = (node_index - 1);
 				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3372,8 +3409,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				
 				size_t fine_node = (node_index + 1);
 				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3384,8 +3421,8 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 				
 				size_t fine_node = (node_index + (Nx+1));
 				size_t coarse_node = getCoarseNode3D_GPU(fine_node, Nx, Ny, Nz);
-				p_index[counter + id*p_max_row_size] = coarse_node*dim + id%dim ;
-				p_value[counter + id*p_max_row_size] = 0.5 ;
+				p_index[id + counter*num_rows] = coarse_node*dim + id%dim ;
+				p_value[id + counter*num_rows] = 0.5 ;
 				counter++;
 			}
 
@@ -3393,7 +3430,7 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 
 		for ( int i = counter ; i < p_max_row_size; i++)
 			{
-				p_index[i + id*p_max_row_size] = num_cols;
+				p_index[id + i*num_rows] = num_cols;
 			}
 
 	}

@@ -51,13 +51,13 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 8;
+    size_t numLevels = 10;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 20;
-    bool gmg_verbose = 0;
+    size_t update_steps = 1;
+    bool gmg_verbose = 1;
     bool pcg_verbose = 0;
     bool gmg_verbose_ = 0;
     bool pcg_verbose_ = 0;
@@ -204,11 +204,11 @@ int main()
     CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
-    vector<size_t> node_index_ = Assembly.getNodeIndex();
-    CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * Assembly.getNumElements() * pow(2, dim) ) );
-    CUDA_CALL( cudaMemcpy(d_node_index_, &node_index_[0], sizeof(double) * Assembly.getNumElements() * pow(2, dim), cudaMemcpyHostToDevice) );
+    // vector<size_t> node_index_ = Assembly.getNodeIndex();
+    // CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * Assembly.getNumElements() * pow(2, dim) ) );
+    // CUDA_CALL( cudaMemcpy(d_node_index_, &node_index_[0], sizeof(double) * Assembly.getNumElements() * pow(2, dim), cudaMemcpyHostToDevice) );
 
-
+    
 
     /* ##################################################################
     #                           SOLVER                                  #

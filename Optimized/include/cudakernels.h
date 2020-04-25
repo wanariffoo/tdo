@@ -144,9 +144,6 @@ void transformToELL(vector<vector<double>> &array, vector<double> &value, vector
 // sets identity rows and columns of the DOF in which a BC is applied
 void applyMatrixBC(vector<vector<double>> &array, size_t index, size_t num_rows, size_t dim);
 
-__global__ void applyMatrixBC_GPU_test(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
-__global__ void applyMatrixBC_GPU_2(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
-
 
 __host__ void PTAP(vector<vector<double>> &A_, vector<vector<double>> &A, vector<vector<double>> &P, size_t num_rows, size_t num_rows_ );
 
@@ -173,9 +170,7 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 
 __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_chi, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
 
-__global__ void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows);
 
-__global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 
 __global__ void applyProlMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
 __global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size);
@@ -314,7 +309,7 @@ __global__ void checkMassConservation(double* chi, double local_volume, size_t n
 
 __global__ void bar(double* x);
 
-
+__global__ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size);
 
 // transposed ELL
 __device__ void addAt_( size_t x, size_t y, double* vValue, size_t* vIndex, size_t max_row_size, size_t num_rows, double value );
@@ -335,5 +330,6 @@ __device__ void atomicAddAt_( size_t row, size_t col, double* vValue, size_t* vI
 __global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t num_rows, double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, double* p_value, size_t* p_index, size_t p_max_row_size);
 __global__ void calcDrivingForce(double *x, double *u, double* chi, double p, size_t* node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume, size_t numElements);
 __global__ void ApplyTransposed_GPU_( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
+__global__ void assembleGrid_GPU( size_t numElements, size_t dim, double* chi, double* A_local, size_t num_rows_l, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p);
 #endif // CUDAKERNELS_H
 
