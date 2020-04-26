@@ -222,19 +222,9 @@ bool TDO::init()
 {
 
     calculateDimensions(m_numElements, m_gridDim, m_blockDim);
-
         
     CUDA_CALL( cudaMalloc( (void**)&m_d_df, sizeof(double) * m_numElements ) );
     CUDA_CALL( cudaMemset( m_d_df, 0, sizeof(double) * m_numElements) );
-
-    CUDA_CALL( cudaMalloc( (void**)&m_d_uTAu, sizeof(double) * m_num_rows) );
-    CUDA_CALL( cudaMemset( m_d_uTAu, 0, sizeof(double) * m_num_rows) );
-
-    CUDA_CALL( cudaMalloc( (void**)&m_d_temp, sizeof(double) * m_num_rows) );
-    CUDA_CALL( cudaMemset( m_d_temp, 0, sizeof(double) * m_num_rows) );
-    
-    CUDA_CALL( cudaMalloc( (void**)&m_d_temp_s, sizeof(double) ));
-    CUDA_CALL( cudaMemset( m_d_temp_s, 0, sizeof(double) ) );
 
     CUDA_CALL( cudaMalloc( (void**)&m_d_beta, sizeof(double) ) );
     CUDA_CALL( cudaMemset( m_d_beta, 0, sizeof(double)) );
@@ -261,11 +251,6 @@ bool TDO::init()
     CUDA_CALL( cudaMalloc( (void**)&m_d_tdo_foo, sizeof(bool) ) );
     CUDA_CALL( cudaMemcpy( m_d_tdo_foo, &m_tdo_foo, sizeof(bool), cudaMemcpyHostToDevice) );
     
-
-
-    // DEBUG: temporary
-    CUDA_CALL( cudaMalloc( (void**)&d_laplacian, sizeof(double) * m_numElements) );
-    CUDA_CALL( cudaMemset( d_laplacian, 0, sizeof(double) * m_numElements) );
 
     CUDA_CALL( cudaMalloc( (void**)&m_d_sum_g, sizeof(double) ) );
     CUDA_CALL( cudaMalloc( (void**)&m_d_sum_df_g, sizeof(double) ) );
@@ -294,8 +279,6 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
     m_d_chi = d_chi;
     m_tdo_foo = true;
     setToTrue<<<1,1>>>( m_d_tdo_foo );
-    // laplacian.resize(m_numElements);
-    // setToZero<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements );
     setToZero<<<1,1>>>( m_d_sum_g, 1 );
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
     
@@ -308,28 +291,26 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
         // calculating the driving force of each element
         // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
             cudaEventRecord(start);
-                // calcDrivingForce( m_d_df, m_d_chi, m_p, m_d_uTAu, m_d_u, m_d_node_index, m_d_A_local, m_num_rows, m_gridDim, m_blockDim, m_dim, m_numElements, m_local_volume );
                 calcDrivingForce<<<m_gridDim, m_blockDim>>>(m_d_df, m_d_u, m_d_chi, m_p, m_d_node_index_, m_d_A_local, m_num_rows, m_dim, m_local_volume, m_numElements);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcDrivingForce()\t\t" << milliseconds << endl;
+                            
             
-            // printVector_GPU<<<m_gridDim, m_blockDim>>>( m_d_df, m_numElements);
-            
-            // for(int i = 0 ; i < m_numElements ; i++)
-            //     printVector_GPU<<<1, 4>>>( m_d_node_index[i], 4);
-
 
         // calculating average weighted driving force, p_w
             cudaEventRecord(start);
-        calcP_w(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_d_temp, m_d_temp_s, m_numElements, m_local_volume);
+        calcP_w_(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_numElements, m_local_volume);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcP_w()\t\t\t" << milliseconds << endl;
+            
+            // printVector_GPU<<<m_gridDim, m_blockDim>>>( m_d_temp, m_numElements);
+
 
         // calculating eta and beta
             cudaEventRecord(start);
@@ -341,7 +322,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
             if ( inner_counter == 0 ) ofssbm << "calcEtaBeta()\t\t\t" << milliseconds << endl;
 
 
-        //// bisection algo: 
+        // bisection algo: 
 
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
             cudaEventRecord(start);

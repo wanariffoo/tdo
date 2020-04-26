@@ -136,6 +136,14 @@ bool Assembler::init_GPU(
     cudaEventCreate(&stop);
     float milliseconds;
 
+    // benchmark of memory allocation
+    cudaEvent_t start_mem, stop_mem;
+    cudaEventCreate(&start_mem);
+    cudaEventCreate(&stop_mem);
+    float milliseconds_mem;
+    float sum_mem;
+    float prol_mem;
+
 
 
 
@@ -329,88 +337,40 @@ bool Assembler::init_GPU(
     // allocating and copying the boundary condition indices on each level
     m_d_bc_index.resize(m_numLevels);
     
+            cudaEventRecord(start_mem);
+
     for ( int i = 0 ; i < m_numLevels ; i++ )
     {
         CUDA_CALL( cudaMalloc( (void**)&m_d_bc_index[i], sizeof(size_t) * m_bc_index[i].size()) );
         CUDA_CALL( cudaMemcpy( m_d_bc_index[i], &m_bc_index[i][0], sizeof(size_t) * m_bc_index[i].size(), cudaMemcpyHostToDevice) );
     }
 
+            cudaEventRecord(stop_mem);
+            cudaEventSynchronize(stop_mem);
+            milliseconds_mem = 0;
+            cudaEventElapsedTime(&milliseconds_mem, start, stop_mem);
+            sum_mem = milliseconds_mem;
+
 
 
     // assembling the local stiffness matrix   
-        cudaEventRecord(start);
+            cudaEventRecord(start);
     assembleLocal();
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        milliseconds = 0;
-        cudaEventElapsedTime(&milliseconds, start, stop);
-        ofssbm << "assembleLocal() \t\t" << milliseconds << endl;
-        
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            ofssbm << "assembleLocal() \t\t" << milliseconds << endl;
 
-
-        // temporary ellpack arrays (non-transposed) for prol and rest
-        // vector<double*> d_p_value_;
-        // vector<size_t*> d_p_index_;
-        // vector<double*> d_r_value_;
-        // vector<size_t*> d_r_index_;
-       
-
-    //// assembling prolongation & restriction matrices
+    // assembling prolongation matrices of each grid level
         cudaEventRecord(start);
-    assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev);
+    assembleProlMatrix_GPU(d_p_value, d_p_index, m_topLev, prol_mem);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         milliseconds = 0;
         cudaEventElapsedTime(&milliseconds, start, stop);
-        ofssbm << "assembleProlMatrix_GPU() \t" << milliseconds << endl;
+        ofssbm << "assembleProlMatrix_GPU() \t" << milliseconds - prol_mem << endl;
 
-    //     cudaEventRecord(start);
-    // assembleRestMatrix_GPU(d_r_value_, d_r_index_, d_p_value_, d_p_index_);
-    //     cudaEventRecord(stop);
-    //     cudaEventSynchronize(stop);
-    //     milliseconds = 0;
-    //     cudaEventElapsedTime(&milliseconds, start, stop);
-    //     ofssbm << "assembleRestMatrix_GPU() \t" << milliseconds << endl;
-
-    // // resizing the prolongation matrices according to the number of grid-levels for cuda
-    // d_p_value.resize( m_numLevels - 1 );
-    // d_p_index.resize( m_numLevels - 1 );
-
-    // // resizing the restriction matrices according to the number of grid-levels (transposed ELLPACK)
-    // d_r_value.resize( m_numLevels - 1 );
-    // d_r_index.resize( m_numLevels - 1 );
-
-    // // allocating and copying the value & index vectors to device
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    // {
-    //     CUDA_CALL( cudaMalloc((void**)&d_p_value[lev], sizeof(double) * m_p_max_row_size[lev] * m_num_rows[lev+1] ) );
-    //     CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * m_p_max_row_size[lev] * m_num_rows[lev+1] ) );
-    //     CUDA_CALL( cudaMalloc((void**)&d_r_value[lev], sizeof(double) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
-    //     CUDA_CALL( cudaMalloc((void**)&d_r_index[lev], sizeof(size_t) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
-    // }
-
-    // // temp: matrices = (matrices_)^T
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    // {
-    //     dim3 gridDim_; dim3 blockDim_;
-    //     calculateDimensions( m_num_rows[lev+1]*m_p_max_row_size[lev], gridDim_, blockDim_);
-    //     transposeELL<<<gridDim_,blockDim_>>>( d_p_index[lev], d_p_index_[lev], m_num_rows[lev+1], m_p_max_row_size[lev] );
-    //     transposeELL<<<gridDim_,blockDim_>>>( d_p_value[lev], d_p_value_[lev], m_num_rows[lev+1], m_p_max_row_size[lev] );
-    //     calculateDimensions( m_num_rows[lev]*m_r_max_row_size[lev], gridDim_, blockDim_);
-    //     transposeELL<<<gridDim_,blockDim_>>>( d_r_index[lev], d_r_index_[lev], m_num_rows[lev], m_r_max_row_size[lev] );
-    //     transposeELL<<<gridDim_,blockDim_>>>( d_r_value[lev], d_r_value_[lev], m_num_rows[lev], m_r_max_row_size[lev] );
-       
-    // }
-
-    // // printLinearVector( d_r_index[0], m_r_max_row_size[0], m_num_rows[0] );
-    // // printLinearVector( d_r_index_[0], m_num_rows[0], m_r_max_row_size[0]);
-    // // printLinearVector( d_r_value[0], m_r_max_row_size[0], m_num_rows[0] );
-    // // printLinearVector( d_r_value_[0], m_num_rows[0], m_r_max_row_size[0]);
-    // // printELLrow_(0, d_r_value[0], d_r_index[0], r_max_row_size[0], num_rows[0], num_rows[1]);
-    // // printELLrow_(0, d_p_value[0], d_p_index[0], p_max_row_size[0], num_rows[1], num_rows[0]);
-    // // printELLrow(0, d_r_value_[0], d_r_index_[0], r_max_row_size[0], num_rows[0], num_rows[1]);
-    // // printELLrow(0, d_r_value_[0], d_r_index_[0], m_r_max_row_size[0], m_num_rows[0], m_num_rows[1]);
-    // // printELLrow(1, d_r_value[1], d_r_index[1], r_max_row_size[1], num_rows[1], num_rows[2]);
 
     //// adding nodes and elements to the top-level global grid
     for ( int i = 0 ; i < m_numNodes[m_topLev] ; ++i )
@@ -461,26 +421,22 @@ bool Assembler::init_GPU(
 
 
     
-    m_node_index.resize(m_numElements[m_topLev]);
-    d_node_index.resize(m_numElements[m_topLev]);
+    // m_node_index.resize(m_numElements[m_topLev]); // CHECK: if needed
     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
     {
         for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
         {
-            m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) );
+            // m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) ); // CHECK: if needed
             m_node_index_.push_back( m_element[elem].getNodeIndex(index) );
         }
     }
+
+        cudaEventRecord(start_mem);
 
     // 
     CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * m_numElements[m_topLev] * pow(2, m_dim) ) );
     CUDA_CALL( cudaMemcpy(d_node_index_, &m_node_index_[0], sizeof(double) * m_numElements[m_topLev] * pow(2, m_dim), cudaMemcpyHostToDevice) );
     
-
-    
-
-
-
     // allocating and copying the design variable to device
     // design variable currently has initial values of rho
     CUDA_CALL( cudaMalloc((void**)&d_chi, sizeof(double) * m_numElements[m_topLev] ) );
@@ -491,32 +447,14 @@ bool Assembler::init_GPU(
     CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
 
     
+    
     // calculating the number of nodes in a local element
     size_t numNodes_local = pow(2,m_dim);
-
-    // // copying the node index vector to device
-    // for ( int i = 0 ; i < m_numElements[m_topLev] ; i++ )
-    // {
-    //     CUDA_CALL( cudaMalloc( (void**)&d_node_index[i], sizeof(size_t) * numNodes_local) );
-    //     CUDA_CALL( cudaMemcpy( d_node_index[i], &m_node_index[i][0], sizeof(size_t) * numNodes_local, cudaMemcpyHostToDevice) );
-    // }
-
-    // m_d_node_index = d_node_index;
-
-    // // allocating the global matrices of each level to device
-    // // matrices are empty for now, will be filled in later
-
-
-
 
     // resizing global matrices for each grid-level
     // these matrices are stored in a transposed ELLPACK format
     d_value.resize( m_numLevels );
     d_index.resize( m_numLevels );
-
-    // temporary matrices for the global stiffness in non-transposed ELLPACK format
-    vector<double*> d_value_( m_numLevels );
-    vector<size_t*> d_index_( m_numLevels );
 
     for ( int lev = 0 ; lev < m_numLevels ; lev++ )
     {
@@ -526,25 +464,30 @@ bool Assembler::init_GPU(
         CUDA_CALL( cudaMalloc((void**)&d_index[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
         CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
 
-        // // non-transposed ellpack
-        // CUDA_CALL( cudaMalloc((void**)&d_value_[lev], sizeof(double) * max_row_size[lev] * num_rows[lev] ) );
-        // CUDA_CALL( cudaMemset( d_value_[lev], 0, sizeof(double) * num_rows[lev]*max_row_size[lev] ) );
-        // CUDA_CALL( cudaMalloc((void**)&d_index_[lev], sizeof(size_t) * max_row_size[lev] * num_rows[lev] ) );
-        // CUDA_CALL( cudaMemset( d_index_[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
     }
     
+    cudaEventRecord(stop_mem);
+            cudaEventSynchronize(stop_mem);
+            milliseconds_mem = 0;
+            cudaEventElapsedTime(&milliseconds_mem, start, stop_mem);
+            sum_mem += milliseconds_mem + prol_mem;
+
+    m_d_node_index_ = d_node_index_;
+
     
     // filling in global stiffness matrix's ELLPACK index vector for all levels
-    dim3 index_gridDim;
-    dim3 index_blockDim;
 
-        cudaEventRecord(start);
+    dim3 gridDim_;
+    dim3 blockDim_;
+
+            cudaEventRecord(start);
+
     if ( m_dim == 2)
     {
         for (int lev = m_topLev ; lev >= 0 ; --lev )
         {
-            calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
-            fillIndexVector2D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
+            calculateDimensions( num_rows[lev], gridDim_, blockDim_);
+            fillIndexVector2D_GPU<<<gridDim_, blockDim_>>>(d_index[lev], m_N[lev][0], m_N[lev][1], max_row_size[lev], num_rows[lev]);
         }
     }
 
@@ -552,34 +495,16 @@ bool Assembler::init_GPU(
     {   
         for (int lev = m_topLev ; lev >= 0 ; --lev )
         {
-            calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
-            fillIndexVector3D_GPU<<<index_gridDim,index_blockDim>>>(d_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], max_row_size[lev], num_rows[lev]);
+            calculateDimensions( num_rows[lev], gridDim_, blockDim_);
+            fillIndexVector3D_GPU<<<gridDim_, blockDim_>>>(d_index[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], max_row_size[lev], num_rows[lev]);
         }
     }
-
-    
-    
-    
-    
-    
-    // printLinearVector( d_index_[1], m_max_row_size[1], m_num_rows[1]);
-    // printLinearVector( d_index_[1], m_num_rows[1], m_max_row_size[1]);
-
-
-
-    
-    // // copying to the transposed ellpack matrices
-    // for (int lev = 0 ; lev < m_numLevels ; ++lev )
-    // {
-    //     calculateDimensions( num_rows[lev], index_gridDim, index_blockDim);
-    //     transposeELL<<<index_gridDim, index_blockDim>>>( d_index[lev], d_index_[lev], m_num_rows[lev], m_max_row_size[lev] );
-    // }
-
-    // cudaEventRecord(stop);
-    // cudaEventSynchronize(stop);
-    // milliseconds = 0;
-    // cudaEventElapsedTime(&milliseconds, start, stop);
-    // ofssbm << "fillIndexVector() \t\t" << milliseconds << endl;
+            
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            ofssbm << "fillIndexVector() \t\t" << milliseconds << endl;
 
     
 
@@ -587,140 +512,66 @@ bool Assembler::init_GPU(
     
     
 
-    // //// filling in the top level global stiffness matrix
-    // // CUDA block size for assembling the global stiffness matrix
-    // dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
+    //// filling in the top level global stiffness matrix
+    // the density distribution is included here as well
+    
+            cudaEventRecord(start);
+    
+    calculateDimensions( m_numElements[m_topLev], gridDim_, blockDim_);
+    assembleGlobalStiffness_GPU<<<gridDim_, blockDim_>>>( m_numElements[m_topLev], m_dim, d_chi, d_A_local, m_num_rows_l, d_value[m_topLev], d_index[m_topLev], max_row_size[m_topLev], m_num_rows[m_topLev], d_node_index_, m_p);
 
-
-    // // filling in the local stiffness matrix from each element
-    // // the density distribution is included here as well
-    //         cudaEventRecord(start);
-    // for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-    // {
-    //     // assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value_[m_topLev][0], &d_index_[m_topLev][0], max_row_size[m_topLev], m_num_rows_l, d_node_index[i], m_p);
-    //     assembleGrid2D_GPU_<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, m_num_rows_l, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows[m_topLev], d_node_index[i], m_p);
-    // }
-
-
-    calculateDimensions( m_numElements[m_topLev], index_gridDim, index_blockDim);
-    assembleGrid_GPU<<<index_gridDim,index_blockDim>>>( m_numElements[m_topLev], m_dim, d_chi, d_A_local, m_num_rows_l, d_value[m_topLev], d_index[m_topLev], max_row_size[m_topLev], m_num_rows[m_topLev], d_node_index_, m_p);
-    // assembleGrid2D_GPU_<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, m_num_rows_l, &d_value[m_topLev][0], &d_index[m_topLev][0], max_row_size[m_topLev], m_num_rows[m_topLev], d_node_index[i], m_p);
-
-
-
-
-    //         cudaEventRecord(stop);
-    //         cudaEventSynchronize(stop);
-    //         milliseconds = 0;
-    //         cudaEventElapsedTime(&milliseconds, start, stop);
-    //         ofssbm << "assembleGrid2D_GPU() \t\t" << milliseconds << endl;
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            ofssbm << "assembleGlobalStiffness_GPU() \t" << milliseconds << endl;
 
 
         
         
-    // calculating the needed cuda 2D grid size for the global assembly
-    dim3 g_gridDim;
-    dim3 g_blockDim;      
-    calculateDimensions( m_num_rows[m_topLev], g_gridDim, g_blockDim);
-
-        applyMatrixBC_GPU<<<g_gridDim,g_blockDim>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev],m_bc_index[m_topLev].size()  );
-
-// printVector_GPU<<<1,4>>>(m_d_bc_index[m_topLev],4);
-    //  printELLrow_(1, d_value[m_topLev], d_index[m_topLev], max_row_size[m_topLev], num_rows[m_topLev], num_rows[m_topLev]);
+ 
         
-    // // apply boundary conditions to the global stiffness matrix
-    // calculateDimensions( m_num_rows[m_topLev], g_gridDim, g_blockDim);
-    //     cudaEventRecord(start);
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    // {
-    //     applyMatrixBC_GPU_<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
-    // }
-    //         cudaEventRecord(stop);
-    //         cudaEventSynchronize(stop);
-    //         milliseconds = 0;
-    //         cudaEventElapsedTime(&milliseconds, start, stop);
-    //         ofssbm << "applyMatrixBC_GPU() \t\t" << milliseconds << endl;
+    // apply boundary conditions to the global stiffness matrix
+                cudaEventRecord(start);
+    calculateDimensions( m_num_rows[m_topLev], gridDim_, blockDim_);
+    applyMatrixBC_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev],m_bc_index[m_topLev].size()  );
 
+                cudaEventRecord(stop);
+                cudaEventSynchronize(stop);
+                milliseconds = 0;
+                cudaEventElapsedTime(&milliseconds, start, stop);
+                ofssbm << "applyMatrixBC_GPU() \t\t" << milliseconds << endl;
+
+                
+                
     //// obtaining the coarse stiffness matrices of each lower grid level
-    dim3 temp_gridDim;
-    dim3 temp_blockDim;
-    
-    // // A_coarse = R * A_fine * P
-    //         cudaEventRecord(start);
+    // A_coarse = R * A_fine * P
+            cudaEventRecord(start);
     for ( int lev = m_topLev ; lev != 0 ; lev--)
     {
-        calculateDimensions(m_num_rows[lev], temp_gridDim, temp_blockDim);
-        PTAP<<<temp_gridDim, temp_blockDim>>>(d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
+        calculateDimensions(m_num_rows[lev], gridDim_, blockDim_);
+        PTAP<<<gridDim_, blockDim_>>>(d_value[lev], d_index[lev], max_row_size[lev], num_rows[lev], 
                                     d_value[lev-1], d_index[lev-1], max_row_size[lev-1], num_rows[lev-1], 
                                     d_p_value[lev-1], d_p_index[lev-1], p_max_row_size[lev-1]);
     }
 
-    //         cudaEventRecord(stop);
-    //         cudaEventSynchronize(stop);
-    //         milliseconds = 0;
-    //         cudaEventElapsedTime(&milliseconds, start, stop);
-    //         ofssbm << "PTAP() \t\t\t\t" << milliseconds << endl;
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            ofssbm << "PTAP() \t\t\t\t" << milliseconds << endl;
 
 
-            
-            
-    
-    
-    
-    
-            //TODO: cudaFree the temp matrices
-            
+            ofssbm << "Memory allocation & copy\t" << sum_mem << endl;
 
 
-    // // delete temporary matrices
+            // NOTE:DEBUG:
+            
+            // int i = 7;
+            // printELL_GPU_<<<1,1>>>(d_value[i], d_index[i], m_max_row_size[i], m_num_rows[i], m_num_rows[i]);
+            // cudaDeviceSynchronize();
 
-    // for( int i = 0 ; i < m_numLevels ; i++ )
-    // {
-    //     CUDA_CALL( cudaFree( d_value_[i]) );
-    //     CUDA_CALL( cudaFree( d_index_[i]) );
-    // }
-
-    // for( int i = 0 ; i < m_numLevels - 1; i++ )
-    // {
-    //     CUDA_CALL( cudaFree( d_p_value_[i]) );
-    //     CUDA_CALL( cudaFree( d_p_index_[i]) );
-    //     CUDA_CALL( cudaFree( d_r_value_[i]) );
-    //     CUDA_CALL( cudaFree( d_r_index_[i]) );
-    // }
-    
-            
-            
-
-
-    // // NOTE: temporary test
-    // vector<double> xx( m_num_rows[1], 1.0);
-    // double* d_xx;
-    // double* d_rr;
-    
-    // CUDA_CALL( cudaMalloc((void**)&d_xx, sizeof(double) * m_num_rows[1] ) );
-    // CUDA_CALL( cudaMalloc((void**)&d_rr, sizeof(double) * m_num_rows[1] ) );
-    // CUDA_CALL( cudaMemcpy(d_xx, &xx[1], sizeof(double) * m_num_rows[1], cudaMemcpyHostToDevice) );
-    
-    // // Ax = r
-    // calculateDimensions( num_rows[1], index_gridDim, index_blockDim);
-    // ApplyTransposed_GPU_ <<<index_gridDim,index_blockDim>>>  (m_num_rows[1], m_max_row_size[1], d_value[1], d_index[1], d_xx, d_rr);
-    
-    // printVector_GPU<<<1,num_rows[1]>>>( d_rr, num_rows[1] );
-            
-            
-            
-            
-    // printLinearVector( d_index_[1], m_num_rows[1], m_max_row_size[1]);
-    // printLinearVector( d_r_index[1], m_num_rows[1], m_r_max_row_size[1]);
-    // printELLrow(0, d_value_[0], d_index_[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // printELLrow(1, d_value_[1], d_index_[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // printELLrow(m_topLev-1, d_value_[m_topLev-1], d_index_[m_topLev-1], max_row_size[m_topLev-1], num_rows[m_topLev-1], num_rows[m_topLev-1]);
-    // printELLrow_(0, d_value[0], d_index[0], max_row_size[0], num_rows[0], num_rows[0]);
-    // printELLrow_(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // printELLrow_(m_topLev-1, d_value[m_topLev-1], d_index[m_topLev-1], max_row_size[m_topLev-1], num_rows[m_topLev-1], num_rows[m_topLev-1]);
-    // // printELLrow(1, d_value[1], d_index[1], max_row_size[1], num_rows[1], num_rows[1]);
-    // // printELLrow(2, d_value[2], d_index[2], max_row_size[2], num_rows[2], num_rows[2]);
-
+            // investigate prol matrix, add bc perhaps
 
     return true;
 
@@ -1008,12 +859,19 @@ double Assembler::valueAt(size_t row, size_t col)
 bool Assembler::assembleProlMatrix_GPU(
     vector<double*> &d_p_value, 
     vector<size_t*> &d_p_index, 
-    size_t lev)
+    size_t lev,
+    float& prol_sum)
 {
-    
+    // benchmarking time for memory transfer
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+
     d_p_value.resize( m_numLevels - 1 );
     d_p_index.resize( m_numLevels - 1 );
 
+            cudaEventRecord(start);
     // allocating and copying the value & index vectors to device
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
     {
@@ -1021,9 +879,11 @@ bool Assembler::assembleProlMatrix_GPU(
         CUDA_CALL( cudaMalloc((void**)&d_p_index[lev], sizeof(size_t) * m_p_max_row_size[lev] * m_num_rows[lev+1] ) );
     }
 
-
-
-
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            prol_sum = 0;
+            cudaEventElapsedTime(&prol_sum, start, stop);
+    
     dim3 gridDim;
     dim3 blockDim;
 
@@ -1047,27 +907,29 @@ bool Assembler::assembleProlMatrix_GPU(
         }
     }
     
-    // // prolmat = prolmat_^T
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    //     transposeELL<<<gridDim,blockDim>>>( d_p_index[lev], d_p_index_[lev], m_num_rows[lev], m_p_max_row_size[lev] );
-        
-    // printLinearVector( d_p_index[0], m_num_rows[1], m_p_max_row_size[0]);
+
+    
+    //NOTE:DEBUG:
+    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
+    {
+        calculateDimensions(m_num_rows[lev+1], gridDim, blockDim);
+        applyProlMatrixBC_GPU<<<gridDim, blockDim>>> (d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_d_bc_index[lev+1], m_d_bc_index[lev], m_num_rows[lev+1], m_num_rows[lev], m_bc_index[lev+1].size(), m_bc_index[lev].size() );
+    }
+    
+    
+    // cout << "apsie\n";
+    // int i = 6;
+    // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], m_p_max_row_size[i], m_num_rows[i+1], m_num_rows[i]);
+    // printELL_GPU_<<<1,1>>> (d_p_value[m_topLev-1], d_p_index[m_topLev-1], m_p_max_row_size[m_topLev-1], m_num_rows[m_topLev], m_num_rows[m_topLev-1]);
+    // printVector_GPU<<<1,4>>> ( m_d_bc_index[0], 4 );
+    // printVector_GPU<<<1,6>>> ( m_d_bc_index[m_topLev], 6 );
+    // printLinearVector(d_p_index[m_topLev-1], m_p_max_row_size[m_topLev], m_p_max_row_size[m_topLev-1]);
     // printLinearVector( d_p_index[0], m_p_max_row_size[0], m_num_rows[1]);
     
-    // // applying boundary conditions on the prolongation matrices on each level
-    // for ( int lev = 1 ; lev < m_numLevels ; lev++ )
-    // {
-    //     calculateDimensions(m_bc_index[lev-1].size(), gridDim, blockDim);
-    //     applyProlMatrixBC_GPU<<<gridDim,blockDim>>>(&d_p_value[lev-1][0], &d_p_index[lev-1][0], m_p_max_row_size[lev-1], m_d_bc_index[lev-1], m_num_rows[lev], m_num_rows[lev-1], m_bc_index[lev-1].size() );
-    // }
+    // cudaDeviceSynchronize();
 
-    // // TODO:
-    // // deallocating the temporary arrays
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    // {
-    //     CUDA_CALL( cudaFree(d_p_value_[lev]) );
-    //     CUDA_CALL( cudaFree(d_p_index_[lev]) );
-    // }
+    
+
 
 
     return true;
@@ -1158,84 +1020,50 @@ bool Assembler::UpdateGlobalStiffness(
     vector<double*> &d_r_value, vector<size_t*> &d_r_index,     // restriction matrices
     double* &d_A_local)                                         // local stiffness matrix
 {
-    
+    dim3 gridDim_;
+    dim3 blockDim_;
+
     // reinitialize relevant variables
     // stiffness matrices, A
     for ( int lev = 0 ; lev < m_numLevels ; ++lev )
         setToZero<<<m_ell_gridDim[lev], m_ell_blockDim[lev]>>>( d_value[lev], m_num_rows[lev]*m_max_row_size[lev]);
         
     // assemble the global stiffness matrix on the finest grid with the updated chi of each element
-    dim3 l_blockDim(m_num_rows_l,m_num_rows_l,1);
-    for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-        assembleGrid2D_GPU_<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, m_num_rows_l, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_num_rows[m_topLev], m_d_node_index[i], m_p);
-    
+    calculateDimensions( m_numElements[m_topLev], gridDim_, blockDim_);
+    assembleGlobalStiffness_GPU<<<gridDim_, blockDim_>>>( m_numElements[m_topLev], m_dim, d_chi, d_A_local, m_num_rows_l, d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_num_rows[m_topLev], m_d_node_index_, m_p);
+
+
     // apply boundary conditions to the global stiffness matrix
-    dim3 g_gridDim;
-    dim3 g_blockDim;
-    calculateDimensions( m_num_rows[m_topLev], g_gridDim, g_blockDim);
-    for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-        applyMatrixBC_GPU_<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
-
-
-    //// obtaining the coarse stiffness matrices of each lower grid level
-    dim3 temp_gridDim;
-    dim3 temp_blockDim;
+    calculateDimensions( m_num_rows[m_topLev], gridDim_, blockDim_);
+    applyMatrixBC_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size() );
     
+    
+
+    // obtaining coarse global stiffness matrices
     // A_coarse = R * A_fine * P
         for ( int lev = m_topLev ; lev != 0 ; lev--)
         {
-            calculateDimensions(m_num_rows[lev], temp_gridDim, temp_blockDim);
-            PTAP<<<temp_gridDim, temp_blockDim>>>(d_value[lev], d_index[lev], m_max_row_size[lev], m_num_rows[lev], 
-                                        d_value[lev-1], d_index[lev-1], m_max_row_size[lev-1], m_num_rows[lev-1], 
-                                        d_p_value[lev-1], d_p_index[lev-1], m_p_max_row_size[lev-1]);
+            calculateDimensions(m_num_rows[lev], gridDim_, blockDim_);
+            PTAP<<<gridDim_, blockDim_>>>(  d_value[lev], d_index[lev], m_max_row_size[lev], m_num_rows[lev], 
+                                            d_value[lev-1], d_index[lev-1], m_max_row_size[lev-1], m_num_rows[lev-1], 
+                                            d_p_value[lev-1], d_p_index[lev-1], m_p_max_row_size[lev-1]);
         }
 
 
- 
+        // NOTE:DEBUG:
+        // int i = 6;
+        // printELL_GPU_<<<1,1>>>(d_value[i], d_index[i], m_max_row_size[i], m_num_rows[i], m_num_rows[i]);
 
+        // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], m_p_max_row_size[i], m_num_rows[i+1], m_num_rows[i]);
+        // // printVector_GPU<<<1,10>>>( d_chi, 10 );
+        // printVector_GPU<<<1,10>>>( m_d_bc_index[m_topLev] , 10 );
+        // // printLinearVector(d_A_local, 8, 8);
+            // cudaDeviceSynchronize();
+        
+       
 
     return true;
 
-
-    // NOTE: old
-    // // cout << "Reassembling global stiffness matrix on finest grid" << endl;
-    //     // assemble the global stiffness matrix on the finest grid with the updated chi of each element
-    //     for ( int i = 0 ; i < m_numElements[m_topLev] ; ++i )
-    //         assembleGrid2D_GPU<<<1,l_blockDim>>>( m_N[m_topLev][0], m_dim, &d_chi[i], d_A_local, &d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_num_rows_l, m_d_node_index[i], m_p);
-    // // cuda 2D grid size for the boundary condition on the global stiffness matrix
-    // dim3 g_gridDim;
-    // dim3 g_blockDim;
-
-    // applying the boundary conditions on the global stiffness matrix
-    
-    // calculateDimensions( m_bc_index[m_topLev].size(), g_gridDim, g_blockDim);
-    // applyMatrixBC_GPU_<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size() );
-
-    
-    // calculateDimensions2D( m_num_rows[m_topLev], m_num_rows[m_topLev], g_gridDim, g_blockDim);
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    //     applyMatrixBC_GPU<<<g_gridDim,g_blockDim,0,m_streams[i]>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
-
-    // calculateDimensions2D( m_num_rows[m_topLev], m_num_rows[m_topLev], g_gridDim, g_blockDim);
-    // for ( int i = 0 ; i < m_bc_index[m_topLev].size() ; i++ )
-    //     applyMatrixBC_GPU_test<<<g_gridDim,g_blockDim>>>(&d_value[m_topLev][0], &d_index[m_topLev][0], m_max_row_size[m_topLev], m_bc_index[m_topLev][i], m_num_rows[m_topLev], m_num_rows[m_topLev] );
-            
-    //    // cuda 2D grid size to obtain the coarse matrices
-    //    dim3 temp_gridDim;
-    //    dim3 temp_blockDim;
-
-    //    // A_coarse = R * A_fine * P
-    //    for ( int lev = m_topLev ; lev != 0 ; lev--)
-    //    {
-    //        // cout << "Assembling coarse stiffness matrices" << endl;  
-
-    //        calculateDimensions2D( m_num_rows[lev-1], m_num_rows[lev-1], temp_gridDim, temp_blockDim);
-    //        RAP_<<<temp_gridDim,temp_blockDim>>>(   d_value[lev], d_index[lev], m_max_row_size[lev], m_num_rows[lev], 
-    //                                                d_value[lev-1], d_index[lev-1], m_max_row_size[lev-1], m_num_rows[lev-1], 
-    //                                                d_r_value[lev-1], d_r_index[lev-1], m_r_max_row_size[lev-1],
-    //                                                d_p_value[lev-1], d_p_index[lev-1], m_p_max_row_size[lev-1], lev-1);
-    //        cudaDeviceSynchronize();
-    //    }
 
 }
 

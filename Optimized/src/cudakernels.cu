@@ -381,7 +381,7 @@ __global__ void printLinearVector_GPU(size_t* x, size_t i, size_t num_rows, size
 __global__ void printLinearVector_GPU(double* x, size_t i, size_t num_rows, size_t num_cols)
 {
         for ( int j = 0 ; j < num_cols ; j++ )
-            printf("%f ", x[j+i*num_cols]);
+            printf("%g ", x[j+i*num_cols]);
 
         printf("\n");
 }
@@ -461,12 +461,19 @@ void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_
 __global__
 void printELL_GPU_(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
-	
+		// for ( int i = 0 ; i < num_rows ; i++)
+		// {
+		// 	for ( int j = 0 ; j < num_cols ; j++)
+		// 	printf("%g ", valueAt_(i, j, value, index, max_row_size, num_rows) );
 
-		for ( int i = 0 ; i < num_rows ; i++)
+		// 	printf("\n");
+		// }
+
+
+		for ( int i = 0 ; i < 2 ; i++)
 		{
-			for ( int j = 0 ; j < num_cols ; j++)
-			printf("%f ", valueAt_(i, j, value, index, max_row_size, num_rows) );
+			for ( int j = 0 ; j < 5 ; j++)
+				printf("%g ", valueAt_(i, j, value, index, max_row_size, num_rows) );
 
 			printf("\n");
 		}
@@ -1023,11 +1030,11 @@ void assembleGrid2D_GPU_(
 }
 
 
-// DEBUG: test
+
 // adds local stiffness matrix of an element to the global stiffness matrix
 __global__
-void assembleGrid_GPU(
-    size_t numElements,               // total number of elements
+void assembleGlobalStiffness_GPU(
+    size_t numElements,     // total number of elements
     size_t dim,             // dimension
 	double* chi,			// the updated design variable value of each element
 	double* A_local,      	// local stiffness matrix
@@ -1216,35 +1223,115 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 	
 }
 
-__global__
-void applyProlMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
-{
-	for ( int i = 0 ; i < num_rows ; i++ )
-	{
-		if ( valueAt(i, bc_index, value, index, max_row_size) != 1.0 )
-			setAt( bc_index, i, value, index, max_row_size, 0.0 );
-	}
-}
-
 
 __global__
-void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size)
+void applyProlMatrixBC_GPU(	double* value, size_t* index, size_t max_row_size, 
+							size_t* bc_index, size_t* bc_index_, 
+							size_t num_rows, size_t num_rows_, 
+							size_t bc_size, size_t bc_size_)
 {
+	// TODO: num_rows_ not used?
+
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
-
-	if( id < bc_size )
+	
+	
+	if ( id < num_rows )
 	{
-		size_t bc_id = bc_index[id];
-
-		for ( int i = 0 ; i < num_rows ; i++ )
+		for ( int row = 0 ; row < max_row_size ; row++ )
 		{
-			if ( valueAt(i, bc_id, value, index, max_row_size) != 1.0 )
-				setAt( bc_id, i, value, index, max_row_size, 0.0 );		
-		}	
+			for ( int i = 0 ; i < bc_size_ ; i++ )
+			{
+				
+				// size_t bc_row = 0;
+				size_t bc_row = bc_index_[i];
+				
+				// if ( id == 2 )		
+				// printf("%lu\n", index[id + bc_row*num_rows]);
+	
+				if ( value[ id + row*num_rows ] != 1 && index[id + row*num_rows] == bc_row )
+						value[id + row*num_rows ] = 0;
+	
+				
+			}
+		}
+		
+
+		// if ( id == 0 )
+		// {	
+		// 	printf("aps\n");
+		// 	int coarse_node_index = getCoarseNode_GPU(4, 6, 2, 0, 2);
+		// 	printf("%d\n", coarse_node_index);
+		// }
+
+		// for ( int i = 0 ; i < max_row_size ; i++ )
+
+		// // assigning the bc indices to their corresponding threads
+		// int bc = -1;
+		// for ( int i = 0 ; i < bc_size ; i++ )
+		// {
+		// 	if ( id == bc_index[i] ) 
+		// 		bc = id;
+		// }
+
+
+		// // row-wise
+		// if ( id == bc )
+		// {
+		// 	// get the corresponding coarse bc index
+		// 	int coarse_node_index = getCoarseNode_GPU(14, 6, 2, 1, 2);
+		// 	printf("%d\n", coarse_node_index);
+			
+
+
+		// 	int counter = 0;
+		// 	for ( int i = 0 ; i < max_row_size ; i++)
+		// 	{
+		// 		if ( index[i*num_rows + id] == bc && counter == 0)
+		// 		{
+		// 			value[i*num_rows + id] = 1.0;
+		// 			counter++;
+		// 		}
+
+		// 		else
+		// 			value[i*num_rows + id] = 0.0;
+		// 	}
+		// }
+
+		// // column-wise
+		// else
+		// {
+		// 	for ( int j = 0 ; j < bc_size ; j++)
+		// 	{
+		// 		for ( int i = 0 ; i < max_row_size ; i++)
+		// 		{
+		// 			if ( index[i*num_rows + id] == bc_index[j] )
+		// 				value[i*num_rows + id] = 0.0;
+		// 		}
+		// 	}
+		// }
 
 	}
 	
 }
+
+// __global__ // NOTE: old
+// void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size)
+// {
+// 	int id = blockDim.x * blockIdx.x + threadIdx.x;
+
+// 	if( id < bc_size )
+// 	{
+// 		size_t bc_id = bc_index[id];
+
+// 		for ( int i = 0 ; i < num_rows ; i++ )
+// 		{
+// 			if ( valueAt(i, bc_id, value, index, max_row_size) != 1.0 )
+// 				setAt( bc_id, i, value, index, max_row_size, 0.0 );		
+// 		}	
+
+// 	}
+	
+// }
 
 
 // obtain a node's corresponding fine node index
@@ -2239,6 +2326,52 @@ void calc_g_GPU(double*g, double* chi, size_t numElements, double local_volume)
 }
 
 
+__global__ 
+void calc_g_GPU_(double* sum, double* chi, size_t numElements, double local_volume)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+    
+    // if ( id < numElements )
+    // printf("%d : %e\n", id, x[id]);
+
+	__shared__ double cache[1024];
+    cache[threadIdx.x] = 0;
+    
+	double temp = 0.0;
+	while(id < numElements)
+	{
+		temp += (chi[id] - 1e-9)*(1-chi[id]) * local_volume;
+		id += stride;
+	}
+	
+    cache[threadIdx.x] = temp;
+    
+	__syncthreads();
+	
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] += cache[threadIdx.x + i];
+		}
+		__syncthreads();
+		i /= 2;
+	}
+
+	// reduce sum from all blocks' cache
+	if(threadIdx.x == 0)
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, cache[0]);
+		#else
+			atomicAdd(sum, cache[0]);
+		#endif		
+	}
+		
+}
+
+
 // sum = sum ( df * g * local_volume)
 __global__ 
 void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t numElements)
@@ -2286,6 +2419,7 @@ void calcSum_df_g_GPU(double* sum, double* df, double* g, size_t numElements)
 
 
 
+
 __host__
 void calcP_w(double* p_w, double* sum_g, double* sum_df_g, double* df, double* chi, double* g, double* df_g, size_t numElements, double local_volume)
 {	
@@ -2299,9 +2433,77 @@ void calcP_w(double* p_w, double* sum_g, double* sum_df_g, double* df, double* c
 	
 	// calculate sum_g = sum(g)
 	sumOfVector_GPU<<<gridDim, blockDim>>>(sum_g, g, numElements);
-
+	
 	// sum_df_g = sum( g[i]*df[i]*local_volume )
 	calcSum_df_g_GPU<<<gridDim, blockDim>>>(sum_df_g, df, g, numElements);
+
+	// p_w = sum_df_g / sum_g
+	divide_GPU<<<1,1>>>(p_w, sum_df_g, sum_g);
+
+}
+
+
+
+// sum = sum ( df * g * local_volume)
+__global__ 
+void calcSum_df_g_GPU_(double* sum, double* df, double* chi, size_t numElements, double local_volume)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+    
+    // if ( id < n )
+    // printf("%d : %e\n", id, x[id]);
+
+	__shared__ double cache[1024];
+    cache[threadIdx.x] = 0;
+    
+	double temp = 0.0;
+	while(id < numElements)
+	{
+		temp += df[id]* ( (chi[id] - 1e-9)*(1-chi[id]) * local_volume );
+		id += stride;
+	}
+	
+    cache[threadIdx.x] = temp;
+    
+	__syncthreads();
+	
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] += cache[threadIdx.x + i];
+		}
+		__syncthreads();
+		i /= 2;
+	}
+
+	// reduce sum from all blocks' cache
+	if(threadIdx.x == 0)
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, cache[0]);
+		#else
+			atomicAdd(sum, cache[0]);
+		#endif		
+	}
+}
+
+
+__host__
+void calcP_w_(double* p_w, double* sum_g, double* sum_df_g, double* df, double* chi, size_t numElements, double local_volume)
+{	
+	dim3 gridDim;
+	dim3 blockDim;
+
+	calculateDimensions(numElements, gridDim, blockDim);
+
+	// calculate g of each element * local_volume
+	// calculate sum_g = sum(g)
+	calc_g_GPU_<<<gridDim, blockDim>>>(sum_g, chi, numElements, local_volume);
+
+	// sum_df_g = sum( g[i]*df[i]*local_volume )
+	calcSum_df_g_GPU_<<<gridDim, blockDim>>>(sum_df_g, df, chi, numElements, local_volume);
 
 	// p_w = sum_df_g / sum_g
 	divide_GPU<<<1,1>>>(p_w, sum_df_g, sum_g);
@@ -3436,6 +3638,7 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 	}
 }
 
+// obtaining a node's corresponding node on a coarser grid
 __device__ int getCoarseNode_GPU(size_t index, size_t Nx, size_t Ny, size_t Nz, size_t dim)
 {
 	// get coarse grid dimensions
@@ -3604,7 +3807,7 @@ __global__ void fillIndexVectorRest3D_GPU(size_t* r_index, size_t Nx, size_t Ny,
 	size_t coarse_node_index = id / dim;
 	size_t fine_id = getFineNode_GPU(id, Nx, Ny, 0, dim);
 	size_t base_id = (id - id%dim);
-	size_t baseid_2D = (id) % ((Nx + 1)*(Ny + 1)*dim);
+	// size_t baseid_2D = (id) % ((Nx + 1)*(Ny + 1)*dim);
 
 
 	// all on fine grid
@@ -3956,13 +4159,19 @@ __global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t n
 				double A_kl = value[id + l_*num_rows];
 				double P_ki_A_kl = P_ki * A_kl;
 
+				// size_t l = index[id + l_*num_rows];
+				// double P_ki_A_kl = P_ki * value[id + l_*num_rows];
+
 				for( int j_ = 0 ; j_ < p_max_row_size ; j_++ )
 				{
 					size_t j = p_index[l + j_*num_rows];
-					if( j >= num_rows ) break;
+					if( j >= num_rows ) break;		// CHECK:
 
 					double P_lj = p_value[l + j_*num_rows];
 					double P_ki_A_kl_P_lj = P_ki_A_kl * P_lj;
+
+					
+					// double P_ki_A_kl_P_lj = P_ki_A_kl * p_value[l + j_*num_rows];
 					
 					if(P_ki_A_kl_P_lj != 0.0)
 						atomicAddAt_( j, i, value_, index_, max_row_size_, num_rows_, P_ki_A_kl_P_lj );

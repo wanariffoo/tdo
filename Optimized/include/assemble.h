@@ -25,7 +25,7 @@ public:
     bool assembleLocal();
     bool assembleLocal_(); // TODO: delete later
     bool assembleProlMatrix(size_t lev);
-    bool assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t*> &d_p_index, size_t lev);
+    bool assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t*> &d_p_index, size_t lev, float& sum);
     bool assembleRestMatrix(size_t lev);
     bool assembleRestMatrix_GPU(vector<double*> &d_r_value, vector<size_t*> &d_r_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index);
     bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size);
@@ -149,6 +149,7 @@ private:
 
     vector<vector<size_t>> m_node_index;    
     vector<size_t> m_node_index_;    
+    size_t* m_d_node_index_;
 
     //// CUDA
 

@@ -73,8 +73,8 @@ private:
     double* m_d_beta;
     double* m_d_eta;
 
-    double *m_d_temp;
-    double *m_d_temp_s; // scalar
+    // double *m_d_temp;
+    // double *m_d_temp_s; // scalar
 
     double *m_d_uTAu;
     vector<size_t*> m_d_node_index;

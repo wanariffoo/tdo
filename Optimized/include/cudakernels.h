@@ -171,9 +171,7 @@ void applyLoad(vector<double> &b, vector<size_t> N, size_t numLevels, size_t bc_
 __global__ void assembleGrid2D_GPU( size_t N, size_t dim, double* d_chi, double* d_A_local, double* d_value, size_t* d_index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p );
 
 
-
-__global__ void applyProlMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols);
-__global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t num_cols, size_t bc_size);
+__global__ void applyProlMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t* bc_index_, size_t num_rows, size_t num_rows_, size_t bc_size, size_t bc_size_ );
 
 __host__ size_t getFineNode(size_t coarse_index, vector<size_t> N, size_t dim);
 
@@ -330,6 +328,9 @@ __device__ void atomicAddAt_( size_t row, size_t col, double* vValue, size_t* vI
 __global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t num_rows, double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, double* p_value, size_t* p_index, size_t p_max_row_size);
 __global__ void calcDrivingForce(double *x, double *u, double* chi, double p, size_t* node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume, size_t numElements);
 __global__ void ApplyTransposed_GPU_( const std::size_t num_rows, const std::size_t num_cols_per_row, const double* value, const std::size_t* index, const double* x, double* r);
-__global__ void assembleGrid_GPU( size_t numElements, size_t dim, double* chi, double* A_local, size_t num_rows_l, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p);
+__global__ void assembleGlobalStiffness_GPU( size_t numElements, size_t dim, double* chi, double* A_local, size_t num_rows_l, double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t* node_index, size_t p);
+__global__ void calc_g_GPU_(double* sum, double* chi, size_t numElements, double local_volume);
+__host__ void calcP_w_(double* p_w, double* sum_g, double* sum_df_g, double* df, double* chi, size_t numElements, double local_volume);			    
+__global__ void calcSum_df_g_GPU_(double* sum, double* df, double* chi, size_t numElements, double local_volume);
 #endif // CUDAKERNELS_H
 

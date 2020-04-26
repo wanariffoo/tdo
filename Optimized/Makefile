@@ -2,7 +2,7 @@
 
 # NVCC flags
 NVCC 		= nvcc
-NVCC_FLAGS 	= -arch=sm_70 --default-stream per-thread
+NVCC_FLAGS 	= -arch=sm_70 
 
 # Directories
 SRC_DIR = src
@@ -35,3 +35,5 @@ $(OBJ_DIR)/tdo.o: $(SRC_DIR)/tdo.cu
 clean:
 	rm -f ${OBJS} $(OBJ_DIR)/*.o $(VTK_DIR)/*.vtk
 
+vtk:
+	rm -f $(VTK_DIR)/*.vtk

@@ -56,10 +56,10 @@ int main()
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 1;
-    bool gmg_verbose = 1;
+    size_t update_steps = 20;
+    bool gmg_verbose = 0;
     bool pcg_verbose = 0;
-    bool gmg_verbose_ = 0;
+    bool gmg_verbose_ = 1;
     bool pcg_verbose_ = 0;
 
 
@@ -223,6 +223,7 @@ int main()
 
 
 
+
     GMG.init();
     GMG.set_verbose(gmg_verbose,pcg_verbose);
     GMG.set_num_prepostsmooth(3,3);
@@ -244,7 +245,7 @@ int main()
     cout << "Solver   ... DONE" << endl;
 
 
-        
+    
 
 
 
@@ -257,7 +258,6 @@ int main()
     TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p, d_node_index_);
     tdo.init();
     tdo.set_verbose(0);
-
                 ofssbm << endl;
                 ofssbm << "DENSITY UPDATE" << endl;
                 cudaEventRecord(start);
@@ -269,7 +269,13 @@ int main()
                 ofssbm << endl;
                 ofssbm << "Total density update time\t" << milliseconds << endl;
 
+                // int i = 6;
+                // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], p_max_row_size[i], num_rows[i+1], num_rows[i]);
+                // cudaDeviceSynchronize();
+
     tdo.print_VTK(0);
+
+
 
 
     // vtk
@@ -298,6 +304,7 @@ int main()
         
         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
     }
+
 
     size_t iterations = 1;
 
