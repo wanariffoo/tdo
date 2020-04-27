@@ -461,22 +461,22 @@ void printELL_GPU(double* value, size_t* index, size_t max_row_size, size_t num_
 __global__
 void printELL_GPU_(double* value, size_t* index, size_t max_row_size, size_t num_rows, size_t num_cols)
 {
-		// for ( int i = 0 ; i < num_rows ; i++)
-		// {
-		// 	for ( int j = 0 ; j < num_cols ; j++)
-		// 	printf("%g ", valueAt_(i, j, value, index, max_row_size, num_rows) );
-
-		// 	printf("\n");
-		// }
-
-
-		for ( int i = 0 ; i < 2 ; i++)
+		for ( int i = 0 ; i < num_rows ; i++)
 		{
-			for ( int j = 0 ; j < 5 ; j++)
-				printf("%g ", valueAt_(i, j, value, index, max_row_size, num_rows) );
+			for ( int j = 0 ; j < num_cols ; j++)
+			printf("%g ", valueAt_(j, i, value, index, max_row_size, num_rows) );
 
 			printf("\n");
 		}
+
+
+		// for ( int i = 0 ; i < 2 ; i++)
+		// {
+		// 	for ( int j = 0 ; j < 5 ; j++)
+		// 		printf("%g ", valueAt_(i, j, value, index, max_row_size, num_rows) );
+
+		// 	printf("\n");
+		// }
 	
 }
 
@@ -1069,109 +1069,6 @@ void assembleGlobalStiffness_GPU(
 
 
 
-__global__
-void applyMatrixBC_GPU_obso(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows)
-{
-    int idx = threadIdx.x + blockIdx.x*blockDim.x;
-    int idy = threadIdx.y + blockIdx.y*blockDim.y;
-
-	if ( idx == bc_index && idy == bc_index )
-		setAt( idx, idy, value, index, max_row_size, 1.0 );
-
-}
-
-
-__global__
-void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
-{
-	int id = threadIdx.x + blockIdx.x*blockDim.x;
-
-	if ( id < num_rows )
-	{
-		// row-wise
-		if ( id == bc_index )
-		{
-			int counter = 0;
-			for ( int i = 0 ; i < max_row_size ; i++)
-			{
-				if ( index[i*num_rows + id] == bc_index && counter == 0)
-				{
-					value[i*num_rows + id] = 1.0;
-					counter++;
-				}
-
-				else
-					value[i*num_rows + id] = 0.0;
-			}
-		}
-
-		// column-wise
-		else
-		{
-			for ( int i = 0 ; i < max_row_size ; i++)
-			{
-				if ( index[i*num_rows + id] == bc_index )
-					value[i*num_rows + id] = 0.0;
-			}
-		}
-
-	}
-	// int id = threadIdx.x + blockIdx.x*blockDim.x;
-
-	// if ( id < bc_size )
-	// {
-	// 	size_t bc_id = bc_index[id];
-
-	// 	for ( int i = 0 ; i < num_rows ; i++ )
-	// 	{
-	// 		setAt( i, bc_id, value, index, max_row_size, 0.0 );
-	// 		setAt( bc_id, i, value, index, max_row_size, 0.0 );
-	// 	}
-
-	// 	setAt( bc_id, bc_id, value, index, max_row_size, 1.0 );
-	// }
-
-}
-
-
-//NOTE: testing
-__global__
-void applyMatrixBC_GPU_2(double* value, size_t* index, size_t max_row_size, size_t bc_index, size_t num_rows, size_t num_cols)
-{
-    int id = threadIdx.x + blockIdx.x*blockDim.x;
-
-	if ( id < num_rows )
-	{
-		// row-wise
-		if ( id == bc_index )
-		{
-			int counter = 0;
-			for ( int i = 0 ; i < max_row_size ; i++)
-			{
-				if ( index[id*max_row_size + i] == bc_index && counter == 0)
-				{
-					value[id*max_row_size + i] = 1.0;
-					counter++;
-				}
-
-				else
-					value[id*max_row_size + i] = 0.0;
-			}
-		}
-
-		// column-wise
-		else
-		{
-			for ( int i = 0 ; i < max_row_size ; i++)
-			{
-				if ( index[id*max_row_size + i] == bc_index )
-					value[id*max_row_size + i] = 0.0;
-			}
-		}
-
-	}
-	
-}
 
 __global__
 void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
@@ -1225,12 +1122,365 @@ void applyMatrixBC_GPU(double* value, size_t* index, size_t max_row_size, size_t
 
 
 __global__
+void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size)
+{
+	int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	// if ( id == 0 ) printf("%lu\n", index[4 + 0*num_rows] );
+
+	if ( id < num_rows )
+	{
+		for ( int row = 0 ; row < max_row_size ; row++ )
+		{
+			for ( int i = 0 ; i < bc_size ; i++ )
+			{
+				size_t bc_row = bc_index[i];
+
+				// not good
+				if ( (id == bc_row) == index[id + row*num_rows] )
+					value[id + bc_row*num_rows ] = 1;
+
+				if ( index[id + row*num_rows] == bc_row || id == bc_row )
+						value[id + row*num_rows ] = 0;
+					
+			}
+		}
+	}
+
+}
+
+
+__global__
+void applyMatrixBC2D_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size, size_t Nx, size_t Ny, size_t dim)
+{
+	int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < bc_size )
+	{
+		// assigning each thread to a single bc index
+		size_t bc = bc_index[id];
+
+		// setting the row entries to '0'
+		for ( int i = 0 ; i < max_row_size ; i++ )
+		{
+			value[ bc + i*num_rows ] = 0.0;
+		}
+
+		// setting the diagonal to '1'
+		// setAt_( bc, bc, value, index, max_row_size, num_rows, 1.0 );
+
+		// setting the column entries to '0' through the neighbouring nodes
+
+		int base_id = (bc - bc%dim);
+		
+		bool south = ( bc  >= (Nx + 1)*dim );
+		bool north = ( bc < (Nx+1)*(Ny)*dim );
+		bool west = ( (bc) % ((Nx + 1)*dim) >= dim );
+		bool east = ( (base_id) % ((Nx*dim) + (base_id/(2*(Nx+1)))*dim*(Nx+1)) != 0 );
+
+		// south-west
+		if ( south && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) - dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south
+		if ( south )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south-east
+		if ( south && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// west
+		if ( west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// origin
+		{
+			// setting the diagonal to '1' 
+			setAt_( bc, bc, value, index, max_row_size, num_rows, 1.0 );
+
+			// and other DOFs on the node to '0'
+			for ( int i = 1 ; i < dim ; i++)
+				setAt_( bc, bc + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// east
+		if ( base_id == 0 || east )
+		{
+			for ( int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north-west
+		if ( north && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) - dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north
+		if ( north )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+		
+		// north-east
+		if ( base_id == 0 || id < (Nx+1)*(Ny)*dim && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+	}
+}
+
+
+__global__
+void applyMatrixBC3D_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size, size_t Nx, size_t Ny, size_t Nz, size_t dim)
+{
+	int id = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if ( id < bc_size )
+	{
+		// assigning each thread to a single bc index
+		size_t bc = bc_index[id];
+
+		// setting the row entries to '0'
+		for ( int i = 0 ; i < max_row_size ; i++ )
+		{
+			value[ bc + i*num_rows ] = 0.0;
+		}
+
+		// setting the column entries to '0' through the neighbouring nodes
+		size_t base_id = (id - id%dim);
+		size_t gridsize_2D = (Nx+1)*(Ny+1)*dim;
+
+		bool prev_layer = (bc >= (Nx+1)*(Ny+1)*dim);
+		bool next_layer = (bc < (Nx+1)*(Ny+1)*(Nz)*dim);
+		bool south = ((bc) % ((Nx + 1)*(Ny + 1)*dim)  >= (Nx + 1)*dim);
+		bool north = ((bc) % ((Nx + 1)*(Ny + 1)*dim) < (Nx+1)*(Ny)*dim);
+		bool west = ((bc) % ((Nx + 1)*dim) >= dim);
+		bool east = ((base_id) % ((Nx*dim) + (base_id/(3*(Nx+1)))*dim*(Nx+1)) != 0);
+
+	//// previous layer
+
+		// south-west
+		if ( prev_layer && south && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) - dim + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south
+		if ( prev_layer && south )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south-east
+		if ( prev_layer && south && east )
+		{	
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + dim + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// west
+		if ( prev_layer && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - dim + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// origin
+		if ( prev_layer )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// east
+		if ( prev_layer && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + dim + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north-west
+		if ( prev_layer && north && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) - dim + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north
+		if ( prev_layer && north )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north-east
+		if ( prev_layer && north && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + dim + i - gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+	//// current layer
+
+		// south-west
+		if ( south && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) - dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south
+		if ( south )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south-east
+		if ( south && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// west
+		if ( west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// origin
+		{
+			// setting the diagonal to '1' 
+			setAt_( bc, bc, value, index, max_row_size, num_rows, 1.0 );
+
+			// and other DOFs on the node to '0'
+			for ( int i = 1 ; i < dim ; i++)
+				setAt_( bc, bc + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// east
+		if ( base_id == 0 || east )
+		{
+			for ( int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north-west
+		if ( north && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) - dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north
+		if ( north )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+		
+		// north-east
+		if ( base_id == 0 || (north && east ) )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + dim + i, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+	//// next layer
+
+		// south-west
+		if ( prev_layer && south && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) - dim + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south
+		if ( prev_layer && south )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// south-east
+		if ( prev_layer && south && east )
+		{	
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - (dim * (Nx+1)) + dim + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// west
+		if ( prev_layer && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc - dim + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// origin
+		if ( prev_layer )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// east
+		if ( prev_layer && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + dim + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north-west
+		if ( prev_layer && north && west )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) - dim + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north
+		if ( prev_layer && north )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+
+		// north-east
+		if ( prev_layer && north && east )
+		{
+			for(int i = 0 ; i < dim ; i++)
+				setAt_( bc, bc + (dim * (Nx+1)) + dim + i + gridsize_2D, value, index, max_row_size, num_rows, 0.0 );
+		}
+	}
+}
+
+
+__global__
 void applyProlMatrixBC_GPU(	double* value, size_t* index, size_t max_row_size, 
 							size_t* bc_index, size_t* bc_index_, 
 							size_t num_rows, size_t num_rows_, 
 							size_t bc_size, size_t bc_size_)
 {
-	// TODO: num_rows_ not used?
 
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 	
@@ -1255,61 +1505,6 @@ void applyProlMatrixBC_GPU(	double* value, size_t* index, size_t max_row_size,
 			}
 		}
 		
-
-		// if ( id == 0 )
-		// {	
-		// 	printf("aps\n");
-		// 	int coarse_node_index = getCoarseNode_GPU(4, 6, 2, 0, 2);
-		// 	printf("%d\n", coarse_node_index);
-		// }
-
-		// for ( int i = 0 ; i < max_row_size ; i++ )
-
-		// // assigning the bc indices to their corresponding threads
-		// int bc = -1;
-		// for ( int i = 0 ; i < bc_size ; i++ )
-		// {
-		// 	if ( id == bc_index[i] ) 
-		// 		bc = id;
-		// }
-
-
-		// // row-wise
-		// if ( id == bc )
-		// {
-		// 	// get the corresponding coarse bc index
-		// 	int coarse_node_index = getCoarseNode_GPU(14, 6, 2, 1, 2);
-		// 	printf("%d\n", coarse_node_index);
-			
-
-
-		// 	int counter = 0;
-		// 	for ( int i = 0 ; i < max_row_size ; i++)
-		// 	{
-		// 		if ( index[i*num_rows + id] == bc && counter == 0)
-		// 		{
-		// 			value[i*num_rows + id] = 1.0;
-		// 			counter++;
-		// 		}
-
-		// 		else
-		// 			value[i*num_rows + id] = 0.0;
-		// 	}
-		// }
-
-		// // column-wise
-		// else
-		// {
-		// 	for ( int j = 0 ; j < bc_size ; j++)
-		// 	{
-		// 		for ( int i = 0 ; i < max_row_size ; i++)
-		// 		{
-		// 			if ( index[i*num_rows + id] == bc_index[j] )
-		// 				value[i*num_rows + id] = 0.0;
-		// 		}
-		// 	}
-		// }
-
 	}
 	
 }
@@ -2524,149 +2719,149 @@ __global__ void calcEtaBeta( double* eta, double* beta, double etastar, double b
 
 }
 
-__global__ void RA(	
-	double* r_value, 		// restriction matrix's
-	size_t* r_index, 		// ELLPACK vectors
-	size_t r_max_row_size, 	
-	double* value, 			// global stiffness matrix's
-	size_t* index, 			// ELLPACK vectors
-	size_t max_row_size,	
-	double* temp_matrix, 	// empty temp matrix
-	size_t num_rows, 		// no. of rows of temp matrix
-	size_t num_cols			// no. of cols of temp matrix
-)
-{
-	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
-	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
+// __global__ void RA(	
+// 	double* r_value, 		// restriction matrix's
+// 	size_t* r_index, 		// ELLPACK vectors
+// 	size_t r_max_row_size, 	
+// 	double* value, 			// global stiffness matrix's
+// 	size_t* index, 			// ELLPACK vectors
+// 	size_t max_row_size,	
+// 	double* temp_matrix, 	// empty temp matrix
+// 	size_t num_rows, 		// no. of rows of temp matrix
+// 	size_t num_cols			// no. of cols of temp matrix
+// )
+// {
+// 	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
+// 	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
-	if ( idx < num_cols && idy < num_rows )
-	{	
+// 	if ( idx < num_cols && idy < num_rows )
+// 	{	
 		
-		for ( int j = 0 ; j < num_cols ; ++j )
-			temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(j, idx, value, index, max_row_size);
-											//TODO: R matrix, no need valueAt, direct lookup
-	}
+// 		for ( int j = 0 ; j < num_cols ; ++j )
+// 			temp_matrix[idx + idy*num_cols] += valueAt(idy, j, r_value, r_index, r_max_row_size) * valueAt(j, idx, value, index, max_row_size);
+// 											//TODO: R matrix, no need valueAt, direct lookup
+// 	}
 
-}
-
-
-__global__ void AP(	
-	double* value, 			// coarse global stiffness matrix's
-	size_t* index,			// ELLPACK vectors
-	size_t max_row_size, 
-	double* p_value, 		// prolongation matrix's
-	size_t* p_index, 		// ELLPACK vectors
-	size_t p_max_row_size, 
-	double* temp_matrix, 	// temp_matrix = R*A
-	size_t num_rows, 		// no. of rows of temp matrix
-	size_t num_cols			// no. of cols of temp matrix
-)
-{
-	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
-	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
-
-	if ( idx < num_cols && idy < num_rows )
-	{	
-		for ( int j = 0 ; j < num_cols ; ++j )
-			addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
+// }
 
 
-	}
+// __global__ void AP(	
+// 	double* value, 			// coarse global stiffness matrix's
+// 	size_t* index,			// ELLPACK vectors
+// 	size_t max_row_size, 
+// 	double* p_value, 		// prolongation matrix's
+// 	size_t* p_index, 		// ELLPACK vectors
+// 	size_t p_max_row_size, 
+// 	double* temp_matrix, 	// temp_matrix = R*A
+// 	size_t num_rows, 		// no. of rows of temp matrix
+// 	size_t num_cols			// no. of cols of temp matrix
+// )
+// {
+// 	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
+// 	unsigned int idy = threadIdx.y + blockIdx.y*blockDim.y;
 
-}
+// 	if ( idx < num_cols && idy < num_rows )
+// 	{	
+// 		for ( int j = 0 ; j < num_cols ; ++j )
+// 			addAt( idx, idy, value, index, max_row_size, temp_matrix[j + idy*num_cols] * valueAt(j, idx, p_value, p_index, p_max_row_size) );
 
 
-// A_coarse = R * A_fine * P
-// TODO: not optimized yet
-__host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> max_row_size, 
-					vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, 
-					vector<double*> p_value, vector<size_t*> p_index, vector<size_t> p_max_row_size, 
-					double* temp_matrix,
-					vector<size_t> num_rows, 
-					size_t lev)
-{
+// 	}
+
+// }
+
+
+// // A_coarse = R * A_fine * P
+// // TODO: not optimized yet
+// __host__ void RAP(	vector<double*> value, vector<size_t*> index, vector<size_t> max_row_size, 
+// 					vector<double*> r_value, vector<size_t*> r_index, vector<size_t> r_max_row_size, 
+// 					vector<double*> p_value, vector<size_t*> p_index, vector<size_t> p_max_row_size, 
+// 					double* temp_matrix,
+// 					vector<size_t> num_rows, 
+// 					size_t lev)
+// {
 	
 	
-	// dim3 gridDim(2,2,1);
-    // dim3 blockDim(32,32,1);
-	dim3 gridDim;
-    dim3 blockDim;
-	calculateDimensions2D( num_rows[lev], num_rows[lev], gridDim, blockDim);
+// 	// dim3 gridDim(2,2,1);
+//     // dim3 blockDim(32,32,1);
+// 	dim3 gridDim;
+//     dim3 blockDim;
+// 	calculateDimensions2D( num_rows[lev], num_rows[lev], gridDim, blockDim);
 	
 
-	// temp_matrix = R * A_fine
-	RA<<<gridDim,blockDim>>>(r_value[lev-1], r_index[lev-1], r_max_row_size[lev-1], value[lev], index[lev], max_row_size[lev], temp_matrix, num_rows[lev-1], num_rows[lev]);
-	cudaDeviceSynchronize();
+// 	// temp_matrix = R * A_fine
+// 	RA<<<gridDim,blockDim>>>(r_value[lev-1], r_index[lev-1], r_max_row_size[lev-1], value[lev], index[lev], max_row_size[lev], temp_matrix, num_rows[lev-1], num_rows[lev]);
+// 	cudaDeviceSynchronize();
 
-	// calculateDimensions2D( num_rows[0] * num_rows[0], gridDim, blockDim);
-	AP<<<gridDim,blockDim>>>( value[lev-1], index[lev-1], max_row_size[lev-1], p_value[lev-1], p_index[lev-1], p_max_row_size[lev-1], temp_matrix, num_rows[lev-1], num_rows[lev]);
-	cudaDeviceSynchronize();
+// 	// calculateDimensions2D( num_rows[0] * num_rows[0], gridDim, blockDim);
+// 	AP<<<gridDim,blockDim>>>( value[lev-1], index[lev-1], max_row_size[lev-1], p_value[lev-1], p_index[lev-1], p_max_row_size[lev-1], temp_matrix, num_rows[lev-1], num_rows[lev]);
+// 	cudaDeviceSynchronize();
 	
-}
+// }
 
-// TODO: CHECK:
-// returns value at (row, col) of matrix multiplication A*B
-__device__ double matMul(size_t row, size_t col, 
-						 double* A_value, size_t* A_index, size_t A_max_row_size, size_t A_num_rows,
-						 double* B_value, size_t* B_index, size_t B_max_row_size, size_t b_num_rows	)
-{
-	__shared__ double value;
+// // TODO: CHECK:
+// // returns value at (row, col) of matrix multiplication A*B
+// __device__ double matMul(size_t row, size_t col, 
+// 						 double* A_value, size_t* A_index, size_t A_max_row_size, size_t A_num_rows,
+// 						 double* B_value, size_t* B_index, size_t B_max_row_size, size_t b_num_rows	)
+// {
+// 	__shared__ double value;
 
-	value = 0;
+// 	value = 0;
 
-	for(int i = 0 ; i < A_max_row_size ; i++ )
-	{
-		value += valueAt(row, A_index[i+A_max_row_size*row], A_value, A_index, A_max_row_size) * valueAt(A_index[i+A_max_row_size*row], col, B_value, B_index, B_max_row_size);
+// 	for(int i = 0 ; i < A_max_row_size ; i++ )
+// 	{
+// 		value += valueAt(row, A_index[i+A_max_row_size*row], A_value, A_index, A_max_row_size) * valueAt(A_index[i+A_max_row_size*row], col, B_value, B_index, B_max_row_size);
 
-		// printf("%f %f\n ", valueAt(row, A_index[i], A_value, A_index, A_max_row_size), valueAt(A_index[i], col, B_value, B_index, B_max_row_size)  );
-			// printf("%f\n ", valueAt(B_index[i], col, B_value, B_index, B_max_row_size) );
-	}
+// 		// printf("%f %f\n ", valueAt(row, A_index[i], A_value, A_index, A_max_row_size), valueAt(A_index[i], col, B_value, B_index, B_max_row_size)  );
+// 			// printf("%f\n ", valueAt(B_index[i], col, B_value, B_index, B_max_row_size) );
+// 	}
 
-	// printf("%f\n ", value );
-	return value;
-
-
-}
+// 	// printf("%f\n ", value );
+// 	return value;
 
 
-// A_coarse = R * A_fine * P
-__global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t num_rows,
-						double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, 
-						double* r_value, size_t* r_index, size_t r_max_row_size, 
-						double* p_value, size_t* p_index, size_t p_max_row_size, 
-						size_t lev)
-{
+// }
 
-		// NOTE: shared
-		unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
-		unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
+
+// // A_coarse = R * A_fine * P
+// __global__ void RAP_(	double* value, size_t* index, size_t max_row_size, size_t num_rows,
+// 						double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_, 
+// 						double* r_value, size_t* r_index, size_t r_max_row_size, 
+// 						double* p_value, size_t* p_index, size_t p_max_row_size, 
+// 						size_t lev)
+// {
+
+// 		// NOTE: shared
+// 		unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
+// 		unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
 		
-		__shared__ double RAP[32][32];
-		RAP[threadIdx.x][threadIdx.y] = 0;
+// 		__shared__ double RAP[32][32];
+// 		RAP[threadIdx.x][threadIdx.y] = 0;
 	
-		if ( row < num_rows_ && col < num_rows_ )
-		{
-			for ( int i = 0 ; i < r_max_row_size ; i++ )
-				RAP[threadIdx.x][threadIdx.y] += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
-			setAt( col, row, value_, index_, max_row_size_, RAP[threadIdx.x][threadIdx.y] );
-		}
+// 		if ( row < num_rows_ && col < num_rows_ )
+// 		{
+// 			for ( int i = 0 ; i < r_max_row_size ; i++ )
+// 				RAP[threadIdx.x][threadIdx.y] += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
+// 			setAt( col, row, value_, index_, max_row_size_, RAP[threadIdx.x][threadIdx.y] );
+// 		}
 
 
-		// NOTE: non-shared
-		// double RAP = 0;
+// 		// NOTE: non-shared
+// 		// double RAP = 0;
 
-		// unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
-		// unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
+// 		// unsigned int col = threadIdx.x + blockIdx.x*blockDim.x;
+// 		// unsigned int row = threadIdx.y + blockIdx.y*blockDim.y;
 		
 
-		// if ( row < num_rows_ && col < num_rows_ )
-		// {
-		// 	for ( int i = 0 ; i < r_max_row_size ; i++ )
-		// 		RAP += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
-		// 	setAt( col, row, value_, index_, max_row_size_, RAP );
-		// }
+// 		// if ( row < num_rows_ && col < num_rows_ )
+// 		// {
+// 		// 	for ( int i = 0 ; i < r_max_row_size ; i++ )
+// 		// 		RAP += matMul(row, r_index[i + col*r_max_row_size], r_value, r_index, r_max_row_size, num_rows_, value, index, max_row_size, num_rows ) * valueAt(r_index[i+col*r_max_row_size], col, p_value, p_index, p_max_row_size);
+// 		// 	setAt( col, row, value_, index_, max_row_size_, RAP );
+// 		// }
 
-}
+// }
 
 __global__ void checkTDOConvergence(bool* foo, double rho, double* rho_trial)
 {
@@ -2808,7 +3003,6 @@ __global__ void fillIndexVector3D_GPU(size_t* index, size_t Nx, size_t Ny, size_
 	{
 	
 	size_t base_id = (id - id%dim);
-	size_t baseid_2D = (id) % ((Nx + 1)*(Ny + 1)*dim);
 	size_t gridsize_2D = (Nx+1)*(Ny+1)*dim;
 
 	bool prev_layer = (id >= (Nx+1)*(Ny+1)*dim);
@@ -3342,7 +3536,7 @@ __global__ void fillProlMatrix3D_GPU(double* p_value, size_t* p_index, size_t Nx
 		int coarse_node_index = getCoarseNode3D_GPU(node_index, Nx, Ny, Nz);
 
 		size_t numNodes2D = (Nx+1)*(Ny+1);
-		size_t numNodes = (numNodes2D)*(Nz+1);
+
 
 
 		// if node is even numbered

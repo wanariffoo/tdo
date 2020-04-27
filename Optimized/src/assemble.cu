@@ -525,17 +525,19 @@ bool Assembler::init_GPU(
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             ofssbm << "assembleGlobalStiffness_GPU() \t" << milliseconds << endl;
-
-
-        
-        
- 
         
     // apply boundary conditions to the global stiffness matrix
                 cudaEventRecord(start);
-    calculateDimensions( m_num_rows[m_topLev], gridDim_, blockDim_);
-    applyMatrixBC_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev],m_bc_index[m_topLev].size()  );
-
+    if ( m_dim == 2 )
+    {
+        calculateDimensions( m_bc_index[m_topLev].size(), gridDim_, blockDim_);
+        applyMatrixBC2D_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size(), m_N[m_topLev][0], m_N[m_topLev][1], m_dim );
+    }
+    else
+    {
+        calculateDimensions( m_bc_index[m_topLev].size(), gridDim_, blockDim_);
+        applyMatrixBC3D_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size(), m_N[m_topLev][0], m_N[m_topLev][1], m_N[m_topLev][2], m_dim );
+    }
                 cudaEventRecord(stop);
                 cudaEventSynchronize(stop);
                 milliseconds = 0;
@@ -543,6 +545,10 @@ bool Assembler::init_GPU(
                 ofssbm << "applyMatrixBC_GPU() \t\t" << milliseconds << endl;
 
                 
+    // printLinearVector( d_value[1], m_max_row_size[1], m_num_rows[1]);
+    // printELL_GPU_<<<1,1>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_num_rows[m_topLev], m_num_rows[m_topLev]);
+    // cudaDeviceSynchronize();
+
                 
     //// obtaining the coarse stiffness matrices of each lower grid level
     // A_coarse = R * A_fine * P
@@ -566,12 +572,14 @@ bool Assembler::init_GPU(
 
 
             // NOTE:DEBUG:
-            
-            // int i = 7;
-            // printELL_GPU_<<<1,1>>>(d_value[i], d_index[i], m_max_row_size[i], m_num_rows[i], m_num_rows[i]);
-            // cudaDeviceSynchronize();
+                    
+            // int i = 6;
+            // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], m_p_max_row_size[i], m_num_rows[i+1], m_num_rows[i]);
+            // printELL_GPU_<<<1,1>>> (d_p_value[m_topLev-1], d_p_index[m_topLev-1], m_p_max_row_size[m_topLev-1], m_num_rows[m_topLev], m_num_rows[m_topLev-1]);
+            // printVector_GPU<<<1,4>>> ( m_d_bc_index[0], 4 );
+            // printVector_GPU<<<1,6>>> ( m_d_bc_index[m_topLev], 6 );
+            // printLinearVector(d_p_index[m_topLev-1], m_p_max_row_size[m_topLev], m_p_max_row_size[m_topLev-1]);
 
-            // investigate prol matrix, add bc perhaps
 
     return true;
 
@@ -909,7 +917,7 @@ bool Assembler::assembleProlMatrix_GPU(
     
 
     
-    //NOTE:DEBUG:
+    
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
     {
         calculateDimensions(m_num_rows[lev+1], gridDim, blockDim);

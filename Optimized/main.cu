@@ -51,30 +51,30 @@ int main()
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 10;
+    size_t numLevels = 6;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 20;
-    bool gmg_verbose = 0;
+    size_t update_steps = 1;
+    bool gmg_verbose = 1;
     bool pcg_verbose = 0;
-    bool gmg_verbose_ = 1;
+    bool gmg_verbose_ = 0;
     bool pcg_verbose_ = 0;
 
 
-    // CASE 0 : 2D MBB
-    N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
-    double h_coarse = 1;        // local element mesh size on coarsest grid
-    size_t bc_case = 0;
-    double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
+    // // CASE 0 : 2D MBB
+    // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
+    // double h_coarse = 1;        // local element mesh size on coarsest grid
+    // size_t bc_case = 0;
+    // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
-    // // CASE 1 : 3D MBB
-    // N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
-    // double h_coarse = 0.5;      // local element mesh size on coarsest grid
-    // size_t bc_case = 1;
-    // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
+    // CASE 1 : 3D MBB
+    N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
+    double h_coarse = 0.5;      // local element mesh size on coarsest grid
+    size_t bc_case = 1;
+    double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
     
     // applying boundary conditions
@@ -204,11 +204,6 @@ int main()
     CUDA_CALL( cudaMemset(d_u, 0, sizeof(double) * num_rows[numLevels - 1]) );
     CUDA_CALL( cudaMemcpy(d_b, &b[0], sizeof(double) * num_rows[numLevels - 1], cudaMemcpyHostToDevice) );
 
-    // vector<size_t> node_index_ = Assembly.getNodeIndex();
-    // CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * Assembly.getNumElements() * pow(2, dim) ) );
-    // CUDA_CALL( cudaMemcpy(d_node_index_, &node_index_[0], sizeof(double) * Assembly.getNumElements() * pow(2, dim), cudaMemcpyHostToDevice) );
-
-    
 
     /* ##################################################################
     #                           SOLVER                                  #
@@ -240,7 +235,6 @@ int main()
                 ofssbm << endl;
                 ofssbm << "Total solver time\t\t" << milliseconds << endl;
             
-    // cudaDeviceSynchronize();
 
     cout << "Solver   ... DONE" << endl;
 

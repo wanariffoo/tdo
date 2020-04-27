@@ -332,5 +332,9 @@ __global__ void assembleGlobalStiffness_GPU( size_t numElements, size_t dim, dou
 __global__ void calc_g_GPU_(double* sum, double* chi, size_t numElements, double local_volume);
 __host__ void calcP_w_(double* p_w, double* sum_g, double* sum_df_g, double* df, double* chi, size_t numElements, double local_volume);			    
 __global__ void calcSum_df_g_GPU_(double* sum, double* df, double* chi, size_t numElements, double local_volume);
+__global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size);
+__global__ void applyMatrixBC2D_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size, size_t Nx, size_t Ny, size_t dim);
+__global__ void applyMatrixBC3D_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size, size_t Nx, size_t Ny, size_t Nz, size_t dim);
+
 #endif // CUDAKERNELS_H
 
