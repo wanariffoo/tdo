@@ -336,5 +336,8 @@ __global__ void applyMatrixBC_GPU_(double* value, size_t* index, size_t max_row_
 __global__ void applyMatrixBC2D_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size, size_t Nx, size_t Ny, size_t dim);
 __global__ void applyMatrixBC3D_GPU(double* value, size_t* index, size_t max_row_size, size_t* bc_index, size_t num_rows, size_t bc_size, size_t Nx, size_t Ny, size_t Nz, size_t dim);
 
+__global__ void calcCompliance(double* sum, double* u, double* chi, size_t* node_index, double* d_A_local, double local_volume, size_t num_rows, size_t dim, size_t numElements);
+__global__ void calcMOD(double* sum, double* chi, double local_volume, size_t numElements);
+__global__ void setToOne(double* a);
 #endif // CUDAKERNELS_H
 

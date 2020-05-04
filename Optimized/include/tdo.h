@@ -13,10 +13,12 @@ class TDO{
 public:
     TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p, size_t* &d_node_index_);
     bool init();
-    bool innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm);
+    bool innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, ofstream& ofssbm);
     void set_verbose(bool verbose);
     void print_VTK(bool foo=false);
-    
+    void setBM(bool x);
+    int getCounter();
+    float getSum();
 
 private:
 
@@ -101,6 +103,9 @@ private:
     double* m_d_sum_df_g;
     double* m_d_sum_g;
 
+    bool bm_switch;
+    float m_sum_it = 0;
+    int m_counter = 0;
 
     
 

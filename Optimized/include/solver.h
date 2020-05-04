@@ -49,6 +49,9 @@ public:
     // DEBUG:
     void set_steps(size_t step, size_t bs_step);
 
+    float getCounter();
+    void setBM(bool x);
+
 
 private:
 
@@ -164,8 +167,10 @@ private:
     // DEBUG:
     size_t m_step;
     size_t m_bs_step;
-
-        
+    size_t m_counter_it;
+    float m_sum_it;
+    
+    bool bm_switch;
 
 };
 

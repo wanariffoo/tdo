@@ -194,6 +194,13 @@ void setToZero(double* a, size_t num_rows)
 		a[id] = 0.0;
 }
 
+// a = 1
+__global__
+void setToOne(double* a)
+{
+		*a = 1;
+}
+
 // norm = x.norm()
 __global__ 
 void norm_GPU(double* norm, double* x, size_t num_rows)
@@ -291,8 +298,6 @@ void sumOfSquare_GPU(double* sum, double* x, size_t n)
 			atomicAdd(sum, cache[0]);
 		#endif
 	}
-
-
 }
 
 
@@ -1630,6 +1635,7 @@ __global__
 void checkIterationConditions(bool* foo, size_t* step, double* res, double* res0, double* m_minRes, double* m_minRed, size_t m_maxIter)
 {
 	if ( *res > *m_minRes && *res > *m_minRed*(*res0) && (*step) <= m_maxIter )
+	// if ( *res > *m_minRes && (*step) <= m_maxIter )
 	{
 		// printf("%lu : %e (%e), %e (%e)\n", (*step), *res, *m_minRes, (*res)/(*res0), *m_minRed);
 		*foo = true;
@@ -2115,7 +2121,7 @@ void calcDrivingForce(
 
 }
 
-// x[] = u[]^T * A * u[]
+// x[] = 0.5 * p * pow(chi[], p-1) / local_volume * u[]^T * A * u[]
 __global__
 void calcDrivingForce(double *x, double *u, double* chi, double p, size_t* node_index, double* d_A_local, size_t num_rows, size_t dim, double local_volume, size_t numElements)
 {
@@ -4338,23 +4344,23 @@ __global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t n
 	double* value_, size_t* index_, size_t max_row_size_, size_t num_rows_,
 	double* p_value, size_t* p_index, size_t p_max_row_size)
 {
-	int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int k = blockDim.x * blockIdx.x + threadIdx.x;
 
-	if( id < num_rows )
+	if( k < num_rows )
 	{
 		for ( int i_ = 0 ; i_ < p_max_row_size ; i_++ )
 		{
-			size_t i = p_index[id + i_*num_rows];
-			double P_ki = p_value[id + i_*num_rows];
+			size_t i = p_index[k + i_*num_rows];
+			double P_ki = p_value[k + i_*num_rows];
 
 			for( int l_ = 0 ; l_ < max_row_size ; l_++  )
 			{
-				size_t l = index[id + l_*num_rows];
-				double A_kl = value[id + l_*num_rows];
+				size_t l = index[k + l_*num_rows];
+				double A_kl = value[k + l_*num_rows];
 				double P_ki_A_kl = P_ki * A_kl;
 
-				// size_t l = index[id + l_*num_rows];
-				// double P_ki_A_kl = P_ki * value[id + l_*num_rows];
+				// size_t l = index[k + l_*num_rows];
+				// double P_ki_A_kl = P_ki * value[k + l_*num_rows];
 
 				for( int j_ = 0 ; j_ < p_max_row_size ; j_++ )
 				{
@@ -4373,4 +4379,117 @@ __global__ void PTAP(double* value, size_t* index, size_t max_row_size, size_t n
 			}
 		}
 	}
+}
+
+// calculation of compliance, c = 0.5 * sum( u^T * K * u )
+// c is labelled as sum
+__global__ 
+void calcCompliance(double* sum, double* u, double* chi, size_t* node_index, double* d_A_local, double local_volume, size_t num_rows, size_t dim, size_t numElements)
+{
+	int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+
+	if ( id < numElements)
+	{
+		double uTKu = 0;
+		double temp[24];
+		size_t numNodesPerElement = pow(2,dim);
+		
+		uTKu = 0;
+		for ( int n = 0; n < num_rows; n++ )
+		{
+			temp[n]=0;
+			for ( int m = 0; m < num_rows; m++)
+			{
+				// converts local node to global node
+				int global_col = ( node_index [ (m / dim) + id*numNodesPerElement ] * dim ) + ( m % dim ); 
+				temp[n] += u[global_col] * d_A_local[ n + m*num_rows ];
+			}
+			
+			// if (id==0) printf("%f\n", temp[n]);
+		}
+		
+		for ( int n = 0; n < num_rows; n++ )
+		{
+			int global_col = ( node_index [ (n / dim) + id*numNodesPerElement ] * dim ) + ( n % dim );
+			uTKu += temp[n] * u[global_col];
+		}
+		
+		__syncthreads();
+		// topology distribution
+		uTKu *= 0.5 * pow(chi[id],3);
+		
+		// reduction
+		__shared__ double cache[1024];
+		cache[threadIdx.x] = uTKu;
+				
+		__syncthreads();
+		
+		// reduction
+		unsigned int i = blockDim.x/2;
+		while(i != 0){
+			if(threadIdx.x < i){
+				cache[threadIdx.x] += cache[threadIdx.x + i];
+			}
+			__syncthreads();
+			i /= 2;
+		}
+
+		// reduce sum from all blocks' cache
+		if(threadIdx.x == 0)
+		{
+			#if __CUDA_ARCH__ < 600
+				atomicAdd_double(sum, cache[0]);
+			#else
+				atomicAdd(sum, cache[0]);
+			#endif		
+		}
+
+	
+	}
+		
+}
+
+
+__global__ 
+void calcMOD(double* sum, double* chi, double local_volume, size_t numElements)
+{
+    int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int stride = blockDim.x*gridDim.x;
+    
+	__shared__ double cache[1024];
+    cache[threadIdx.x] = 0;
+	
+
+	double temp = 0.0;
+	while(id < numElements)
+	{
+		temp += chi[id] * (1-chi[id]) * local_volume * 4 / ( local_volume * numElements );
+		id += stride;
+	}
+	
+    cache[threadIdx.x] = temp;
+    
+	__syncthreads();
+	
+	// reduction
+	unsigned int i = blockDim.x/2;
+	while(i != 0){
+		if(threadIdx.x < i){
+			cache[threadIdx.x] += cache[threadIdx.x + i];
+		}
+		__syncthreads();
+		i /= 2;
+	}
+
+	// reduce sum from all blocks' cache
+	if(threadIdx.x == 0)
+	{
+		#if __CUDA_ARCH__ < 600
+			atomicAdd_double(sum, cache[0]);
+		#else
+			atomicAdd(sum, cache[0]);
+		#endif		
+	}
+		
 }

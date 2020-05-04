@@ -9,6 +9,7 @@
 #include "include/solver.h"
 #include "include/tdo.h"
 #include "include/vtk.h"
+#include <iomanip>
 #include <ctime>
 
 using namespace std;
@@ -47,34 +48,35 @@ int main()
     bool writeToVTK = true;
 
     // material properties
-    double youngMod = 200000;
+    double youngMod = 210000;
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 6;
+    size_t numLevels = 11;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 1;
-    bool gmg_verbose = 1;
+    size_t update_steps = 200;
+    double c_tol = 1e-4;
+    bool gmg_verbose = 0;
     bool pcg_verbose = 0;
-    bool gmg_verbose_ = 0;
+    bool gmg_verbose_ = 1;
     bool pcg_verbose_ = 0;
 
 
-    // // CASE 0 : 2D MBB
-    // N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
-    // double h_coarse = 1;        // local element mesh size on coarsest grid
-    // size_t bc_case = 0;
-    // double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
+    // CASE 0 : 2D MBB
+    N = {3,1};                  // domain dimension (x,y,z) on coarsest grid
+    double h_coarse = 1;        // local element mesh size on coarsest grid
+    size_t bc_case = 0;
+    double damp = 2.0/3.0;      // smoother (jacobi damping parameter)
 
 
-    // CASE 1 : 3D MBB
-    N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
-    double h_coarse = 0.5;      // local element mesh size on coarsest grid
-    size_t bc_case = 1;
-    double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
+    // // CASE 1 : 3D MBB
+    // N = {6,2,1};                // domain dimension (x,y,z) on coarsest grid
+    // double h_coarse = 0.5;      // local element mesh size on coarsest grid
+    // size_t bc_case = 1;
+    // double damp = 1.0/3.0;      // smoother (jacobi damping parameter)
 
     
     // applying boundary conditions
@@ -209,10 +211,17 @@ int main()
     #                           SOLVER                                  #
     ###################################################################*/
 
+    // double* d_norm;
+    // double* d_aps;
+    // CUDA_CALL( cudaMalloc((void**)&d_norm, sizeof(double) ) );
+    // CUDA_CALL( cudaMalloc((void**)&d_aps, sizeof(double) * num_rows[numLevels - 1] ) );
+    // CUDA_CALL( cudaMemset(d_aps, 0, sizeof(double) * num_rows[numLevels - 1]) );
+
+
     Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
     
     
-    GMG.set_convergence_params(10000, 1e-99, 1e-12);
+    GMG.set_convergence_params(1500000, 1e-15, 1e-11);
     GMG.set_bs_convergence_params(1000, 1e-15, 1e-7);
     
 
@@ -221,7 +230,7 @@ int main()
 
     GMG.init();
     GMG.set_verbose(gmg_verbose,pcg_verbose);
-    GMG.set_num_prepostsmooth(3,3);
+    GMG.set_num_prepostsmooth(5,5);
     GMG.set_cycle('V');
             
                 ofssbm << endl;
@@ -239,7 +248,13 @@ int main()
     cout << "Solver   ... DONE" << endl;
 
 
-    
+
+
+
+
+
+
+
 
 
 
@@ -248,6 +263,15 @@ int main()
     #                         DENSITY UPDATE                            #
     ###################################################################*/
 
+    // structure compliance
+    double c = 0;
+    double last_c = 0;
+    double MOD;
+    double* d_c;
+    double* d_MOD;
+    CUDA_CALL( cudaMalloc((void**)&d_c, sizeof(double) ) );
+    CUDA_CALL( cudaMalloc((void**)&d_MOD, sizeof(double) ) );
+
 
     TDO tdo(d_u, d_chi, h, dim, betastar, etastar, Assembly.getNumElements(), local_num_rows, d_A_local, d_node_index, Assembly.getGridSize(), rho, numLevels, p, d_node_index_);
     tdo.init();
@@ -255,20 +279,19 @@ int main()
                 ofssbm << endl;
                 ofssbm << "DENSITY UPDATE" << endl;
                 cudaEventRecord(start);
-    tdo.innerloop(d_u, d_chi, ofssbm);    // get updated d_chi
+    tdo.innerloop(d_u, d_chi, d_c, d_MOD, ofssbm);    // get updated d_chi
                 cudaEventRecord(stop);
                 cudaEventSynchronize(stop);
                 milliseconds = 0;
                 cudaEventElapsedTime(&milliseconds, start, stop);
                 ofssbm << endl;
                 ofssbm << "Total density update time\t" << milliseconds << endl;
-
-                // int i = 6;
-                // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], p_max_row_size[i], num_rows[i+1], num_rows[i]);
-                // cudaDeviceSynchronize();
-
     tdo.print_VTK(0);
-
+    last_c = c;
+    CUDA_CALL( cudaMemcpy(&c, d_c, sizeof(double), cudaMemcpyDeviceToHost) );
+    CUDA_CALL( cudaMemcpy(&MOD, d_MOD, sizeof(double), cudaMemcpyDeviceToHost) );
+    // cout << MOD << endl;
+    
 
 
 
@@ -299,27 +322,100 @@ int main()
         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
     }
 
-
+    
     size_t iterations = 1;
+    float sum_a = 0;  // sum of assembly time
+    float sum_s = 0;  // sum of solver time
+    float sum_du = 0; // sum of density update time
+    float c_rel = abs( c - last_c) / c;
+    float init_E = c * pow(rho,p) * youngMod;
+    
+    ofssbm << endl;
+    ofssbm << "   Assembly		Solver				    Density update\t\tCompliance\tStiffness\tMOD\t\tElapsed Time" << endl;
+    ofssbm << "   (total)         (total, average, no_iter)    (total, total_bi, no_iter, avg_bi)" << endl;
 
-    for ( int i = 1 ; i < update_steps ; ++i )
+
+    cudaEventRecord(stop_);
+    cudaEventSynchronize(stop_);
+    milliseconds_ = 0;
+    cudaEventElapsedTime(&milliseconds_, start_, stop_);
+    float elapsed_time = milliseconds_;
+
+
+
+    // for ( int i = 1 ; i < (update_steps) && ( c_rel > c_tol ); ++i )
+    for ( int i = 1 ; i < (update_steps); ++i )
     {
+        cudaEventRecord(start_);
+        ofssbm << setw(4) << left << iterations;
         // update the global stiffness matrix with the updated density distribution
+        cudaEventRecord(start);
         Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        ofssbm << setw(16) << left << milliseconds;
+        sum_a += milliseconds;
+
 
         cout << "Calculating iteration " << i << " ... " << endl;
         // cudaDeviceSynchronize();
+        cudaEventRecord(start);
         GMG.reinit();
-        GMG.set_convergence_params(10000, 1e-99, 1e-10);
+        GMG.setBM(true);
+        GMG.set_convergence_params(1500000, 1e-99, 1e-10);
         GMG.set_bs_convergence_params(1000, 1e-99, 1e-13);
         GMG.set_verbose(gmg_verbose_, pcg_verbose_);
         GMG.solve(d_u, d_b, d_value, ofssbm);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        ofssbm << setw(7) << left << milliseconds << ", " << setw(7) << left << milliseconds/GMG.getCounter() << ", " << GMG.getCounter() << "\t";
+        sum_s += milliseconds;
+
+        cout << "Solver done ... " << endl;
+        cudaEventRecord(start);
+        tdo.setBM(true);
+        tdo.innerloop(d_u, d_chi, d_c, d_MOD, ofssbm);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        ofssbm << setw(7) << left << milliseconds << ", " << setw(7) << left << tdo.getSum() << ", " << tdo.getCounter() << ", " << tdo.getSum()/tdo.getCounter();
+        sum_du += milliseconds;
         
-        cout << "Solver done ... ";
+            
+        // // DEBUG:
+
+        // dim3 gDim;
+        // dim3 bDim;
+        // calculateDimensions(num_rows[numLevels-1], gDim, bDim);
+            
+        // /// r = A*x
+        // Apply_GPU_<<< gDim, bDim >>> ( num_rows[numLevels-1], max_row_size[numLevels-1], d_value[numLevels-1], d_index[numLevels-1], d_u, d_aps );
         
-        // tdo.set_verbose(1);
-        tdo.innerloop(d_u, d_chi, ofssbm);
+        // norm_GPU( d_norm, d_aps, num_rows[numLevels-1], gDim, bDim);
+        // cudaDeviceSynchronize();
+        // print_GPU<<<1,1>>>( d_norm );
+        // cudaDeviceSynchronize();
+
+
+
+        // convergence check with compliance
+        last_c = c;
+        CUDA_CALL( cudaMemcpy(&c, d_c, sizeof(double), cudaMemcpyDeviceToHost) );
+        c_rel = abs( c - last_c ) / c;
+        ofssbm << "\t\t" << c;
+
+        // structural stiffness, E = 1 / c * E_init
+        ofssbm << "\t" << init_E / c;
         
+        // computing MOD
+        CUDA_CALL( cudaMemcpy(&MOD, d_MOD, sizeof(double), cudaMemcpyDeviceToHost) );
+        ofssbm << "\t\t" << setw(8) << left << MOD;
+
         cout << "Density update done ... " << endl;
 
         if ( writeToVTK )
@@ -338,16 +434,41 @@ int main()
 
         }        
 
+        cudaEventRecord(stop_);
+        cudaEventSynchronize(stop_);
+        milliseconds_ = 0;
+        cudaEventElapsedTime(&milliseconds_, start_, stop_);
+        elapsed_time += milliseconds_;
+        ofssbm << "\t" << elapsed_time << endl;
+
+
         iterations++;
+
+
+        
+
+        // dim3 gDim;
+        // dim3 bDim;
+        // calculateDimensions(num_rows[numLevels-1], gDim, bDim);
+        // dotProduct(dot, d_u, d_b, num_rows[numLevels-1], gDim, bDim);
+        // cudaDeviceSynchronize();
+        // print_GPU<<<1,1>>>(dot);
+        // printVector_GPU<<<1,1>>>(dot);
+        
     }
 
-    cudaEventRecord(stop_);
-    cudaEventSynchronize(stop_);
-    milliseconds_ = 0;
-    cudaEventElapsedTime(&milliseconds_, start_, stop_);
+    // cudaEventRecord(stop_);
+    // cudaEventSynchronize(stop_);
+    // milliseconds_ = 0;
+    // cudaEventElapsedTime(&milliseconds_, start_, stop_);
     ofssbm << endl;
-    ofssbm << "Number of iterations\t\t" << iterations << endl;
-    ofssbm << "TOTAL RUNTIME\t\t\t" << milliseconds_ << endl;
+    ofssbm << "Average assembly time\t\t" << sum_a / (iterations - 1) << endl;
+    ofssbm << "Average solver time\t\t" << sum_s / (iterations - 1) << endl;
+    ofssbm << "Average density update time\t" << sum_du / (iterations - 1)  << endl;
+    ofssbm << endl;
+    ofssbm << "Number of TDO iterations\t" << (iterations - 1) << endl;
+    ofssbm << "Time per TDO step \t\t" << elapsed_time/(iterations - 1) << endl;
+    ofssbm << "TOTAL RUNTIME\t\t\t" << elapsed_time << endl;
    
     cudaDeviceSynchronize();
     

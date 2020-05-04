@@ -193,7 +193,9 @@ void WriteVectorToVTK_laplacian(vector<double> &laplacian, vector<double> &u, co
 }
 
 
-
+void TDO::setBM(bool x){ bm_switch = x; }
+int TDO::getCounter(){ return m_counter; }
+float TDO::getSum(){ return m_sum_it; }
 
 
 TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, double etastar, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p, size_t* &d_node_index_)
@@ -214,7 +216,7 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
     
     // local volume
     m_local_volume = pow(m_h, m_dim); 
-    
+    bm_switch = 0;
     
 }
 
@@ -265,7 +267,7 @@ bool TDO::init()
 void TDO::set_verbose(bool verbose) { m_verbose = verbose; }
 void TDO::print_VTK(bool foo) { m_printVTK = foo; }
 
-bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
+bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, ofstream& ofssbm)
 {
     // benchmark output
     // ofstream ofssbm(filename, ios::out);
@@ -274,22 +276,31 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
     cudaEventCreate(&stop);
     float milliseconds;
     static int inner_counter = 0;
+
+    // per iteration
+    cudaEvent_t start_it, stop_it;
+    cudaEventCreate(&start_it);
+    cudaEventCreate(&stop_it);
+    float milliseconds_it;
     
     m_d_u = d_u;
     m_d_chi = d_chi;
     m_tdo_foo = true;
     setToTrue<<<1,1>>>( m_d_tdo_foo );
+    setToZero<<<1,1>>>( m_d_p_w, 1 );
     setToZero<<<1,1>>>( m_d_sum_g, 1 );
     setToZero<<<1,1>>>( m_d_sum_df_g, 1 );
+    setToZero<<<1,1>>>( m_d_df, m_numElements );
     
     
-
+    cout << "while loop" << endl;
     //// for loop
     for ( int j = 0 ; j < m_n ; j++ )
     {
 
         // calculating the driving force of each element
         // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
+        // cout << "calcDrivingForce" << endl;
             cudaEventRecord(start);
                 calcDrivingForce<<<m_gridDim, m_blockDim>>>(m_d_df, m_d_u, m_d_chi, m_p, m_d_node_index_, m_d_A_local, m_num_rows, m_dim, m_local_volume, m_numElements);
             cudaEventRecord(stop);
@@ -297,10 +308,11 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcDrivingForce()\t\t" << milliseconds << endl;
-                            
+
             
 
         // calculating average weighted driving force, p_w
+        // cout << "calcP_w_" << endl;
             cudaEventRecord(start);
         calcP_w_(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_numElements, m_local_volume);
             cudaEventRecord(stop);
@@ -308,10 +320,10 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcP_w()\t\t\t" << milliseconds << endl;
-            
+        
             // printVector_GPU<<<m_gridDim, m_blockDim>>>( m_d_temp, m_numElements);
 
-
+        // cout << "calcEtaBeta" << endl;
         // calculating eta and beta
             cudaEventRecord(start);
         calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
@@ -323,7 +335,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
 
 
         // bisection algo: 
-
+        // cout << "calcLambdaLower" << endl;
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
             cudaEventRecord(start);
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
@@ -332,7 +344,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcLambdaLower()\t\t" << milliseconds << endl;
+        
             
+        // cout << "calcLambdaUpper" << endl;
             cudaEventRecord(start);
         calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
             cudaEventRecord(stop);
@@ -340,13 +354,18 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcLambdaLower()\t\t" << milliseconds << endl;        
+        
 
         minus_GPU<<<1,1>>>( m_d_lambda_l, m_d_eta);
         add_GPU<<<1,1>>>( m_d_lambda_u, m_d_eta);
+        
 
-        int counter = 0;
+        m_sum_it = 0;
+        m_counter = 0;
+        cout << "bisection while loop" << endl;
         while(m_tdo_foo)
         {
+            cudaEventRecord(start_it);
             // computing chi_trial
                 cudaEventRecord(start);
             calcChiTrial<<<m_gridDim,m_blockDim>>> ( m_d_chi, m_d_df, m_d_lambda_tr, m_del_t, m_d_eta, m_d_beta, m_d_chi_tr, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
@@ -383,13 +402,33 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, ofstream& ofssbm)
 
             // cout << "m_tdo_foo = " << m_tdo_foo << endl;
             // cout << "counter " << ++counter << endl;
+            cudaEventRecord(stop_it);
+            cudaEventSynchronize(stop_it);
+            milliseconds = 0;
+            cudaEventElapsedTime(&milliseconds_it, start_it, stop_it);
+            m_sum_it += milliseconds_it;
             inner_counter++;
-            
+            m_counter++;
         }
         
+
+        // computing compliance, c = 0.5 * sum( u^T * K * u )
+        setToZero<<<1,1>>> ( d_c, 1 );
+        calcCompliance<<< m_gridDim, m_blockDim >>> (d_c, m_d_u, d_chi, m_d_node_index_, m_d_A_local, m_local_volume, m_num_rows, m_dim, m_numElements);
+        
+        // computing MOD
+        setToZero<<<1,1>>> ( d_MOD, 1 );
+        calcMOD<<< m_gridDim, m_blockDim >>> (d_MOD, d_chi, m_local_volume, m_numElements);
+        
+        
+        if ( bm_switch == 0) ofssbm << "Total time of bisection algo \t" << m_sum_it << endl;
+        if ( bm_switch == 0) ofssbm << "Number of steps \t\t" << inner_counter << endl;
+        if ( bm_switch == 0) ofssbm << "Average time per bisection step " << m_sum_it/inner_counter << endl;
+
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
-       
+        
+        
     }
 
 

@@ -10,7 +10,7 @@ Solver::Solver( vector<double*> d_value, vector<size_t*> d_index, vector<size_t>
                 size_t numLevels, vector<size_t> num_rows, double damp)
 : m_d_value(d_value), m_d_index(d_index), m_max_row_size(max_row_size), m_d_p_value(d_p_value), m_d_p_index(d_p_index), m_p_max_row_size(p_max_row_size), m_d_r_value(d_r_value), m_d_r_index(d_r_index), m_r_max_row_size(r_max_row_size), m_numLevels(numLevels), m_num_rows(num_rows), m_damp(damp) 
 {
-    
+    bm_switch = 0;
     
 }
 
@@ -53,6 +53,9 @@ void Solver::set_bs_convergence_params( size_t maxIter, double minRes, double mi
 	m_bs_minRes = minRes;
 	m_bs_minRed = minRed;
 }
+
+void Solver::setBM(bool x) { bm_switch = x; }
+float Solver::getCounter(){ return m_counter_it; }
 
 
 
@@ -297,18 +300,16 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
     setToZero<<<1,m_num_rows[0]>>>(m_d_bs_p, m_num_rows[0]);
     setToZero<<<1,m_num_rows[0]>>>(m_d_bs_z, m_num_rows[0]);
     setToZero<<<1,1>>>(m_d_bs_rho, 1);
-    setToZero<<<1,1>>>(m_d_bs_rho_old, 1);
+    setToOne<<<1,1>>>(m_d_bs_rho_old);
     setToZero<<<1,1>>>(m_d_bs_alpha, 1);
     setToZero<<<1,1>>>(m_d_bs_alpha_temp, 1);
-    setToZero<<<1,1>>>(m_d_bs_res, 1);
+    setToZero<<<1,1>>>(m_d_bs_res, 1);  
     setToZero<<<1,1>>>(m_d_bs_res0, 1);
     setToZero<<<1,1>>>(m_d_bs_lastRes, 1);
     setToZero<<<1,1>>>(m_d_bs_step, 1);
     setToTrue<<<1,1>>>(m_d_bs_foo);
     m_bs_foo = true;
-    
-
-            
+               
     
             
     // m_d_bs_r = d_bs_b - A*d_bs_u
@@ -320,9 +321,9 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( base_counter == 0 ) ofssbm << "   Base: ComputeResiduum_GPU()\t" << milliseconds << endl;
 
-    // norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
             cudaEventRecord(start);
-    norm_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_res, m_d_bs_r, m_num_rows[0]);
+            norm_GPU(m_d_bs_res, m_d_bs_r, m_num_rows[0], m_gridDim[0], m_blockDim[0]);
+    // norm_GPU<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_res, m_d_bs_r, m_num_rows[0]);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             milliseconds = 0;
@@ -341,7 +342,8 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
 	
  
     // check iteration conditions before the iteration loop
-    checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_bs_maxIter);
+    checkIterationConditionsBS<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_bs_maxIter, m_d_bs_res, m_d_minRes);
+    // checkIterationConditions<<<1,1>>>(m_d_bs_foo, m_d_bs_step, m_d_bs_res, m_d_bs_res0, m_d_minRes, m_d_minRed, m_bs_maxIter);
     CUDA_CALL( cudaMemcpy( &m_bs_foo, m_d_bs_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
         
     if (!m_bs_foo) return true;
@@ -355,8 +357,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
 
         while(m_bs_foo || bs_step < m_bs_maxIter)
         {
-
-            // precond
+            // precond, z = r B
                 cudaEventRecord(start);
             Jacobi_Precond_GPU_<<<m_gridDim[0], m_blockDim[0]>>>(m_d_bs_z, m_d_value[0], m_d_index[0], m_max_row_size[0], m_d_bs_r, m_num_rows[0], m_damp);
                 cudaEventRecord(stop);
@@ -379,6 +380,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
 
 
             // calculate p
+            // p = z + p * beta;
                 cudaEventRecord(start);
             calculateDirectionVector<<<m_gridDim[0],m_blockDim[0]>>>(m_d_bs_step, m_d_bs_p, m_d_bs_z, m_d_bs_rho, m_d_bs_rho_old, m_num_rows[0]);
                 cudaEventRecord(stop);
@@ -426,7 +428,7 @@ bool Solver::base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm)
                 cudaEventElapsedTime(&milliseconds, start, stop);
                 if ( base_counter == 0 ) ofssbm << "   Base: axpy_neg_GPU()\t\t" << milliseconds << endl;
 
-            // compute residuum
+            
             // lastRes = res;
             equals_GPU<<<1,1>>>(m_d_bs_lastRes, m_d_bs_res);
 
@@ -622,6 +624,7 @@ bool Solver::smoother(double* d_c, double* d_r, int lev)
 
 bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& ofssbm)
 {
+    
     // benchmark output
     // ofstream ofssbm(filename, ios::out);
     cudaEvent_t start, stop;
@@ -629,6 +632,13 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& 
     cudaEventCreate(&stop);
     float milliseconds;
     static int bm_counter = 0;
+    
+
+    // per iteration
+    cudaEvent_t start_it, stop_it;
+    cudaEventCreate(&start_it);
+    cudaEventCreate(&stop_it);
+    float milliseconds_it;
     
     
     // initialization
@@ -670,11 +680,12 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& 
 
     addStep<<<1,1>>>(m_d_step);
 
-    
-
+    m_sum_it = 0;
+    m_counter_it = 0;
     // iteration loop
     while(m_foo)
     {
+        cudaEventRecord(start_it);
         // GMG-preconditioner
         precond(m_d_c, m_d_r, ofssbm);
         
@@ -718,9 +729,18 @@ bool Solver::solve(double* d_u, double* d_b, vector<double*> d_value, ofstream& 
         CUDA_CALL( cudaMemcpy( &m_foo, m_d_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
         addStep<<<1,1>>>(m_d_step);
         bm_counter++;
+        cudaEventRecord(stop_it);
+        cudaEventSynchronize(stop_it);
+        milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds_it, start_it, stop_it);
+        m_sum_it += milliseconds_it;
+        m_counter_it++;
     
     }
 
+    
+    if ( bm_switch == 0 ) ofssbm << "Number of steps \t\t" << m_counter_it << endl;
+    if ( bm_switch == 0 ) ofssbm << "Average time per iteration step " << m_sum_it/m_counter_it << endl;
 
 
     return true;
