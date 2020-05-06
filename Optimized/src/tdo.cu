@@ -365,6 +365,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
         cout << "bisection while loop" << endl;
         while(m_tdo_foo)
         {
+            
             cudaEventRecord(start_it);
             // computing chi_trial
                 cudaEventRecord(start);
@@ -411,11 +412,12 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             m_counter++;
         }
         
-
+        cout << "calcCompliance" << endl;
         // computing compliance, c = 0.5 * sum( u^T * K * u )
         setToZero<<<1,1>>> ( d_c, 1 );
         calcCompliance<<< m_gridDim, m_blockDim >>> (d_c, m_d_u, d_chi, m_d_node_index_, m_d_A_local, m_local_volume, m_num_rows, m_dim, m_numElements);
         
+        cout << "calcMOD" << endl;
         // computing MOD
         setToZero<<<1,1>>> ( d_MOD, 1 );
         calcMOD<<< m_gridDim, m_blockDim >>> (d_MOD, d_chi, m_local_volume, m_numElements);

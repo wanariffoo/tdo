@@ -47,21 +47,24 @@ int main()
     // create vtk files
     bool writeToVTK = true;
 
+    // output compliance, stiffness and MOD
+    bool CSMOD = true;
+
     // material properties
     double youngMod = 210000;
     double poisson = 0.33;
 
     //// model set-up
-    size_t numLevels = 11;
+    size_t numLevels = 10;
     
     vector<size_t> N;
     vector<vector<size_t>> bc_index(numLevels);
 
-    size_t update_steps = 200;
+    size_t update_steps = 100;
     double c_tol = 1e-4;
     bool gmg_verbose = 0;
     bool pcg_verbose = 0;
-    bool gmg_verbose_ = 1;
+    bool gmg_verbose_ = 0;
     bool pcg_verbose_ = 0;
 
 
@@ -110,9 +113,6 @@ int main()
     vector<double*> d_p_value;
     vector<size_t*> d_p_index;
 
-    // restriction matrices
-    vector<double*> d_r_value;
-    vector<size_t*> d_r_index;
 
     // design variable
     double* d_chi;
@@ -141,7 +141,7 @@ int main()
 
 
     // NOTE: insert note here to include in the output file:
-    // ofssbm << "note: " << endl;
+    ofssbm << "note: " << endl;
 
     ofssbm << "### GPU-accelerated Thermodynamic Topology Optimization ###" << endl;
     ofssbm << "Dimension: " << dim << endl;
@@ -166,7 +166,7 @@ int main()
     Assembly.setBC(bc_index);
 
         cudaEventRecord(start);
-    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index, d_node_index_, ofssbm);
+    Assembly.init_GPU(d_A_local, d_value, d_index, d_p_value, d_p_index, d_chi, num_rows, max_row_size, p_max_row_size, r_max_row_size, d_node_index, d_node_index_, ofssbm);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         milliseconds = 0;
@@ -195,8 +195,7 @@ int main()
     vector<double> b(num_rows[numLevels - 1], 0);
     double force = -1;
     applyLoad(b, N, numLevels, bc_case, dim, force);
-
-    
+   
 
     double* d_u;
     double* d_b;
@@ -211,26 +210,14 @@ int main()
     #                           SOLVER                                  #
     ###################################################################*/
 
-    // double* d_norm;
-    // double* d_aps;
-    // CUDA_CALL( cudaMalloc((void**)&d_norm, sizeof(double) ) );
-    // CUDA_CALL( cudaMalloc((void**)&d_aps, sizeof(double) * num_rows[numLevels - 1] ) );
-    // CUDA_CALL( cudaMemset(d_aps, 0, sizeof(double) * num_rows[numLevels - 1]) );
-
-
-    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, d_r_value, d_r_index, r_max_row_size, numLevels, num_rows, damp);
+    Solver GMG(d_value, d_index, max_row_size, d_p_value, d_p_index, p_max_row_size, numLevels, num_rows, damp);
     
     
-    GMG.set_convergence_params(1500000, 1e-15, 1e-11);
+    GMG.set_convergence_params(100000, 1e-15, 1e-8);
     GMG.set_bs_convergence_params(1000, 1e-15, 1e-7);
-    
-
-
-
-
     GMG.init();
     GMG.set_verbose(gmg_verbose,pcg_verbose);
-    GMG.set_num_prepostsmooth(5,5);
+    GMG.set_num_prepostsmooth(3,3);
     GMG.set_cycle('V');
             
                 ofssbm << endl;
@@ -246,18 +233,6 @@ int main()
             
 
     cout << "Solver   ... DONE" << endl;
-
-
-
-
-
-
-
-
-
-
-
-
 
     /* ##################################################################
     #                         DENSITY UPDATE                            #
@@ -290,10 +265,6 @@ int main()
     last_c = c;
     CUDA_CALL( cudaMemcpy(&c, d_c, sizeof(double), cudaMemcpyDeviceToHost) );
     CUDA_CALL( cudaMemcpy(&MOD, d_MOD, sizeof(double), cudaMemcpyDeviceToHost) );
-    // cout << MOD << endl;
-    
-
-
 
     // vtk
     vector<double> chi(Assembly.getNumElements(), rho);
@@ -321,7 +292,7 @@ int main()
         
         WriteVectorToVTK(chi, u, ss.str(), dim, Assembly.getNumNodesPerDim(), h, Assembly.getNumElements(), Assembly.getNumNodes() );
     }
-
+    
     
     size_t iterations = 1;
     float sum_a = 0;  // sum of assembly time
@@ -342,7 +313,7 @@ int main()
     float elapsed_time = milliseconds_;
 
 
-
+    
     // for ( int i = 1 ; i < (update_steps) && ( c_rel > c_tol ); ++i )
     for ( int i = 1 ; i < (update_steps); ++i )
     {
@@ -350,7 +321,7 @@ int main()
         ofssbm << setw(4) << left << iterations;
         // update the global stiffness matrix with the updated density distribution
         cudaEventRecord(start);
-        Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_r_value, d_r_index, d_A_local);
+        Assembly.UpdateGlobalStiffness(d_chi, d_value, d_index, d_p_value, d_p_index, d_A_local);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         milliseconds = 0;
@@ -386,35 +357,22 @@ int main()
         ofssbm << setw(7) << left << milliseconds << ", " << setw(7) << left << tdo.getSum() << ", " << tdo.getCounter() << ", " << tdo.getSum()/tdo.getCounter();
         sum_du += milliseconds;
         
+        // collect data of compliance, stiffness and MOD
+        if ( CSMOD )
+        {
+            // convergence check with compliance
+            last_c = c;
+            CUDA_CALL( cudaMemcpy(&c, d_c, sizeof(double), cudaMemcpyDeviceToHost) );
+            c_rel = abs( c - last_c ) / c;
+            ofssbm << "\t\t" << c;
+
+            // structural stiffness, E = 1 / c * E_init
+            ofssbm << "\t" << init_E / c;
             
-        // // DEBUG:
-
-        // dim3 gDim;
-        // dim3 bDim;
-        // calculateDimensions(num_rows[numLevels-1], gDim, bDim);
-            
-        // /// r = A*x
-        // Apply_GPU_<<< gDim, bDim >>> ( num_rows[numLevels-1], max_row_size[numLevels-1], d_value[numLevels-1], d_index[numLevels-1], d_u, d_aps );
-        
-        // norm_GPU( d_norm, d_aps, num_rows[numLevels-1], gDim, bDim);
-        // cudaDeviceSynchronize();
-        // print_GPU<<<1,1>>>( d_norm );
-        // cudaDeviceSynchronize();
-
-
-
-        // convergence check with compliance
-        last_c = c;
-        CUDA_CALL( cudaMemcpy(&c, d_c, sizeof(double), cudaMemcpyDeviceToHost) );
-        c_rel = abs( c - last_c ) / c;
-        ofssbm << "\t\t" << c;
-
-        // structural stiffness, E = 1 / c * E_init
-        ofssbm << "\t" << init_E / c;
-        
-        // computing MOD
-        CUDA_CALL( cudaMemcpy(&MOD, d_MOD, sizeof(double), cudaMemcpyDeviceToHost) );
-        ofssbm << "\t\t" << setw(8) << left << MOD;
+            // computing MOD
+            CUDA_CALL( cudaMemcpy(&MOD, d_MOD, sizeof(double), cudaMemcpyDeviceToHost) );
+            ofssbm << "\t\t" << setw(8) << left << MOD;
+        }
 
         cout << "Density update done ... " << endl;
 
@@ -443,17 +401,6 @@ int main()
 
 
         iterations++;
-
-
-        
-
-        // dim3 gDim;
-        // dim3 bDim;
-        // calculateDimensions(num_rows[numLevels-1], gDim, bDim);
-        // dotProduct(dot, d_u, d_b, num_rows[numLevels-1], gDim, bDim);
-        // cudaDeviceSynchronize();
-        // print_GPU<<<1,1>>>(dot);
-        // printVector_GPU<<<1,1>>>(dot);
         
     }
 

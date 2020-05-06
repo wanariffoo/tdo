@@ -411,6 +411,19 @@ __host__ void printLinearVector(double* x, size_t num_rows, size_t num_cols)
 
 }
 
+__global__ void print_GPU_(double* x, size_t i)
+{
+	printf("%d %g\n", i, x[i]);
+}
+
+
+__host__ void printVector(double* x, size_t num_rows)
+{
+	for ( int i = 0 ; i < num_rows ; i++ )
+		print_GPU_<<<1,1>>>( x, i );
+
+}
+
 __global__ 
 void printVector_GPU(double* x)
 {
@@ -469,7 +482,7 @@ void printELL_GPU_(double* value, size_t* index, size_t max_row_size, size_t num
 		for ( int i = 0 ; i < num_rows ; i++)
 		{
 			for ( int j = 0 ; j < num_cols ; j++)
-			printf("%g ", valueAt_(j, i, value, index, max_row_size, num_rows) );
+			printf("%g ", valueAt_(i, j, value, index, max_row_size, num_rows) );
 
 			printf("\n");
 		}
@@ -518,6 +531,7 @@ void printELLrow_GPU_(size_t row, double* value, size_t* index, size_t max_row_s
 
 		printf("\n");
 	
+		
 }
 
 __host__
@@ -1922,7 +1936,7 @@ __global__ void addStep(size_t* step){
 // BASE SOLVER
 
 
-// p = z + p * beta;
+// p = z + p * (rho / rho_old);
 __global__ 
 void calculateDirectionVector(	
 	size_t* d_step,
@@ -1944,6 +1958,10 @@ void calculateDirectionVector(
 		
 		else
 		{
+			// if ( id == 0 )
+			// 	printf("%g, %g\n", *d_rho, *d_rho_old );
+
+
 			// p *= (rho / rho_old)
 			d_p[id] = d_p[id] * ( *d_rho / (*d_rho_old) );
 

@@ -118,8 +118,6 @@ bool Assembler::init_GPU(
     vector<size_t*> &d_index, 
     vector<double*> &d_p_value, 
     vector<size_t*> &d_p_index, 
-    vector<double*> &d_r_value, 
-    vector<size_t*> &d_r_index, 
     double* &d_chi, 
     vector<size_t> &num_rows, 
     vector<size_t> &max_row_size, 
@@ -1024,11 +1022,12 @@ bool Assembler::UpdateGlobalStiffness(
     double* &d_chi, 
     vector<double*> &d_value, vector<size_t*> &d_index,         // global stiffness
     vector<double*> &d_p_value, vector<size_t*> &d_p_index,     // prolongation matrices
-    vector<double*> &d_r_value, vector<size_t*> &d_r_index,     // restriction matrices
     double* &d_A_local)                                         // local stiffness matrix
 {
     dim3 gridDim_;
     dim3 blockDim_;
+
+    cout << "updateglobalstiffness" << endl;
 
     // reinitialize relevant variables
     // stiffness matrices, A
@@ -1045,7 +1044,7 @@ bool Assembler::UpdateGlobalStiffness(
     applyMatrixBC_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size() );
     
     
-
+    cout << "ptap" << endl;
     // obtaining coarse global stiffness matrices
     // A_coarse = R * A_fine * P
         for ( int lev = m_topLev ; lev != 0 ; lev--)

@@ -339,5 +339,7 @@ __global__ void applyMatrixBC3D_GPU(double* value, size_t* index, size_t max_row
 __global__ void calcCompliance(double* sum, double* u, double* chi, size_t* node_index, double* d_A_local, double local_volume, size_t num_rows, size_t dim, size_t numElements);
 __global__ void calcMOD(double* sum, double* chi, double local_volume, size_t numElements);
 __global__ void setToOne(double* a);
+__host__ void printVector(double* x, size_t num_rows);
+__global__ void print_GPU_(double* x, size_t i);
 #endif // CUDAKERNELS_H
 
