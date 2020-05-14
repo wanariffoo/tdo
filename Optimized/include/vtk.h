@@ -1,3 +1,10 @@
+/*
+	vtk.h
+	
+    Developed for the master thesis project: GPU-accelerated Thermodynamic Topology Optimization
+    Author: Wan Arif bin Wan Abhar
+    Institution: Ruhr Universitaet Bochum
+*/
 
 #ifndef VTK_H
 #define VTK_H
@@ -11,9 +18,6 @@
 
 
 
-
-// TODO: include displacements here too
-// TODO: displacements mustn't be SCALARS, but VECTORS
 // outputs design variable vector
 void WriteVectorToVTK(vector<double> &chi, vector<double> &u, const std::string& filename, size_t dim, vector<size_t> numNodesPerDim, double h, size_t numElements, size_t numNodes)
 {
@@ -107,11 +111,7 @@ void WriteVectorToVTK(vector<double> &chi, vector<double> &u, const std::string&
 
 		ofs << endl;
 	}
-
-
 	
 }
-
-
 
 #endif // VTK_H

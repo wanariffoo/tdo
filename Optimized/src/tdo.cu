@@ -1,3 +1,10 @@
+/*
+    tdo.cu
+
+    Developed for the master thesis project: GPU-accelerated Thermodynamic Topology Optimization
+    Author: Wan Arif bin Wan Abhar
+    Institution: Ruhr Universitaet Bochum
+*/
 
 #include <iostream>
 #include <cmath>
@@ -220,6 +227,26 @@ TDO::TDO(double* d_u, double* d_chi, double h, size_t dim, double betastar, doub
     
 }
 
+// destructor performs device memory deallocation
+TDO::~TDO()
+{
+    CUDA_CALL( cudaFree(m_d_df) );
+    CUDA_CALL( cudaFree(m_d_beta) );
+    CUDA_CALL( cudaFree(m_d_eta) );
+    CUDA_CALL( cudaFree(m_d_mutex) );
+    CUDA_CALL( cudaFree(m_d_lambda_tr) );
+    CUDA_CALL( cudaFree(m_d_lambda_l) );
+    CUDA_CALL( cudaFree(m_d_lambda_u) );
+    CUDA_CALL( cudaFree(m_d_chi_tr) );
+    CUDA_CALL( cudaFree(m_d_rho_tr) );
+    CUDA_CALL( cudaFree(m_d_p_w) );
+    CUDA_CALL( cudaFree(m_d_tdo_foo) );
+    CUDA_CALL( cudaFree(m_d_sum_g) );
+    CUDA_CALL( cudaFree(m_d_sum_df_g) );
+
+}
+
+
 bool TDO::init()
 {
 
@@ -257,10 +284,6 @@ bool TDO::init()
     CUDA_CALL( cudaMalloc( (void**)&m_d_sum_g, sizeof(double) ) );
     CUDA_CALL( cudaMalloc( (void**)&m_d_sum_df_g, sizeof(double) ) );
 
-
-
-
-
     return true;
 }
 
@@ -293,14 +316,13 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
     setToZero<<<1,1>>>( m_d_df, m_numElements );
     
     
-    cout << "while loop" << endl;
-    //// for loop
+    
+    //// loop n times
     for ( int j = 0 ; j < m_n ; j++ )
     {
 
         // calculating the driving force of each element
         // df[] = ( 1 / 2*local_volume ) * ( p * pow(chi[], p - 1 ) ) * ( u^T * A_local * u )
-        // cout << "calcDrivingForce" << endl;
             cudaEventRecord(start);
                 calcDrivingForce<<<m_gridDim, m_blockDim>>>(m_d_df, m_d_u, m_d_chi, m_p, m_d_node_index_, m_d_A_local, m_num_rows, m_dim, m_local_volume, m_numElements);
             cudaEventRecord(stop);
@@ -309,10 +331,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcDrivingForce()\t\t" << milliseconds << endl;
 
-            
-
         // calculating average weighted driving force, p_w
-        // cout << "calcP_w_" << endl;
             cudaEventRecord(start);
         calcP_w_(m_d_p_w, m_d_sum_g, m_d_sum_df_g, m_d_df, m_d_chi, m_numElements, m_local_volume);
             cudaEventRecord(stop);
@@ -320,10 +339,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcP_w()\t\t\t" << milliseconds << endl;
-        
-            // printVector_GPU<<<m_gridDim, m_blockDim>>>( m_d_temp, m_numElements);
 
-        // cout << "calcEtaBeta" << endl;
         // calculating eta and beta
             cudaEventRecord(start);
         calcEtaBeta<<<1,2>>>( m_d_eta, m_d_beta, m_etastar, m_betastar, m_d_p_w );
@@ -333,11 +349,11 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcEtaBeta()\t\t\t" << milliseconds << endl;
 
-
         // bisection algo: 
-        // cout << "calcLambdaLower" << endl;
         setToZero<<<1,1>>>(m_d_lambda_tr, 1);
             cudaEventRecord(start);
+
+        // computing lambda lower
         calcLambdaLower<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_l, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
@@ -345,8 +361,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcLambdaLower()\t\t" << milliseconds << endl;
         
-            
-        // cout << "calcLambdaUpper" << endl;
+        // computing lambda upper
             cudaEventRecord(start);
         calcLambdaUpper<<< m_gridDim, m_blockDim >>> (m_d_df, m_d_lambda_u, m_d_mutex, m_d_beta, m_d_chi, m_d_eta, m_Nx, m_Ny, m_Nz, m_numElements, m_h);
             cudaEventRecord(stop);
@@ -355,14 +370,14 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             cudaEventElapsedTime(&milliseconds, start, stop);
             if ( inner_counter == 0 ) ofssbm << "calcLambdaLower()\t\t" << milliseconds << endl;        
         
-
+        // remaining operations on lambda lower and upper
         minus_GPU<<<1,1>>>( m_d_lambda_l, m_d_eta);
         add_GPU<<<1,1>>>( m_d_lambda_u, m_d_eta);
         
 
         m_sum_it = 0;
         m_counter = 0;
-        cout << "bisection while loop" << endl;
+        
         while(m_tdo_foo)
         {
             
@@ -387,9 +402,6 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
                 cudaEventElapsedTime(&milliseconds, start, stop);
                 if ( inner_counter == 0 ) ofssbm << "calcRhoTrial()\t\t\t" << milliseconds << endl;    
 
-
-
-
                 cudaEventRecord(start);
             calcLambdaTrial<<<1,1>>>( m_d_rho_tr, m_rho, m_d_lambda_l, m_d_lambda_u, m_d_lambda_tr);
                 cudaEventRecord(stop);
@@ -401,8 +413,7 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             checkTDOConvergence<<<1,1>>> ( m_d_tdo_foo, m_rho, m_d_rho_tr);
             CUDA_CALL( cudaMemcpy( &m_tdo_foo, m_d_tdo_foo, sizeof(bool), cudaMemcpyDeviceToHost) 	);
 
-            // cout << "m_tdo_foo = " << m_tdo_foo << endl;
-            // cout << "counter " << ++counter << endl;
+            
             cudaEventRecord(stop_it);
             cudaEventSynchronize(stop_it);
             milliseconds = 0;
@@ -412,12 +423,11 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
             m_counter++;
         }
         
-        cout << "calcCompliance" << endl;
         // computing compliance, c = 0.5 * sum( u^T * K * u )
         setToZero<<<1,1>>> ( d_c, 1 );
         calcCompliance<<< m_gridDim, m_blockDim >>> (d_c, m_d_u, d_chi, m_d_node_index_, m_d_A_local, m_local_volume, m_num_rows, m_dim, m_numElements);
         
-        cout << "calcMOD" << endl;
+        
         // computing MOD
         setToZero<<<1,1>>> ( d_MOD, 1 );
         calcMOD<<< m_gridDim, m_blockDim >>> (d_MOD, d_chi, m_local_volume, m_numElements);
@@ -430,68 +440,9 @@ bool TDO::innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, 
         // chi(j) = chi(j+1)
         vectorEquals_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_d_chi_tr, m_numElements );
         
-        
     }
-
-
-        // if(m_verbose)
-        // printVector_GPU<<<1,m_numElements>>>( m_d_chi, m_numElements);   
-        // bar<<<1,1>>>( m_d_chi );    
-
     
     return true;
 
 }
 
-
-    // NOTE: old
-
-    // cudaDeviceSynchronize();
-    // cout << "aps" << endl;
-    // print_GPU<<<1,1>>>( m_d_p_w );
-
-
-
-    // DEBUG:
-    // checkLaplacian<<<m_gridDim,m_blockDim>>>( d_laplacian, m_d_chi, m_Nx, m_Ny, m_Nz, m_numElements, m_h );
-
-    // if(m_verbose)
-    // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_df, m_numElements);
-    // printVector_GPU<<<m_gridDim,m_blockDim>>>( m_d_chi, m_numElements);
-    // printVector_GPU<<<m_gridDim,m_blockDim>>>( d_laplacian, m_numElements);
-    
-    // print_GPU<<<1,1>>>( &m_d_df[168] );
-    // cudaDeviceSynchronize();
-
-
-    // if ( m_printVTK )
-    // {
-
-    
-    // // getting vtk for driving force
-    // vector<size_t> numNodesPerDim(3);
-    // numNodesPerDim[0] = m_Nx + 1;
-    // numNodesPerDim[1] = m_Ny + 1;
-    // numNodesPerDim[2] = m_Nz + 1;
-    // size_t numNodes = numNodesPerDim[0] * numNodesPerDim[1] * numNodesPerDim[2];
-    
-    // vector<double> df_(m_numElements, 0);
-    // vector<double> u(numNodes * m_dim, 0);
-    // string fileformat(".vtk");
-    // stringstream ss_; 
-    // ss_ << "vtk/df";
-    // ss_ << m_file_index;
-    // ss_ << fileformat;
-    // stringstream ss__; 
-    // ss__ << "vtk/laplacian";
-    // ss__ << m_file_index;
-    // ss__ << fileformat;
-    // CUDA_CALL( cudaMemcpy(&u[0], d_u, sizeof(double) * numNodes * m_dim, cudaMemcpyDeviceToHost) );
-    // CUDA_CALL( cudaMemcpy( &df_[0], m_d_df, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
-    // CUDA_CALL( cudaMemcpy( &laplacian[0], d_laplacian, sizeof(double) * m_numElements, cudaMemcpyDeviceToHost) );
-    
-    // WriteVectorToVTK_df(df_, u, ss_.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
-    // WriteVectorToVTK_laplacian(laplacian, u, ss__.str(), m_dim, numNodesPerDim, m_h, m_numElements, numNodes );
-    // ++m_file_index;
-    
-    // }

@@ -1,3 +1,11 @@
+/*
+	solver.h
+	
+    Developed for the master thesis project: GPU-accelerated Thermodynamic Topology Optimization
+    Author: Wan Arif bin Wan Abhar
+    Institution: Ruhr Universitaet Bochum
+*/
+
 #ifndef SOLVER_H
 #define SOLVER_H
 
@@ -15,7 +23,6 @@ class Solver
 public:
 
     // constructor
-    // Solver(vector<double*> d_value, vector<size_t*> d_index, vector<double*> d_p_value, vector<size_t*> d_p_index, size_t numLevels, vector<size_t> num_rows, vector<size_t> max_row_size, vector<size_t> p_max_row_size, double damp);
     Solver(vector<double*> d_value, vector<size_t*> d_index, vector<size_t> max_row_size, vector<double*> d_p_value, vector<size_t*> d_p_index, vector<size_t> p_max_row_size, size_t numLevels, vector<size_t> num_rows, double damp);
 
     ~Solver();
@@ -23,20 +30,16 @@ public:
     bool init();
 
     bool solve(double* d_u, double* d_r, vector<double*> d_value, ofstream& ofssbm);
-    // ofstream& ofssbm
 
     bool base_solve(double* d_bs_u, double* d_bs_b, ofstream& ofssbm);
-    
 
     bool precond(double* d_c, double* d_r, ofstream& ofssbm);
-    // bool precond_(double* d_c, double* d_r, double* d_value, size_t* d_index, size_t max_row_size, size_t m_num_rows);
 
     bool precond_add_update_GPU(double* d_c, double* d_r, std::size_t lev, int cycle, ofstream& ofssbm);
     
     void set_num_prepostsmooth(size_t pre_n, size_t post_n);
     void set_convergence_params(size_t maxIter, double minRes, double minRed);
     void set_bs_convergence_params(size_t maxIter, double minRes, double minRed);
-    void set_convergence_params_( size_t maxIter, size_t bs_maxIter, double minRes, double minRed );
 
     bool smoother(double* d_c, double* d_r, int lev);
 
@@ -46,7 +49,7 @@ public:
     void set_cycle(const char type);
     void set_verbose(bool verbose, bool bs_verbose);
 
-    // DEBUG:
+    
     void set_steps(size_t step, size_t bs_step);
 
     float getCounter();
@@ -82,7 +85,6 @@ private:
     // correction vector
     double* m_d_c;
 
-    // TODO: change comment, not previous
     // previous residuum 
     double *m_d_res0;
     
@@ -155,7 +157,7 @@ private:
     double* m_d_bs_rho_old;
 
     double* m_d_bs_alpha;
-    double* m_d_bs_alpha_temp;  // TODO: maybe use a general temp here
+    double* m_d_bs_alpha_temp;
 
     // bs residuum variable
     double* m_d_bs_res;
@@ -164,7 +166,6 @@ private:
     // double* m_d_bs_minRed;
     double* m_d_bs_lastRes;
 
-    // DEBUG:
     size_t m_step;
     size_t m_bs_step;
     size_t m_counter_it;

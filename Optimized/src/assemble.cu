@@ -1,3 +1,12 @@
+/*
+    assemble.cu
+
+    Developed for the master thesis project: GPU-accelerated Thermodynamic Topology Optimization
+    Author: Wan Arif bin Wan Abhar
+    Institution: Ruhr Universitaet Bochum
+*/
+
+
 #include <iostream>
 #include <cmath>
 #include "../include/assemble.h"
@@ -16,13 +25,7 @@ int Assembler::Node::index() { return m_index; }
 // Element class definitions
 Assembler::Element::Element(int ind) : m_index(ind){}
 
-double Assembler::Element::valueAt(size_t x, size_t y, size_t num_cols)
-{
-    // return m_A_local[ y + x * num_cols ];
-    // cout << m_A_local << endl;
 
-    return 0;
-}
 
 size_t Assembler::Element::index() { return m_index; }
 
@@ -73,13 +76,6 @@ Assembler::Assembler(size_t dim, double h, vector<size_t> N, double youngMod, do
 
 }
 
-Assembler::~Assembler()
-{
-    // cout << "assembler : deallocate" << endl;
-    // CUDA_CALL( cudaFree(d_m_A_local) );
-
-}
-
 
 void Assembler::setBC(vector<vector<size_t>> bc_index)
 {
@@ -122,7 +118,6 @@ bool Assembler::init_GPU(
     vector<size_t> &num_rows, 
     vector<size_t> &max_row_size, 
     vector<size_t> &p_max_row_size,
-    vector<size_t> &r_max_row_size,
     vector<size_t*> &d_node_index,
     size_t* &d_node_index_,
     ofstream& ofssbm)
@@ -141,9 +136,6 @@ bool Assembler::init_GPU(
     float milliseconds_mem;
     float sum_mem;
     float prol_mem;
-
-
-
 
     m_d_A_local = d_A_local;
 
@@ -181,7 +173,7 @@ bool Assembler::init_GPU(
     // obtaining the maximum row size of each grid
     max_row_size.resize(m_numLevels);
     p_max_row_size.resize(m_numLevels - 1);
-    r_max_row_size.resize(m_numLevels - 1);
+    // r_max_row_size.resize(m_numLevels - 1);
 
     if ( m_topLev == 0 )
         throw(runtime_error("Error : Please use at least 2 levels of multigrid solver"));
@@ -195,19 +187,18 @@ bool Assembler::init_GPU(
             {
                 max_row_size[0] = 8;
                 p_max_row_size[0] = 4;
-                r_max_row_size[0] = 4;
             }
+
             else if (m_N[0][0] == 1 || m_N[0][1] == 1)
             {
                 max_row_size[0] = 12;
                 p_max_row_size[0] = 4;
-                r_max_row_size[0] = 6;
             }
+
             else
             {
                 max_row_size[0] = 18;
                 p_max_row_size[0] = 4;
-                r_max_row_size[0] = 9;
             }
 
             // loop through each level
@@ -218,7 +209,6 @@ bool Assembler::init_GPU(
             for (int lev = m_topLev - 1; lev != 0 ; --lev)
             {
                 p_max_row_size[lev] = 4;
-                r_max_row_size[lev] = 9;
             }
         }
 
@@ -228,36 +218,30 @@ bool Assembler::init_GPU(
             if (m_N[0][0] == 1 && m_N[0][1] == 1 && m_N[0][2] == 1)
             {
                 max_row_size[0] = 24;
-                p_max_row_size[0] = 8; // CHECK: not sure
-                r_max_row_size[0] = 8;
-                
+                p_max_row_size[0] = 8;
             }
 
             else if (m_N[0][0] == 3 && m_N[0][1] == 1 && m_N[0][2] == 1 )
             {
                 max_row_size[0] = 36;
                 p_max_row_size[0] = 8;
-                r_max_row_size[0] = 12;
             }
 
             else if (m_N[0][0] == 6 && m_N[0][1] == 2 && m_N[0][2] == 1 )
             {
                 max_row_size[0] = 18*3;
                 p_max_row_size[0] = 8;
-                r_max_row_size[0] = 18;
             }
 
             else if (m_N[0][0] == 6 && m_N[0][1] == 1 && m_N[0][2] == 2 )
             {
                 max_row_size[0] = 18*3;
                 p_max_row_size[0] = 8;
-                r_max_row_size[0] = 18;
             }
-
 
             else
             {   
-                throw(runtime_error("3D assembly not done yet for this grid size"));
+                throw(runtime_error("3D assembly not available for this grid size"));
             }
             
             // loop through each level (stiffness matrix)
@@ -268,7 +252,6 @@ bool Assembler::init_GPU(
             for (int lev = m_topLev - 1; lev != 0 ; --lev)
             {
                 p_max_row_size[lev] = 8;
-                r_max_row_size[lev] = 27;
             }
             
         }
@@ -315,7 +298,6 @@ bool Assembler::init_GPU(
 
     m_num_rows = num_rows;
     m_max_row_size = max_row_size;
-    m_r_max_row_size = r_max_row_size;
     m_p_max_row_size = p_max_row_size;
 
     // output file
@@ -416,22 +398,20 @@ bool Assembler::init_GPU(
         }
     }
  
-
-
-    
-    // m_node_index.resize(m_numElements[m_topLev]); // CHECK: if needed
+    // flattening the node index 2d vector for use in device memory
     for ( int elem = 0 ; elem < m_numElements[m_topLev] ; elem++ )
     {
         for ( int index = 0 ; index < pow(2, m_dim) ; index++ )
         {
-            // m_node_index[elem].push_back( m_element[elem].getNodeIndex(index) ); // CHECK: if needed
             m_node_index_.push_back( m_element[elem].getNodeIndex(index) );
         }
     }
 
+    //// memory allocation and copy to device
+
+    // benchmarking data transfer
         cudaEventRecord(start_mem);
 
-    // 
     CUDA_CALL( cudaMalloc((void**)&d_node_index_, sizeof(double) * m_numElements[m_topLev] * pow(2, m_dim) ) );
     CUDA_CALL( cudaMemcpy(d_node_index_, &m_node_index_[0], sizeof(double) * m_numElements[m_topLev] * pow(2, m_dim), cudaMemcpyHostToDevice) );
     
@@ -443,8 +423,7 @@ bool Assembler::init_GPU(
     // allocating and copying the (linear vector) local stiffness matrix to device
     CUDA_CALL( cudaMalloc((void**)&d_A_local, sizeof(double) * m_num_rows_l*m_num_rows_l ) );
     CUDA_CALL( cudaMemcpy( d_A_local, &m_A_local[0], sizeof(double) * m_num_rows_l*m_num_rows_l, cudaMemcpyHostToDevice) );
-
-    
+   
     
     // calculating the number of nodes in a local element
     size_t numNodes_local = pow(2,m_dim);
@@ -463,7 +442,7 @@ bool Assembler::init_GPU(
         CUDA_CALL( cudaMemset( d_index[lev], 0, sizeof(size_t) * num_rows[lev]*max_row_size[lev] ) );
     }
     
-    cudaEventRecord(stop_mem);
+            cudaEventRecord(stop_mem);
             cudaEventSynchronize(stop_mem);
             milliseconds_mem = 0;
             cudaEventElapsedTime(&milliseconds_mem, start, stop_mem);
@@ -473,12 +452,10 @@ bool Assembler::init_GPU(
 
     
     // filling in global stiffness matrix's ELLPACK index vector for all levels
-
     dim3 gridDim_;
     dim3 blockDim_;
 
             cudaEventRecord(start);
-
     if ( m_dim == 2)
     {
         for (int lev = m_topLev ; lev >= 0 ; --lev )
@@ -505,15 +482,9 @@ bool Assembler::init_GPU(
 
     
 
-
-    
-    
-
     //// filling in the top level global stiffness matrix
     // the density distribution is included here as well
-    
             cudaEventRecord(start);
-    
     calculateDimensions( m_numElements[m_topLev], gridDim_, blockDim_);
     assembleGlobalStiffness_GPU<<<gridDim_, blockDim_>>>( m_numElements[m_topLev], m_dim, d_chi, d_A_local, m_num_rows_l, d_value[m_topLev], d_index[m_topLev], max_row_size[m_topLev], m_num_rows[m_topLev], d_node_index_, m_p);
 
@@ -542,11 +513,6 @@ bool Assembler::init_GPU(
                 ofssbm << "applyMatrixBC_GPU() \t\t" << milliseconds << endl;
 
                 
-    // printLinearVector( d_value[1], m_max_row_size[1], m_num_rows[1]);
-    // printELL_GPU_<<<1,1>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_num_rows[m_topLev], m_num_rows[m_topLev]);
-    // cudaDeviceSynchronize();
-
-                
     //// obtaining the coarse stiffness matrices of each lower grid level
     // A_coarse = R * A_fine * P
             cudaEventRecord(start);
@@ -563,19 +529,7 @@ bool Assembler::init_GPU(
             milliseconds = 0;
             cudaEventElapsedTime(&milliseconds, start, stop);
             ofssbm << "PTAP() \t\t\t\t" << milliseconds << endl;
-
-
             ofssbm << "Memory allocation & copy\t" << sum_mem << endl;
-
-
-            // NOTE:DEBUG:
-                    
-            // int i = 6;
-            // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], m_p_max_row_size[i], m_num_rows[i+1], m_num_rows[i]);
-            // printELL_GPU_<<<1,1>>> (d_p_value[m_topLev-1], d_p_index[m_topLev-1], m_p_max_row_size[m_topLev-1], m_num_rows[m_topLev], m_num_rows[m_topLev-1]);
-            // printVector_GPU<<<1,4>>> ( m_d_bc_index[0], 4 );
-            // printVector_GPU<<<1,6>>> ( m_d_bc_index[m_topLev], 6 );
-            // printLinearVector(d_p_index[m_topLev-1], m_p_max_row_size[m_topLev], m_p_max_row_size[m_topLev-1]);
 
 
     return true;
@@ -846,19 +800,11 @@ bool Assembler::assembleLocal()
             }
         }
 
-
-        
-        
-
         }
 
         return true;
 }
 
-double Assembler::valueAt(size_t row, size_t col)
-{
-    return m_A_local[col + row*m_num_rows_l];
-}
 
 // assembles prolongation matrices into a transposed ellpack format
 bool Assembler::assembleProlMatrix_GPU(
@@ -872,7 +818,7 @@ bool Assembler::assembleProlMatrix_GPU(
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-
+    // resizing ELLPACK arrays 
     d_p_value.resize( m_numLevels - 1 );
     d_p_index.resize( m_numLevels - 1 );
 
@@ -911,9 +857,7 @@ bool Assembler::assembleProlMatrix_GPU(
             fillProlMatrix3D_GPU<<<gridDim,blockDim>>>( d_p_value[lev], d_p_index[lev], m_N[lev+1][0], m_N[lev+1][1], m_N[lev+1][2], m_p_max_row_size[lev], m_num_rows[lev+1], m_num_rows[lev]);
         }
     }
-    
-
-    
+   
     
     for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
     {
@@ -921,99 +865,8 @@ bool Assembler::assembleProlMatrix_GPU(
         applyProlMatrixBC_GPU<<<gridDim, blockDim>>> (d_p_value[lev], d_p_index[lev], m_p_max_row_size[lev], m_d_bc_index[lev+1], m_d_bc_index[lev], m_num_rows[lev+1], m_num_rows[lev], m_bc_index[lev+1].size(), m_bc_index[lev].size() );
     }
     
-    
-    // cout << "apsie\n";
-    // int i = 6;
-    // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], m_p_max_row_size[i], m_num_rows[i+1], m_num_rows[i]);
-    // printELL_GPU_<<<1,1>>> (d_p_value[m_topLev-1], d_p_index[m_topLev-1], m_p_max_row_size[m_topLev-1], m_num_rows[m_topLev], m_num_rows[m_topLev-1]);
-    // printVector_GPU<<<1,4>>> ( m_d_bc_index[0], 4 );
-    // printVector_GPU<<<1,6>>> ( m_d_bc_index[m_topLev], 6 );
-    // printLinearVector(d_p_index[m_topLev-1], m_p_max_row_size[m_topLev], m_p_max_row_size[m_topLev-1]);
-    // printLinearVector( d_p_index[0], m_p_max_row_size[0], m_num_rows[1]);
-    
-    // cudaDeviceSynchronize();
-
-    
-
-
-
     return true;
 
-}
-
-bool Assembler::assembleRestMatrix_GPU(
-    vector<double*> &d_r_value_, 
-    vector<size_t*> &d_r_index_, 
-    vector<double*> &d_p_value_, 
-    vector<size_t*> &d_p_index_)
-{
-
-    d_r_value_.resize( m_numLevels - 1 );
-    d_r_index_.resize( m_numLevels - 1 );
-
-    // memcpy to device
-    for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-    {
-        // non-transposed
-        CUDA_CALL( cudaMalloc((void**)&d_r_value_[lev], sizeof(double) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
-        CUDA_CALL( cudaMemset( d_r_value_[lev], 0, sizeof(double) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
-        CUDA_CALL( cudaMalloc((void**)&d_r_index_[lev], sizeof(size_t) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
-        CUDA_CALL( cudaMemset( d_r_index_[lev], 0, sizeof(size_t) * m_num_rows[lev] * m_r_max_row_size[lev] ) );
-    }
-
-    dim3 gridDim;
-    dim3 blockDim;
-
-    if ( m_dim == 2)
-    {
-        // fill in restriction matrix's ELLPACK index vector
-        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        {
-            calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
-            fillIndexVectorRest2D_GPU<<<gridDim,blockDim>>>(d_r_index_[lev], m_N[lev][0], m_N[lev][1], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
-        }
-
-        // fill in restriction matrix's values, taken from prolongation matrix
-        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        {
-            calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
-            fillRestMatrix<<<gridDim, blockDim>>>(d_r_value_[lev], d_r_index_[lev], m_r_max_row_size[lev], d_p_value_[lev], d_p_index_[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
-        }
-    }
-
-    else
-    {
-        // fill in restriction matrix's ELLPACK index vector
-        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        {
-            calculateDimensions(m_numNodes[lev]*m_dim, gridDim, blockDim);
-            fillIndexVectorRest3D_GPU<<<gridDim,blockDim>>>(d_r_index_[lev], m_N[lev][0], m_N[lev][1], m_N[lev][2], m_r_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
-        }
-
-        // fill in restriction matrix's values, taken from prolongation matrix
-        for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ )
-        {
-            calculateDimensions2D(m_num_rows[lev], m_num_rows[lev+1], gridDim, blockDim);
-            fillRestMatrix<<<gridDim, blockDim>>>(d_r_value_[lev], d_r_index_[lev], m_r_max_row_size[lev], d_p_value_[lev], d_p_index_[lev], m_p_max_row_size[lev], m_num_rows[lev], m_num_rows[lev+1]);
-        }
-    }
-    
-
-    // // restmat = restmat_^T
-    // for ( int lev = 0 ; lev < m_numLevels - 1 ; lev++ ){
-
-    //     transposeELL<<<gridDim,blockDim>>>( d_r_index[lev], d_r_index_[lev], m_num_rows[lev], m_r_max_row_size[lev] );
-    //     transposeELL<<<gridDim,blockDim>>>( d_r_value[lev], d_r_value_[lev], m_num_rows[lev], m_r_max_row_size[lev] );
-    // }
-        
-    // // printLinearVector( d_p_index_[0], m_num_rows[0], m_p_max_row_size[0]);
-    // printLinearVector( d_r_index_[0], m_num_rows[0], m_r_max_row_size[0] );
-    
-    // printELLrow(0, d_r_value_[0], d_r_index_[0], m_r_max_row_size[0], m_num_rows[0], m_num_rows[1]);
-
-
-   
-    return true;
 }
 
 
@@ -1026,47 +879,42 @@ bool Assembler::UpdateGlobalStiffness(
 {
     dim3 gridDim_;
     dim3 blockDim_;
-
-    cout << "updateglobalstiffness" << endl;
-
+    
     // reinitialize relevant variables
     // stiffness matrices, A
     for ( int lev = 0 ; lev < m_numLevels ; ++lev )
         setToZero<<<m_ell_gridDim[lev], m_ell_blockDim[lev]>>>( d_value[lev], m_num_rows[lev]*m_max_row_size[lev]);
-        
+
+
     // assemble the global stiffness matrix on the finest grid with the updated chi of each element
     calculateDimensions( m_numElements[m_topLev], gridDim_, blockDim_);
     assembleGlobalStiffness_GPU<<<gridDim_, blockDim_>>>( m_numElements[m_topLev], m_dim, d_chi, d_A_local, m_num_rows_l, d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_num_rows[m_topLev], m_d_node_index_, m_p);
 
 
     // apply boundary conditions to the global stiffness matrix
-    calculateDimensions( m_num_rows[m_topLev], gridDim_, blockDim_);
-    applyMatrixBC_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size() );
+    if ( m_dim == 2 )
+    {
+        calculateDimensions( m_bc_index[m_topLev].size(), gridDim_, blockDim_);
+        applyMatrixBC2D_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size(), m_N[m_topLev][0], m_N[m_topLev][1], m_dim );
+    }
+    else
+    {
+        calculateDimensions( m_bc_index[m_topLev].size(), gridDim_, blockDim_);
+        applyMatrixBC3D_GPU<<<gridDim_, blockDim_>>>(d_value[m_topLev], d_index[m_topLev], m_max_row_size[m_topLev], m_d_bc_index[m_topLev], m_num_rows[m_topLev], m_bc_index[m_topLev].size(), m_N[m_topLev][0], m_N[m_topLev][1], m_N[m_topLev][2], m_dim );
+    }
+
+
     
-    
-    cout << "ptap" << endl;
     // obtaining coarse global stiffness matrices
     // A_coarse = R * A_fine * P
-        for ( int lev = m_topLev ; lev != 0 ; lev--)
-        {
-            calculateDimensions(m_num_rows[lev], gridDim_, blockDim_);
-            PTAP<<<gridDim_, blockDim_>>>(  d_value[lev], d_index[lev], m_max_row_size[lev], m_num_rows[lev], 
-                                            d_value[lev-1], d_index[lev-1], m_max_row_size[lev-1], m_num_rows[lev-1], 
-                                            d_p_value[lev-1], d_p_index[lev-1], m_p_max_row_size[lev-1]);
-        }
+    for ( int lev = m_topLev ; lev != 0 ; lev--)
+    {
+        calculateDimensions(m_num_rows[lev], gridDim_, blockDim_);
+        PTAP<<<gridDim_, blockDim_>>>(  d_value[lev], d_index[lev], m_max_row_size[lev], m_num_rows[lev], 
+                                        d_value[lev-1], d_index[lev-1], m_max_row_size[lev-1], m_num_rows[lev-1], 
+                                        d_p_value[lev-1], d_p_index[lev-1], m_p_max_row_size[lev-1]);
+    }
 
-
-        // NOTE:DEBUG:
-        // int i = 6;
-        // printELL_GPU_<<<1,1>>>(d_value[i], d_index[i], m_max_row_size[i], m_num_rows[i], m_num_rows[i]);
-
-        // printELL_GPU_<<<1,1>>> (d_p_value[i], d_p_index[i], m_p_max_row_size[i], m_num_rows[i+1], m_num_rows[i]);
-        // // printVector_GPU<<<1,10>>>( d_chi, 10 );
-        // printVector_GPU<<<1,10>>>( m_d_bc_index[m_topLev] , 10 );
-        // // printLinearVector(d_A_local, 8, 8);
-            // cudaDeviceSynchronize();
-        
-       
 
     return true;
 

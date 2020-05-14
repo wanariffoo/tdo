@@ -15,7 +15,7 @@ OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cudakernels.o $(OBJ_DIR)/solver.o $(OBJ_DIR)
 
 # all: 
 all : $(OBJS)
-	nvcc $(OBJS) -o a
+	nvcc $(OBJS) -o tdo
 
 $(OBJ_DIR)/main.o : main.cu $(INC_DIR)/vtk.h
 	nvcc $(NVCC_FLAGS) main.cu -c -o $@
@@ -32,8 +32,12 @@ $(OBJ_DIR)/assemble.o: $(SRC_DIR)/assemble.cu
 $(OBJ_DIR)/tdo.o: $(SRC_DIR)/tdo.cu
 	nvcc $(NVCC_FLAGS) $(SRC_DIR)/tdo.cu -c -o $@
 
+# deletes only the vtk files
+vtk:
+	rm -f $(VTK_DIR)/*.vtk
+
+# clears all object and vtk files
 clean:
 	rm -f ${OBJS} $(OBJ_DIR)/*.o $(VTK_DIR)/*.vtk
 
-vtk:
-	rm -f $(VTK_DIR)/*.vtk
+

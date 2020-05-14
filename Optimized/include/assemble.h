@@ -1,3 +1,11 @@
+/*
+	assemble.h
+	
+    Developed for the master thesis project: GPU-accelerated Thermodynamic Topology Optimization
+    Author: Wan Arif bin Wan Abhar
+    Institution: Ruhr Universitaet Bochum
+*/
+
 #ifndef ASSEMBLE_H
 #define ASSEMBLE_H
 
@@ -11,24 +19,17 @@
 using namespace std;
 
 
- 
 class Assembler{
 
 public:
     Assembler(size_t dim, double h, vector<size_t> N, double youngMod, double poisson, double rho, size_t p, size_t numLevels);
 
-    bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
-    bool init_GPU(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index, size_t* &d_node_index_, ofstream& ofssbm);
+    // bool init(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, vector<double*> &d_r_value, vector<size_t*> &d_r_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size, vector<size_t*> &d_node_index);
+    bool init_GPU(double* &d_A_local, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_chi, vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t*> &d_node_index, size_t* &d_node_index_, ofstream& ofssbm);
 
-    ~Assembler();
 
     bool assembleLocal();
-    bool assembleLocal_(); // TODO: delete later
-    bool assembleProlMatrix(size_t lev);
     bool assembleProlMatrix_GPU(vector<double*> &d_p_value, vector<size_t*> &d_p_index, size_t lev, float& sum);
-    bool assembleRestMatrix(size_t lev);
-    bool assembleRestMatrix_GPU(vector<double*> &d_r_value, vector<size_t*> &d_r_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index);
-    bool assembleGlobal(vector<size_t> &num_rows, vector<size_t> &max_row_size, vector<size_t> &p_max_row_size, vector<size_t> &r_max_row_size);
     void setBC(vector<vector<size_t>> bc_index);
     bool UpdateGlobalStiffness(double* &d_chi, vector<double*> &d_value, vector<size_t*> &d_index, vector<double*> &d_p_value, vector<size_t*> &d_p_index, double* &d_A_local);
     
@@ -51,7 +52,6 @@ public:
             int m_index;
             float m_coo[2];
             int m_dof[2];
-            // vector<int> m_dof(2);
     };
 
     class Element
@@ -138,7 +138,6 @@ private:
     vector<vector<size_t>> m_index_g;
     vector<size_t> m_max_row_size; 
 
-    //
     vector<size_t> m_numElements;
     vector<vector<size_t>> m_numNodesPerDim;
     vector<size_t> m_numNodes;

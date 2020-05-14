@@ -1,3 +1,11 @@
+/*
+	tdo.h
+	
+    Developed for the master thesis project: GPU-accelerated Thermodynamic Topology Optimization
+    Author: Wan Arif bin Wan Abhar
+    Institution: Ruhr Universitaet Bochum
+*/
+
 #ifndef TDO_H
 #define TDO_H
 
@@ -12,6 +20,9 @@ class TDO{
 
 public:
     TDO(double* d_u, double* d_chi, double h, size_t dim, double beta, double eta, size_t numElements, size_t num_rows, double* d_A_local, vector<size_t*> d_node_index, vector<size_t> N, double rho, size_t numLevels, size_t p, size_t* &d_node_index_);
+
+    ~TDO();
+    
     bool init();
     bool innerloop(double* &d_u, double* &d_chi, double* &d_c, double* &d_MOD, ofstream& ofssbm);
     void set_verbose(bool verbose);
@@ -57,7 +68,6 @@ private:
     dim3 m_blockDim;
 
     // CUDA
-
     // displacement
     double* m_d_u;
 
@@ -75,9 +85,6 @@ private:
     double* m_d_beta;
     double* m_d_eta;
 
-    // double *m_d_temp;
-    // double *m_d_temp_s; // scalar
-
     double *m_d_uTAu;
     vector<size_t*> m_d_node_index;
     size_t* m_d_node_index_;
@@ -88,17 +95,12 @@ private:
     double* m_d_lambda_tr;
     
     double* m_d_chi_tr;
-
-    //NOTE: reuse this from somewhere? temp variable?
     double* m_d_rho_tr;   
 
     // convergence check
     bool m_tdo_foo = true;
     bool* m_d_tdo_foo;
 
-    // DEBUG: temporary
-    vector<double> laplacian;
-    double* d_laplacian;
 
     double* m_d_sum_df_g;
     double* m_d_sum_g;
