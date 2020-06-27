@@ -4,9 +4,10 @@ Developed for a master thesis project by Wan Arif bin Wan Abhar (wan.wanabhar@ru
 
 
 ## Table of contents
-* [Introduction](https://github.com/wanariffoo/tdo#inputting-the-parameters)
+* [Introduction](https://github.com/wanariffoo/tdo#introduction)
 * [Inputting the parameters](https://github.com/wanariffoo/tdo#inputting-the-parameters)
 * [Compiling and running the program](https://github.com/wanariffoo/tdo#compiling-and-running-the-program)
+* [Output file](https://github.com/wanariffoo/tdo#output-file)
 
 ## Introduction
 
