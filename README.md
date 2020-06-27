@@ -1,6 +1,6 @@
 # GPU-accelerated thermodynamic topology optimization
 
-Developed for a master thesis project by Wan Arif bin Wan Abhar (wan.wanabhar@rub.de) at Ruhr Universität Bochum in SoSe201920 term.
+Developed for a master thesis project by Wan Arif bin Wan Abhar (wan.wanabhar@rub.de) at Ruhr Universität Bochum in SoSe-2019/20 term.
 
 
 ## Table of contents
@@ -50,7 +50,13 @@ The parameters are inputted in the `Optimized/main.cu` file:
 - `eta_star` : viscosity
 
 ## Compiling and running the program
-To compile and run, type `make` in the Optimized folder and run the executable file `tdo`.
+To compile and run, type `make` in the `Optimized` folder and run the executable file `tdo`.
+
+```
+$ cd Optimized
+$ make
+$ ./tdo
+```
 
 In the project, the program was run on an Nvidia V100 PCIe graphics card, with a *Compute Compatibility* of 7.0. If a newer GPU is used, change accordingly the *Compute Compatibility* `-arch=sm_XX` on line 5 in the `Makefile` file.
 
