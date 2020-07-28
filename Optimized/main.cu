@@ -25,7 +25,7 @@ int main()
     bool writeToVTK = true;
 
     // include in output file: compliance, stiffness and MOD
-    bool CSMOD = true;
+    bool CSMOD = false;
 
     // material properties
     double youngMod = 200000;
